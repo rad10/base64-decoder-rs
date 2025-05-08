@@ -22,11 +22,31 @@ fn main() {
         .chunks(4)
         .into_iter()
         .map(|piece| {
-            let combinations = get_valid_combinations(piece.map(|c| c.to_owned()).collect_vec().as_slice())
+            let piece_vec = piece.map(|c| c.to_owned()).collect_vec();
+            let combinations = get_valid_combinations(piece_vec.as_slice())
                 .filter(|b64_output| b64_output.is_ascii()) // Checking that all characters are ascii notation
+                .filter(|char_set| {
+                    !parser.use_utf16 // Sets this filter if tool is set to check for utf8
+                            || char_set.len() == 2
+                            || (char_set.len() == 3 && ((char_set[0] == b'\0'
+                                && char_set[1] != b'\0'
+                                && char_set[2] == b'\0')
+                            || (char_set[0] != b'\0'
+                                && char_set[1] == b'\0'
+                                && char_set[2] != b'\0')))
+                })
                 // .filter(|b64_output| !b64_output.escape_ascii().to_string().contains("\\x")) // Fails if the escaped string contains any escape characters
                 .collect_vec();
+            // filters for utf16 if argument is set
 
+            log::debug!(
+                "{} -> {:?}",
+                piece_vec.escape_ascii().to_string(),
+                combinations
+                    .iter()
+                    .map(|combo| combo.escape_ascii().to_string())
+                    .collect_vec()
+            );
             // Replacing with a single ??? if options ends up empty
             if combinations.is_empty() {
                 vec![b"???".to_vec()]

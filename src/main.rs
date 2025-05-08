@@ -1,5 +1,5 @@
 use clap::Parser;
-use decoding_guesser::get_valid_combinations;
+use decoding_guesser::{get_valid_combinations, DISALLOWED_ASCII};
 use itertools::Itertools;
 use tool_args::ToolArgs;
 
@@ -16,7 +16,6 @@ fn main() {
     // set base64 string as bytes
     let example_string = parser.b64_string.as_bytes();
 
-    // TODO: utf-16 fails in this process. Need an argument that can determine the chunks to get 3 characters each
     let _ = &example_string
         .iter()
         .chunks(4)
@@ -25,6 +24,7 @@ fn main() {
             let piece_vec = piece.map(|c| c.to_owned()).collect_vec();
             let combinations = get_valid_combinations(piece_vec.as_slice())
                 .filter(|b64_output| b64_output.is_ascii()) // Checking that all characters are ascii notation
+                .filter(|skip_control_codes| skip_control_codes.iter().all(|checked_char| DISALLOWED_ASCII.binary_search(checked_char).is_err())) // Filter out combinations if they contain control characters
                 .filter(|char_set| {
                     !parser.use_utf16 // Sets this filter if tool is set to check for utf8
                             || char_set.len() < 3

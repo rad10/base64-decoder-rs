@@ -1,0 +1,17 @@
+[package]
+name = "base64-bruteforcer-rs"
+version = "0.1.0"
+edition = "2024"
+authors = ["Nick Cottrell <Captain Jabberjay>"]
+description = "Decrypts a lowered base64 string to get its original contents"
+readme = "README.md"
+license = "GPL 3.0"
+
+[dependencies]
+base64 = "0.22.1"
+# encoding_rs = "0.8.35"
+clap = { version = "4.5.35", features = ["derive"] }
+clap-verbosity-flag = "3.0.2"
+env_logger = "0.11.8"
+itertools = "0.14.0"
+log = "0.4.27"

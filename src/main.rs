@@ -55,6 +55,20 @@ fn main() {
         })
         .multi_cartesian_product()
         .map(|combinations| combinations.concat())
+        .map(|format_utf16| {
+            if parser.use_utf16 {
+                // If its UTF16, then trim all \0 characters for better readability
+                match String::from_utf8(format_utf16.clone()) {
+                    Ok(formatted) => {
+                        // Successfully converted to UTF8. Trimming null characters
+                        formatted.replace("\0", "").into_bytes()
+                    }
+                    Err(_) => format_utf16,
+                }
+            } else {
+                format_utf16
+            }
+        })
         .for_each(|flatten| {
             println!("{}", flatten.escape_ascii().to_string());
         });

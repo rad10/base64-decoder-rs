@@ -1,7 +1,9 @@
 use clap::Parser;
-use decoding_guesser::{get_valid_combinations, DISALLOWED_ASCII};
+use decoding_guesser::{DISALLOWED_ASCII};
 use itertools::Itertools;
 use tool_args::ToolArgs;
+
+use crate::decoding_guesser::Base64Bruteforcer;
 
 mod decoding_guesser;
 mod tool_args;
@@ -15,6 +17,22 @@ fn main() {
 
     // set base64 string as bytes
     let example_string = parser.b64_string.as_bytes();
+
+    match parser.use_utf16 {
+        false => {
+            let bruteforcer = Base64Bruteforcer::<u8>::collect_combinations(example_string);
+            log::debug!("Combinations: {:?}", bruteforcer);
+
+            // Creating distinct lines to see results
+            bruteforcer
+                .into_iter()
+                .multi_cartesian_product()
+                .map(|sections| sections.concat())
+                .for_each(|line| println!("{}", line.escape_ascii().to_string()));
+        }
+        true => todo!(),
+    }
+    return;
 
     let _ = &example_string
         .iter()

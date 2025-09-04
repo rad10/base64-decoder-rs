@@ -20,7 +20,16 @@ fn main() {
     match parser.use_utf16 {
         false => {
             let bruteforcer = Base64Bruteforcer::<u8>::collect_combinations(example_string);
-            log::debug!("Combinations: {:?}", bruteforcer);
+            log::debug!(
+                "Combinations: {:?}",
+                bruteforcer
+                    .iter()
+                    .map(|section| section
+                        .iter()
+                        .map(|variation| variation.escape_ascii().to_string())
+                        .collect_vec())
+                    .collect_vec()
+            );
 
             // Creating distinct lines to see results
             bruteforcer
@@ -31,7 +40,19 @@ fn main() {
         }
         true => {
             let bruteforcer = Base64Bruteforcer::<u16>::collect_combinations(example_string);
-            log::debug!("Combinations: {:?}", bruteforcer);
+            log::debug!(
+                "Combinations: {:?}",
+                bruteforcer
+                    .iter()
+                    .map(|section| section
+                        .iter()
+                        .map(|variation| String::from_utf16(variation.as_slice())
+                            .expect("Section is not utf16")
+                            .escape_default()
+                            .to_string())
+                        .collect_vec())
+                    .collect_vec()
+            );
 
             // Creating distinct lines to see results
             bruteforcer

@@ -21,12 +21,9 @@ impl Base64Bruteforcer<u8> {
             }
         });
 
-        return set_list.multi_cartesian_product().filter_map(|combo| {
-            match BASE64_STANDARD.decode(combo) {
-                Ok(b64) => Some(b64),
-                Err(_) => None,
-            }
-        });
+        return set_list
+            .multi_cartesian_product()
+            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok());
     }
 
     /// Collects a vec of every possible valid combinations turning every 4
@@ -43,6 +40,7 @@ impl Base64Bruteforcer<u8> {
             .map(|piece| {
                 Self::get_valid_combinations(piece.as_slice())
                     .filter(|check_ascii| check_ascii.is_ascii())
+                    // Checking that variations do not have control characters in them
                     .filter(|check_control_char| {
                         check_control_char
                             .iter()
@@ -76,26 +74,19 @@ impl Base64Bruteforcer<u16> {
 
         return set_list
             .multi_cartesian_product()
-            .filter_map(|combo| match BASE64_STANDARD.decode(combo) {
-                Ok(b64) => Some(b64),
-                Err(_) => None,
-            })
-            .filter_map(|convert_utf16le| {
-                // Checking that output given is actual utf16. Array will always be
-                // divisible by 2
-                log::debug!("convert.len: {}", convert_utf16le.len());
-                if convert_utf16le.len() % 2 != 0 {
-                    return None;
-                }
+            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
+            // Checking that output given is actual utf16. Array will always be
+            // divisible by 2
+            .filter(|correct_length| correct_length.len() % 2 == 0)
+            .map(|convert_utf16le| {
                 log::debug!(
                     "convert.content: {:?}",
                     convert_utf16le.escape_ascii().to_string()
                 );
                 let mut output: Vec<u16> = vec![0].repeat(convert_utf16le.len() / 2);
-                log::debug!("output.len: {}", output.as_slice().len());
                 // https://stackoverflow.com/a/50244328
                 LittleEndian::read_u16_into(convert_utf16le.as_slice(), output.as_mut_slice());
-                Some(output)
+                output
             });
     }
 
@@ -112,17 +103,16 @@ impl Base64Bruteforcer<u16> {
             .map(|piece| piece.map(|c| c.to_owned()).collect_vec())
             .map(|piece| {
                 Self::get_valid_combinations(piece.as_slice())
+                    // Checking that variation is valid UTF-16
                     .filter(|check_ascii| {
                         String::from_utf16(check_ascii.as_slice())
                             .expect("This string isn't UTF16. Try tool again with UTF8")
                             .is_ascii()
-                    })
+                    }) // Checking that variations do not have control characters in them
                     .filter(|check_control| {
-                        char::decode_utf16(check_control.iter().map(|c| *c)).all(|cr| {
-                            cr.and_then(|c| {
-                                Ok(c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
-                            })
-                            .unwrap_or(false)
+                        String::from_utf16(check_control.as_slice()).is_ok_and(|s| {
+                            s.chars()
+                                .all(|c| c.is_ascii_graphic() || c.is_whitespace() || c == '\0')
                         })
                     })
                     .collect_vec()

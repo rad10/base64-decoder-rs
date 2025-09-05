@@ -17,9 +17,9 @@ pub trait BruteforcerTraits<T> {
     /// Takes in a base64 string and fills the objects schema
     fn collect_combinations(&mut self, b64_string: &[u8]);
     /// Produces a copy of the schema with variations converted to strings
-    fn convert_to_string(&mut self) -> Vec<Vec<String>>;
+    fn convert_to_string(&self) -> Vec<Vec<String>>;
     /// Produces an iterator of the every permutable line from the schema
-    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<T>>;
+    fn produce_lines(&self) -> impl Iterator<Item = Vec<T>>;
 }
 
 impl<T> Default for Base64Bruteforcer<T> {
@@ -33,7 +33,7 @@ impl<T> Default for Base64Bruteforcer<T> {
 impl<T> Base64Bruteforcer<T> {
     /// Calculates the number of permutatable combinations this bruteforcers
     /// schema can produce
-    pub fn permutations(&mut self) -> f64 {
+    pub fn permutations(&self) -> f64 {
         return self
             .schema
             .iter()
@@ -94,7 +94,7 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
 
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
-    fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+    fn convert_to_string(&self) -> Vec<Vec<String>> {
         return self
             .schema
             .iter()
@@ -108,7 +108,7 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
     }
 
     /// Turns the schema into an iterator of every possible combination
-    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u8>> {
+    fn produce_lines(&self) -> impl Iterator<Item = Vec<u8>> {
         return self
             .schema
             .clone()
@@ -176,7 +176,7 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
 
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
-    fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+    fn convert_to_string(&self) -> Vec<Vec<String>> {
         return self
             .schema
             .iter()
@@ -190,7 +190,7 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
     }
 
     /// Turns the schema into an iterator of every possible combination
-    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u16>> {
+    fn produce_lines(&self) -> impl Iterator<Item = Vec<u16>> {
         return self
             .schema
             .clone()

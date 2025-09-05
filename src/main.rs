@@ -21,6 +21,16 @@ fn main() {
         false => {
             let mut bruteforcer = Base64Bruteforcer::<u8>::default();
             bruteforcer.collect_combinations(example_string);
+
+            if parser.info {
+                println!(
+                    "schema: {:?}\n# of permutations: {}",
+                    bruteforcer.convert_to_string(),
+                    bruteforcer.permutations()
+                );
+                return;
+            }
+
             // Creating distinct lines to see results
             bruteforcer
                 .schema
@@ -32,6 +42,15 @@ fn main() {
         true => {
             let mut bruteforcer = Base64Bruteforcer::<u16>::default();
             bruteforcer.collect_combinations(example_string);
+
+            if parser.info {
+                println!(
+                    "schema: {:?}\n# of permutations: {}",
+                    bruteforcer.convert_to_string(),
+                    bruteforcer.permutations()
+                );
+                return;
+            }
 
             // Creating distinct lines to see results
             bruteforcer

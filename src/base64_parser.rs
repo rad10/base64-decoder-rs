@@ -1,3 +1,5 @@
+//! This module contains the structs used to convert utf8 and utf16 to
+//! combinations of potential valid characters
 use base64::{Engine, prelude::BASE64_STANDARD};
 use byteorder::{ByteOrder, LittleEndian};
 use itertools::Itertools;
@@ -8,6 +10,13 @@ pub struct Base64Bruteforcer<T> {
     pub combinations: Vec<Vec<Vec<T>>>,
 }
 
+impl<T> Default for Base64Bruteforcer<T> {
+    fn default() -> Self {
+        Self {
+            combinations: Default::default(),
+        }
+    }
+}
 impl Base64Bruteforcer<u8> {
     /// Takes a base64 slice (4 characters) and creates a vector containing the valid
     /// combinations of 3 characters. This can be useful if multiple valid sets
@@ -31,8 +40,8 @@ impl Base64Bruteforcer<u8> {
     /// automatically filter out combinations that are not ascii readable, so
     /// any converted binaries will not be able to be deciphered with this
     /// function.
-    pub fn collect_combinations(b64_string: &[u8]) -> Vec<Vec<Vec<u8>>> {
-        return b64_string
+    pub fn collect_combinations(&mut self, b64_string: &[u8]) {
+        self.combinations = b64_string
             .iter()
             .chunks(4)
             .into_iter()
@@ -64,17 +73,7 @@ impl Base64Bruteforcer<u16> {
     /// combinations of 3 characters. This can be useful if multiple valid sets
     /// appear and you need to compare sets to get the correct values
     fn get_valid_combinations(b64_slice: &[u8]) -> impl Iterator<Item = Vec<u16>> {
-        let set_list = b64_slice.iter().map(|c| {
-            if c.is_ascii_lowercase() {
-                vec![*c, c.to_ascii_uppercase()]
-            } else {
-                vec![*c]
-            }
-        });
-
-        return set_list
-            .multi_cartesian_product()
-            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
+        return Base64Bruteforcer::<u8>::get_valid_combinations(b64_slice)
             // Checking that output given is actual utf16. Array will always be
             // divisible by 2
             .filter(|correct_length| correct_length.len() % 2 == 0)
@@ -95,8 +94,8 @@ impl Base64Bruteforcer<u16> {
     /// automatically filter out combinations that are not ascii readable, so
     /// any converted binaries will not be able to be deciphered with this
     /// function.
-    pub fn collect_combinations(b64_string: &[u8]) -> Vec<Vec<Vec<u16>>> {
-        return b64_string
+    pub fn collect_combinations(&mut self, b64_string: &[u8]) {
+        self.combinations = b64_string
             .iter()
             .chunks(8)
             .into_iter()

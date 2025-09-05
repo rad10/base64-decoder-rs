@@ -2,9 +2,9 @@ use clap::Parser;
 use itertools::Itertools;
 use tool_args::ToolArgs;
 
-use crate::decoding_guesser::Base64Bruteforcer;
+use crate::base64_parser::Base64Bruteforcer;
 
-mod decoding_guesser;
+mod base64_parser;
 mod tool_args;
 
 fn main() {
@@ -19,10 +19,12 @@ fn main() {
 
     match parser.use_utf16 {
         false => {
-            let bruteforcer = Base64Bruteforcer::<u8>::collect_combinations(example_string);
+            let mut bruteforcer = Base64Bruteforcer::<u8>::default();
+            bruteforcer.collect_combinations(example_string);
             log::debug!(
                 "Combinations: {:?}",
                 bruteforcer
+                    .combinations
                     .iter()
                     .map(|section| section
                         .iter()
@@ -33,16 +35,19 @@ fn main() {
 
             // Creating distinct lines to see results
             bruteforcer
+                .combinations
                 .into_iter()
                 .multi_cartesian_product()
                 .map(|sections| sections.concat())
                 .for_each(|line| println!("{}", line.escape_ascii().to_string()));
         }
         true => {
-            let bruteforcer = Base64Bruteforcer::<u16>::collect_combinations(example_string);
+            let mut bruteforcer = Base64Bruteforcer::<u16>::default();
+            bruteforcer.collect_combinations(example_string);
             log::debug!(
                 "Combinations: {:?}",
                 bruteforcer
+                    .combinations
                     .iter()
                     .map(|section| section
                         .iter()
@@ -56,6 +61,7 @@ fn main() {
 
             // Creating distinct lines to see results
             bruteforcer
+                .combinations
                 .into_iter()
                 .multi_cartesian_product()
                 .map(|sections| sections.concat())

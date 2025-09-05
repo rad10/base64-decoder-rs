@@ -1,8 +1,7 @@
 use clap::Parser;
-use itertools::Itertools;
 use tool_args::ToolArgs;
 
-use crate::base64_parser::Base64Bruteforcer;
+use crate::base64_parser::{Base64Bruteforcer, BruteforcerTraits};
 
 mod base64_parser;
 mod tool_args;
@@ -33,10 +32,7 @@ fn main() {
 
             // Creating distinct lines to see results
             bruteforcer
-                .schema
-                .into_iter()
-                .multi_cartesian_product()
-                .map(|sections| sections.concat())
+                .produce_lines()
                 .for_each(|line| println!("{}", line.escape_ascii().to_string()));
         }
         true => {
@@ -54,14 +50,8 @@ fn main() {
 
             // Creating distinct lines to see results
             bruteforcer
-                .schema
-                .into_iter()
-                .multi_cartesian_product()
-                .map(|sections| sections.concat())
-                .map(|line| {
-                    String::from_utf16(line.as_slice())
-                        .expect("Line did not make a proper utf16 string")
-                })
+                .produce_lines()
+                .map(|line| String::from_utf16(line.as_slice()).unwrap())
                 .for_each(|line| println!("{}", line.escape_default().to_string()));
         }
     }

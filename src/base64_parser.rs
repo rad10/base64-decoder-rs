@@ -13,6 +13,15 @@ pub struct Base64Bruteforcer<T> {
     pub schema: Vec<Vec<Vec<T>>>,
 }
 
+pub trait BruteforcerTraits<T> {
+    /// Takes in a base64 string and fills the objects schema
+    fn collect_combinations(&mut self, b64_string: &[u8]);
+    /// Produces a copy of the schema with variations converted to strings
+    fn convert_to_string(&mut self) -> Vec<Vec<String>>;
+    /// Produces an iterator of the every permutable line from the schema
+    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<T>>;
+}
+
 impl<T> Default for Base64Bruteforcer<T> {
     fn default() -> Self {
         Self {
@@ -50,13 +59,15 @@ impl Base64Bruteforcer<u8> {
             .multi_cartesian_product()
             .filter_map(|combo| BASE64_STANDARD.decode(combo).ok());
     }
+}
 
+impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
     /// Collects a vec of every possible valid combinations turning every 4
     /// base64 characters into multiple combinations of 3 characters. It will
     /// automatically filter out combinations that are not ascii readable, so
     /// any converted binaries will not be able to be deciphered with this
     /// function.
-    pub fn collect_combinations(&mut self, b64_string: &[u8]) {
+    fn collect_combinations(&mut self, b64_string: &[u8]) {
         self.schema = b64_string
             .iter()
             .chunks(4)
@@ -86,7 +97,7 @@ impl Base64Bruteforcer<u8> {
 
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
-    pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+    fn convert_to_string(&mut self) -> Vec<Vec<String>> {
         return self
             .schema
             .iter()
@@ -100,7 +111,7 @@ impl Base64Bruteforcer<u8> {
     }
 
     /// Turns the schema into an iterator of every possible combination
-    pub fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u8>> {
+    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u8>> {
         return self
             .schema
             .clone()
@@ -130,13 +141,15 @@ impl Base64Bruteforcer<u16> {
                 output
             });
     }
+}
 
+impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
     /// Collects a vec of every possible valid combinations turning every 8
     /// base64 characters into multiple combinations of 3 characters. It will
     /// automatically filter out combinations that are not ascii readable, so
     /// any converted binaries will not be able to be deciphered with this
     /// function.
-    pub fn collect_combinations(&mut self, b64_string: &[u8]) {
+    fn collect_combinations(&mut self, b64_string: &[u8]) {
         self.schema = b64_string
             .iter()
             .chunks(8)
@@ -169,7 +182,7 @@ impl Base64Bruteforcer<u16> {
 
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
-    pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+    fn convert_to_string(&mut self) -> Vec<Vec<String>> {
         return self
             .schema
             .iter()
@@ -183,7 +196,7 @@ impl Base64Bruteforcer<u16> {
     }
 
     /// Turns the schema into an iterator of every possible combination
-    pub fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u16>> {
+    fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u16>> {
         return self
             .schema
             .clone()

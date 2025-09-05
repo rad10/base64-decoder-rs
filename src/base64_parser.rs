@@ -69,12 +69,9 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
     /// function.
     fn collect_combinations(&mut self, b64_string: &[u8]) {
         self.schema = b64_string
-            .iter()
             .chunks(4)
-            .into_iter()
-            .map(|piece| piece.map(|c| c.to_owned()).collect_vec())
             .map(|piece| {
-                Self::get_valid_combinations(piece.as_slice())
+                Self::get_valid_combinations(piece)
                     .filter(|check_utf8| String::from_utf8(check_utf8.to_owned()).is_ok())
                     .filter(|check_ascii| check_ascii.is_ascii())
                     // Checking that variations do not have control characters in them
@@ -151,12 +148,9 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
     /// function.
     fn collect_combinations(&mut self, b64_string: &[u8]) {
         self.schema = b64_string
-            .iter()
             .chunks(8)
-            .into_iter()
-            .map(|piece| piece.map(|c| c.to_owned()).collect_vec())
             .map(|piece| {
-                Self::get_valid_combinations(piece.as_slice())
+                Self::get_valid_combinations(piece)
                     // Checking that variation is valid UTF-16
                     .filter(|check_ascii| {
                         String::from_utf16(check_ascii.as_slice()).is_ok_and(|s| s.is_ascii())

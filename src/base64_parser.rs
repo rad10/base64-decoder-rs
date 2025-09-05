@@ -69,6 +69,19 @@ impl Base64Bruteforcer<u8> {
             })
             .collect();
     }
+
+    pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+        return self
+            .schema
+            .iter()
+            .map(|sections| {
+                sections
+                    .iter()
+                    .map(|variations| String::from_utf8(variations.to_owned()).unwrap())
+                    .collect_vec()
+            })
+            .collect_vec();
+    }
 }
 
 impl Base64Bruteforcer<u16> {
@@ -126,5 +139,18 @@ impl Base64Bruteforcer<u16> {
                 }
             })
             .collect();
+    }
+
+    pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
+        return self
+            .schema
+            .iter()
+            .map(|section| {
+                section
+                    .iter()
+                    .map(|variation| String::from_utf16(variation.as_slice()).unwrap())
+                    .collect_vec()
+            })
+            .collect_vec();
     }
 }

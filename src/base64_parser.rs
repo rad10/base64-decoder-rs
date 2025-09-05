@@ -19,6 +19,17 @@ impl<T> Default for Base64Bruteforcer<T> {
         }
     }
 }
+
+impl<T> Base64Bruteforcer<T> {
+    pub fn permutations(&mut self) -> f64 {
+        return self
+            .schema
+            .iter()
+            .map(|section| section.len())
+            .map(|size| size as f64)
+            .product();
+    }
+}
 impl Base64Bruteforcer<u8> {
     /// Takes a base64 slice (4 characters) and creates a vector containing the valid
     /// combinations of 3 characters. This can be useful if multiple valid sets

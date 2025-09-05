@@ -1,9 +1,10 @@
 use clap::Parser;
 use tool_args::ToolArgs;
 
-use crate::base64_parser::{Base64Bruteforcer, BruteforcerTraits};
+use crate::{base64_parser::{Base64Bruteforcer, BruteforcerTraits}, phrase_solving::SchemaReduce};
 
 mod base64_parser;
+mod phrase_solving;
 mod tool_args;
 
 fn main() {
@@ -20,6 +21,17 @@ fn main() {
         false => {
             let mut bruteforcer = Base64Bruteforcer::<u8>::default();
             bruteforcer.collect_combinations(example_string);
+
+            if !parser.no_prune {
+                log::info!(
+                    "schema: {:?}\n# of permutations: {}",
+                    bruteforcer.convert_to_string(),
+                    bruteforcer.permutations()
+                );
+
+                log::info!("Reducing permutations to logical choices");
+                bruteforcer.reduce_to_end();
+            }
 
             if parser.info {
                 println!(
@@ -38,6 +50,17 @@ fn main() {
         true => {
             let mut bruteforcer = Base64Bruteforcer::<u16>::default();
             bruteforcer.collect_combinations(example_string);
+
+            if !parser.no_prune {
+                log::info!(
+                    "schema: {:?}\n# of permutations: {}",
+                    bruteforcer.convert_to_string(),
+                    bruteforcer.permutations()
+                );
+
+                log::info!("Reducing permutations to logical choices");
+                bruteforcer.reduce_to_end();
+            }
 
             if parser.info {
                 println!(

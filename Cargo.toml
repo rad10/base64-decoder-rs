@@ -10,9 +10,9 @@ license = "GPL 3.0"
 [dependencies]
 base64 = "0.22.1"
 byteorder = "1.5.0"
-# encoding_rs = "0.8.35"
-clap = { version = "4.5.35", features = ["derive"] }
+clap = { version = "4.5.47", features = ["derive"] }
 clap-verbosity-flag = "3.0.2"
 env_logger = "0.11.8"
 itertools = "0.14.0"
 log = "0.4.27"
+whatlang = "0.16.4"

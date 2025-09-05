@@ -16,6 +16,10 @@ pub(crate) struct ToolArgs {
     #[arg(short, long)]
     pub(crate) info: bool,
 
+    /// Skips human inferences to reduce possible combinations
+    #[arg(short, long)]
+    pub(crate) no_prune: bool,
+
     #[command(flatten)]
     pub(crate) verbose: clap_verbosity_flag::Verbosity,
 }

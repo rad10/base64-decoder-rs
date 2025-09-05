@@ -4,6 +4,7 @@
 use std::usize;
 
 use itertools::Itertools;
+use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
 use crate::base64_parser::Base64Bruteforcer;
 
@@ -12,9 +13,7 @@ pub enum SolverMethod {
     /// Uses the whatlang NLP library
     WhatLang,
     /// Sends the string to chatgpt to determine if string is valid
-    ChatGPT {
-        api_key: String,
-    },
+    ChatGPT { api_key: String },
 }
 
 /// Determines a strings validity using the whatlang NLP library. Uses confidence
@@ -64,12 +63,8 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
         // pair into one section or (worst case scenario) leave the pairs as is
         self.schema = self
             .schema
-            .iter()
-            .chunks(pair_size)
-            .into_iter()
-            // Need to ensure that everything is owned by the end so that the
-            // new vector can replace the old
-            .map(|pair| pair.map(|v| v.to_owned()).collect_vec())
+            .par_chunks(pair_size)
+            .map(|v| v.to_vec())
             .map(|pairs| {
                 log::debug!("Visible pair: {:?}", pairs);
                 // If its only 1 pair, we can skip this process
@@ -106,6 +101,7 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
                     combined
                 }
             })
+            .collect::<Vec<Vec<Vec<Vec<u8>>>>>()
             .concat();
     }
 }
@@ -140,12 +136,10 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
         // pair into one section or (worst case scenario) leave the pairs as is
         self.schema = self
             .schema
-            .iter()
-            .chunks(pair_size)
-            .into_iter()
+            .par_chunks(pair_size)
             // Need to ensure that everything is owned by the end so that the
             // new vector can replace the old
-            .map(|pair| pair.map(|v| v.to_owned()).collect_vec())
+            .map(|v| v.to_vec())
             .map(|pairs| {
                 log::debug!("Visible pair: {:?}", pairs);
                 // If its only 1 pair, we can skip this process
@@ -182,6 +176,7 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
                     combined
                 }
             })
+            .collect::<Vec<Vec<Vec<Vec<u16>>>>>()
             .concat();
     }
 }

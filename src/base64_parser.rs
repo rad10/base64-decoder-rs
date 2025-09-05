@@ -50,6 +50,7 @@ impl Base64Bruteforcer<u8> {
             .map(|piece| piece.map(|c| c.to_owned()).collect_vec())
             .map(|piece| {
                 Self::get_valid_combinations(piece.as_slice())
+                    .filter(|check_utf8| String::from_utf8(check_utf8.to_owned()).is_ok())
                     .filter(|check_ascii| check_ascii.is_ascii())
                     // Checking that variations do not have control characters in them
                     .filter(|check_control_char| {
@@ -106,10 +107,9 @@ impl Base64Bruteforcer<u16> {
                 Self::get_valid_combinations(piece.as_slice())
                     // Checking that variation is valid UTF-16
                     .filter(|check_ascii| {
-                        String::from_utf16(check_ascii.as_slice())
-                            .expect("This string isn't UTF16. Try tool again with UTF8")
-                            .is_ascii()
-                    }) // Checking that variations do not have control characters in them
+                        String::from_utf16(check_ascii.as_slice()).is_ok_and(|s| s.is_ascii())
+                    })
+                    // Checking that variations do not have control characters in them
                     .filter(|check_control| {
                         String::from_utf16(check_control.as_slice()).is_ok_and(|s| {
                             s.chars()

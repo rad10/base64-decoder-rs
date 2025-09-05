@@ -4,7 +4,10 @@
 use std::usize;
 
 use itertools::Itertools;
-use rayon::{iter::ParallelIterator, slice::ParallelSlice};
+use rayon::{
+    iter::{ParallelBridge, ParallelIterator},
+    slice::ParallelSlice,
+};
 
 use crate::base64_parser::Base64Bruteforcer;
 
@@ -41,6 +44,11 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
             while last_size > self.schema.len() {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
+                log::info!(
+                    "Schema: {:?}\n# of permutations: {}",
+                    self.schema,
+                    self.permutations()
+                );
             }
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
@@ -80,18 +88,19 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
                 }
 
                 // permuting values and collecting only viable options
-                let combined = vec![
+                let combined: Vec<Vec<Vec<u8>>> = vec![
                     pairs
                         .clone()
                         .into_iter()
                         .multi_cartesian_product()
+                        .par_bridge()
                         .map(|join| join.concat())
                         .filter(|line| {
                             let string_rep = str::from_utf8(line.as_slice()).unwrap();
                             log::debug!("detect.string: {string_rep}");
                             determine_accuracy_whatlang(string_rep, 0.10) // if confidence if over 10%, it moves on to the next round
                         })
-                        .collect_vec(),
+                        .collect(),
                 ];
 
                 // Go with originals if new choices aren't preferred
@@ -114,6 +123,11 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
             while last_size > self.schema.len() {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
+                log::info!(
+                    "Schema: {:?}\n# of permutations: {}",
+                    self.schema,
+                    self.permutations()
+                );
             }
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
@@ -155,18 +169,19 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
                 }
 
                 // permuting values and collecting only viable options
-                let combined = vec![
+                let combined: Vec<Vec<Vec<u16>>> = vec![
                     pairs
                         .clone()
                         .into_iter()
                         .multi_cartesian_product()
+                        .par_bridge()
                         .map(|join| join.concat())
                         .filter(|line| {
                             let string_rep = String::from_utf16_lossy(line.as_slice());
                             log::debug!("detect.string: {string_rep}");
                             determine_accuracy_whatlang(string_rep.as_str(), 0.10) // if confidence if over 10%, it moves on to the next round
                         })
-                        .collect_vec(),
+                        .collect(),
                 ];
 
                 // Go with originals if new choices aren't preferred

@@ -21,21 +21,9 @@ fn main() {
         false => {
             let mut bruteforcer = Base64Bruteforcer::<u8>::default();
             bruteforcer.collect_combinations(example_string);
-            log::debug!(
-                "Combinations: {:?}",
-                bruteforcer
-                    .combinations
-                    .iter()
-                    .map(|section| section
-                        .iter()
-                        .map(|variation| variation.escape_ascii().to_string())
-                        .collect_vec())
-                    .collect_vec()
-            );
-
             // Creating distinct lines to see results
             bruteforcer
-                .combinations
+                .schema
                 .into_iter()
                 .multi_cartesian_product()
                 .map(|sections| sections.concat())
@@ -44,24 +32,10 @@ fn main() {
         true => {
             let mut bruteforcer = Base64Bruteforcer::<u16>::default();
             bruteforcer.collect_combinations(example_string);
-            log::debug!(
-                "Combinations: {:?}",
-                bruteforcer
-                    .combinations
-                    .iter()
-                    .map(|section| section
-                        .iter()
-                        .map(|variation| String::from_utf16(variation.as_slice())
-                            .expect("Section is not utf16")
-                            .escape_default()
-                            .to_string())
-                        .collect_vec())
-                    .collect_vec()
-            );
 
             // Creating distinct lines to see results
             bruteforcer
-                .combinations
+                .schema
                 .into_iter()
                 .multi_cartesian_product()
                 .map(|sections| sections.concat())

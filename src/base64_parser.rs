@@ -7,13 +7,15 @@ use itertools::Itertools;
 /// Bruteforces all lowercased base64 combinations to determine the correct
 /// base64 string
 pub struct Base64Bruteforcer<T> {
-    pub combinations: Vec<Vec<Vec<T>>>,
+    /// Contains the permutation schema generated from collecting combinations
+    /// from the bruteforcer
+    pub schema: Vec<Vec<Vec<T>>>,
 }
 
 impl<T> Default for Base64Bruteforcer<T> {
     fn default() -> Self {
         Self {
-            combinations: Default::default(),
+            schema: Default::default(),
         }
     }
 }
@@ -41,7 +43,7 @@ impl Base64Bruteforcer<u8> {
     /// any converted binaries will not be able to be deciphered with this
     /// function.
     pub fn collect_combinations(&mut self, b64_string: &[u8]) {
-        self.combinations = b64_string
+        self.schema = b64_string
             .iter()
             .chunks(4)
             .into_iter()
@@ -95,7 +97,7 @@ impl Base64Bruteforcer<u16> {
     /// any converted binaries will not be able to be deciphered with this
     /// function.
     pub fn collect_combinations(&mut self, b64_string: &[u8]) {
-        self.combinations = b64_string
+        self.schema = b64_string
             .iter()
             .chunks(8)
             .into_iter()

@@ -6,6 +6,7 @@ use itertools::Itertools;
 
 /// Bruteforces all lowercased base64 combinations to determine the correct
 /// base64 string
+#[derive(Debug, Clone)]
 pub struct Base64Bruteforcer<T> {
     /// Contains the permutation schema generated from collecting combinations
     /// from the bruteforcer
@@ -21,6 +22,8 @@ impl<T> Default for Base64Bruteforcer<T> {
 }
 
 impl<T> Base64Bruteforcer<T> {
+    /// Calculates the number of permutatable combinations this bruteforcers
+    /// schema can produce
     pub fn permutations(&mut self) -> f64 {
         return self
             .schema
@@ -81,6 +84,8 @@ impl Base64Bruteforcer<u8> {
             .collect();
     }
 
+    /// Converts utf8 bytes into a rust string. This ends up more helpful when
+    /// doing NLP processing on the lines created
     pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
         return self
             .schema
@@ -92,6 +97,16 @@ impl Base64Bruteforcer<u8> {
                     .collect_vec()
             })
             .collect_vec();
+    }
+
+    /// Turns the schema into an iterator of every possible combination
+    pub fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u8>> {
+        return self
+            .schema
+            .clone()
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|section| section.concat());
     }
 }
 
@@ -152,6 +167,8 @@ impl Base64Bruteforcer<u16> {
             .collect();
     }
 
+    /// Converts utf8 bytes into a rust string. This ends up more helpful when
+    /// doing NLP processing on the lines created
     pub fn convert_to_string(&mut self) -> Vec<Vec<String>> {
         return self
             .schema
@@ -163,5 +180,15 @@ impl Base64Bruteforcer<u16> {
                     .collect_vec()
             })
             .collect_vec();
+    }
+
+    /// Turns the schema into an iterator of every possible combination
+    pub fn produce_lines(&mut self) -> impl Iterator<Item = Vec<u16>> {
+        return self
+            .schema
+            .clone()
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|section| section.concat());
     }
 }

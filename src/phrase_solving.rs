@@ -10,7 +10,9 @@ use rayon::{
     slice::ParallelSlice,
 };
 
-use crate::base64_parser::{Base64Bruteforcer, BruteforcerTraits};
+use crate::base64_parser::{
+    Base64Bruteforcer, ConvertString, DisplayLines, Permutation,
+};
 
 /// Decides the method to determine if a pair makes human readable text
 pub enum SolverMethod {
@@ -209,10 +211,10 @@ impl StringBruteforcer {
     pub fn new(value: Vec<Vec<String>>) -> Self {
         Self { schema: value }
     }
+}
 
-    /// Calculates the number of permutatable combinations this bruteforcers
-    /// schema can produce
-    pub fn permutations(&self) -> f64 {
+impl Permutation for StringBruteforcer {
+    fn permutations(&self) -> f64 {
         return self
             .schema
             .iter()
@@ -220,14 +222,18 @@ impl StringBruteforcer {
             .map(|size| size as f64)
             .product();
     }
+}
 
+impl ConvertString for StringBruteforcer {
     /// Returns a copy of the internal schema since nothing needs to be converted
-    pub fn convert_to_string(&self) -> Vec<Vec<String>> {
+    fn convert_to_string(&self) -> Vec<Vec<String>> {
         return self.schema.clone();
     }
+}
 
+impl DisplayLines<String> for StringBruteforcer {
     /// Turns the schema into an iterator of every possible combination
-    pub fn produce_lines(&self) -> impl Iterator<Item = String> {
+    fn produce_lines(&self) -> impl Iterator<Item = String> {
         return self
             .schema
             .clone()
@@ -245,19 +251,9 @@ impl Default for StringBruteforcer {
     }
 }
 
-impl From<Base64Bruteforcer<u8>> for StringBruteforcer {
-    fn from(value: Base64Bruteforcer<u8>) -> Self {
-        Self {
-            schema: value.convert_to_string(),
-        }
-    }
-}
-
-impl From<Base64Bruteforcer<u16>> for StringBruteforcer {
-    fn from(value: Base64Bruteforcer<u16>) -> Self {
-        Self {
-            schema: value.convert_to_string(),
-        }
+impl<T> From<Base64Bruteforcer<T>> for StringBruteforcer where Base64Bruteforcer<T>: ConvertString {
+    fn from(value: Base64Bruteforcer<T>) -> Self {
+        Self { schema: value.convert_to_string() }
     }
 }
 

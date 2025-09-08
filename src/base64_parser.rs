@@ -15,13 +15,29 @@ pub struct Base64Bruteforcer<T> {
     pub schema: Vec<Vec<Vec<T>>>,
 }
 
+/// Contains the functions used to turn base64 into a valid schema
 pub trait BruteforcerTraits<T> {
     /// Takes in a base64 string and fills the objects schema
     fn collect_combinations(&mut self, b64_string: &[u8]);
+}
+
+/// Provides the permutation function to calculate how many permutations a
+/// schema can produce
+pub trait Permutation {
+    /// Produces the number of combinations this schema can produce
+    fn permutations(&self) -> f64;    
+}
+
+/// Converts a schema of a non string type into a string type
+pub trait ConvertString {
     /// Produces a copy of the schema with variations converted to strings
     fn convert_to_string(&self) -> Vec<Vec<String>>;
+}
+
+/// Provides an iterator to print all schema permutations
+pub trait DisplayLines<T> {
     /// Produces an iterator of the every permutable line from the schema
-    fn produce_lines(&self) -> impl Iterator<Item = Vec<T>>;
+    fn produce_lines(&self) -> impl Iterator<Item = T>;
 }
 
 impl<T> Default for Base64Bruteforcer<T> {
@@ -32,10 +48,8 @@ impl<T> Default for Base64Bruteforcer<T> {
     }
 }
 
-impl<T> Base64Bruteforcer<T> {
-    /// Calculates the number of permutatable combinations this bruteforcers
-    /// schema can produce
-    pub fn permutations(&self) -> f64 {
+impl<T> Permutation for Base64Bruteforcer<T> {
+    fn permutations(&self) -> f64 {
         return self
             .schema
             .iter()
@@ -44,6 +58,7 @@ impl<T> Base64Bruteforcer<T> {
             .product();
     }
 }
+
 impl Base64Bruteforcer<u8> {
     /// Takes a base64 slice (4 characters) and creates a vector containing the valid
     /// combinations of 3 characters. This can be useful if multiple valid sets
@@ -93,7 +108,9 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
             })
             .collect();
     }
+}
 
+impl ConvertString for Base64Bruteforcer<u8>{
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
     fn convert_to_string(&self) -> Vec<Vec<String>> {
@@ -108,9 +125,10 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
             })
             .collect_vec();
     }
+}
 
-    /// Turns the schema into an iterator of every possible combination
-    fn produce_lines(&self) -> impl Iterator<Item = Vec<u8>> {
+impl<T> DisplayLines<Vec<T>> for Base64Bruteforcer<T> where T: Clone {
+    fn produce_lines(&self) -> impl Iterator<Item = Vec<T>> {
         return self
             .schema
             .clone()
@@ -175,7 +193,9 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
             })
             .collect();
     }
+}
 
+impl ConvertString for Base64Bruteforcer<u16> {
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
     fn convert_to_string(&self) -> Vec<Vec<String>> {
@@ -189,15 +209,5 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
                     .collect_vec()
             })
             .collect_vec();
-    }
-
-    /// Turns the schema into an iterator of every possible combination
-    fn produce_lines(&self) -> impl Iterator<Item = Vec<u16>> {
-        return self
-            .schema
-            .clone()
-            .into_iter()
-            .multi_cartesian_product()
-            .map(|section| section.concat());
     }
 }

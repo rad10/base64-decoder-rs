@@ -9,7 +9,7 @@ use rayon::{
     slice::ParallelSlice,
 };
 
-use crate::base64_parser::Base64Bruteforcer;
+use crate::base64_parser::{Base64Bruteforcer, BruteforcerTraits};
 
 /// Decides the method to determine if a pair makes human readable text
 pub enum SolverMethod {
@@ -45,9 +45,9 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
                 log::info!(
-                    "Schema: {:?}\n# of permutations: {}",
-                    self.schema,
-                    self.permutations()
+                    "Schema: {:?}\n# of permutations: {:e}",
+                    self.convert_to_string(),
+                    self.permutations(),
                 );
             }
             pair_size += 1;
@@ -124,8 +124,8 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
                 log::info!(
-                    "Schema: {:?}\n# of permutations: {}",
-                    self.schema,
+                    "Schema: {:?}\n# of permutations: {:e}",
+                    self.convert_to_string(),
                     self.permutations()
                 );
             }

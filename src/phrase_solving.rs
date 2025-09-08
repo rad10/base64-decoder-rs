@@ -195,3 +195,145 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
             .concat();
     }
 }
+
+/// This struct converts resulting bytes from whatever encoding into strings.
+/// This is used for ease of implementation over performance/memory management.
+pub struct StringBruteforcer {
+    /// Contains the permutation schema generated from collecting combinations
+    /// from the bruteforcer
+    pub schema: Vec<Vec<String>>,
+}
+
+impl StringBruteforcer {
+    pub fn new(value: Vec<Vec<String>>) -> Self {
+        Self { schema: value }
+    }
+
+    /// Calculates the number of permutatable combinations this bruteforcers
+    /// schema can produce
+    pub fn permutations(&self) -> f64 {
+        return self
+            .schema
+            .iter()
+            .map(|section| section.len())
+            .map(|size| size as f64)
+            .product();
+    }
+
+    /// Returns a copy of the internal schema since nothing needs to be converted
+    pub fn convert_to_string(&self) -> Vec<Vec<String>> {
+        return self.schema.clone();
+    }
+
+    /// Turns the schema into an iterator of every possible combination
+    pub fn produce_lines(&self) -> impl Iterator<Item = String> {
+        return self
+            .schema
+            .clone()
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|s| s.concat());
+    }
+}
+
+impl Default for StringBruteforcer {
+    fn default() -> Self {
+        Self {
+            schema: Default::default(),
+        }
+    }
+}
+
+impl From<Base64Bruteforcer<u8>> for StringBruteforcer {
+    fn from(value: Base64Bruteforcer<u8>) -> Self {
+        Self {
+            schema: value.convert_to_string(),
+        }
+    }
+}
+
+impl From<Base64Bruteforcer<u16>> for StringBruteforcer {
+    fn from(value: Base64Bruteforcer<u16>) -> Self {
+        Self {
+            schema: value.convert_to_string(),
+        }
+    }
+}
+
+impl SchemaReduce for StringBruteforcer {
+    fn reduce_to_end(&mut self) {
+        let mut pair_size = 2;
+        while pair_size <= self.schema.len() {
+            let mut last_size = usize::MAX;
+            while last_size > self.schema.len() {
+                last_size = self.schema.len();
+                self.reduce_schema(Some(pair_size));
+                log::info!(
+                    "Schema: {:?}\n# of permutations: {:e}",
+                    self.schema,
+                    self.permutations()
+                );
+            }
+            pair_size += 1;
+            log::debug!("Increasing pair size to {pair_size}");
+        }
+    }
+
+    fn reduce_schema(&mut self, number_of_pairs: Option<usize>) {
+        // Check to make sure size is correctly placed or replace with own value
+        let pair_size = match number_of_pairs {
+            Some(0..2) | None => 2, // Overwrite any stupid options with the
+            // default
+            Some(n) if n < self.schema.len() => n,
+            Some(_) => self.schema.len(), // If the number is bigger than the
+                                          // source itself, just use the length of the source. Its not
+                                          // recommended to ever do this since its no different than checking
+                                          // line by line.
+        };
+
+        // Take and operate on each pair in the schema. Will either combine a
+        // pair into one section or (worst case scenario) leave the pairs as is
+        self.schema = self
+            .schema
+            .par_chunks(pair_size)
+            .map(|v| v.to_vec())
+            .map(|pairs| {
+                log::debug!("Visible pair: {:?}", pairs);
+                // If its only 1 pair, we can skip this process
+                if pairs.len() == 1 {
+                    return pairs;
+                }
+
+                // If there is more than one pair, but each pair only has one
+                // value, then just return a single combined form. It will give
+                // future runs more information and clarity
+                if pairs.iter().all(|v| v.len() == 1) {
+                    return vec![vec![pairs.concat().concat()]];
+                }
+
+                // permuting values and collecting only viable options
+                let combined: Vec<Vec<String>> = vec![
+                    pairs
+                        .clone()
+                        .into_iter()
+                        .multi_cartesian_product()
+                        .par_bridge()
+                        .map(|join| join.concat())
+                        .filter(|line| {
+                            log::debug!("detect.string: {line}");
+                            determine_accuracy_whatlang(line.as_str(), 0.10) // if confidence if over 10%, it moves on to the next round
+                        })
+                        .collect(),
+                ];
+
+                // Go with originals if new choices aren't preferred
+                if combined[0].is_empty() {
+                    pairs
+                } else {
+                    combined
+                }
+            })
+            .collect::<Vec<Vec<Vec<String>>>>()
+            .concat();
+    }
+}

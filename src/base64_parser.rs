@@ -1,5 +1,7 @@
 //! This module contains the structs used to convert utf8 and utf16 to
 //! combinations of potential valid characters
+#![allow(dead_code)]
+
 use base64::{Engine, prelude::BASE64_STANDARD};
 use byteorder::{ByteOrder, LittleEndian};
 use itertools::Itertools;

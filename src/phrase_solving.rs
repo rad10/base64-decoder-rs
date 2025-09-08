@@ -1,5 +1,6 @@
 //! this module contains functions used to either reduce a vec of variations or
 //! to test human validity
+#![allow(dead_code)]
 
 use std::usize;
 

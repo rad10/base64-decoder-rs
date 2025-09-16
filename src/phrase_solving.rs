@@ -10,9 +10,7 @@ use rayon::{
     slice::ParallelSlice,
 };
 
-use crate::base64_parser::{
-    Base64Bruteforcer, ConvertString, DisplayLines, Permutation,
-};
+use crate::base64_parser::{Base64Bruteforcer, ConvertString, DisplayLines, Permutation};
 
 /// Decides the method to determine if a pair makes human readable text
 pub enum SolverMethod {
@@ -47,11 +45,23 @@ impl SchemaReduce for Base64Bruteforcer<u8> {
             while last_size > self.schema.len() {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
-                log::info!(
-                    "Schema: {:?}\n# of permutations: {:e}",
-                    self.convert_to_string(),
-                    self.permutations(),
-                );
+                match log::max_level() {
+                    log::LevelFilter::Info => {
+                        log::info!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.convert_to_string(),
+                            self.permutations()
+                        );
+                    }
+                    x if x >= log::LevelFilter::Debug => {
+                        log::debug!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.schema,
+                            self.permutations()
+                        );
+                    }
+                    _ => (),
+                };
             }
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
@@ -126,11 +136,23 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
             while last_size > self.schema.len() {
                 last_size = self.schema.len();
                 self.reduce_schema(Some(pair_size));
-                log::info!(
-                    "Schema: {:?}\n# of permutations: {:e}",
-                    self.convert_to_string(),
-                    self.permutations()
-                );
+                match log::max_level() {
+                    log::LevelFilter::Info => {
+                        log::info!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.convert_to_string(),
+                            self.permutations()
+                        );
+                    }
+                    x if x >= log::LevelFilter::Debug => {
+                        log::debug!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.schema,
+                            self.permutations()
+                        );
+                    }
+                    _ => (),
+                };
             }
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
@@ -251,9 +273,14 @@ impl Default for StringBruteforcer {
     }
 }
 
-impl<T> From<Base64Bruteforcer<T>> for StringBruteforcer where Base64Bruteforcer<T>: ConvertString {
+impl<T> From<Base64Bruteforcer<T>> for StringBruteforcer
+where
+    Base64Bruteforcer<T>: ConvertString,
+{
     fn from(value: Base64Bruteforcer<T>) -> Self {
-        Self { schema: value.convert_to_string() }
+        Self {
+            schema: value.convert_to_string(),
+        }
     }
 }
 

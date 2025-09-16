@@ -184,11 +184,23 @@ impl SchemaReduce for Phrase<String> {
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
                 self.reduce_schema(Some(pair_size));
-                log::info!(
-                    "Schema: {:?}\n# of permutations: {:e}",
-                    self.sections,
-                    self.permutations()
-                );
+                match log::max_level() {
+                    log::LevelFilter::Info => {
+                        log::info!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.convert_to_string(),
+                            self.permutations()
+                        );
+                    }
+                    x if x >= log::LevelFilter::Debug => {
+                        log::debug!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            self.sections,
+                            self.permutations()
+                        );
+                    }
+                    _ => (),
+                };
             }
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");

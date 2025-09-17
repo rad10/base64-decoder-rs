@@ -1,15 +1,12 @@
 use base64_bruteforcer_rs::{
-    base64_parser::{ConvertString, Permutation},
-    phrase_reduction::{Phrase, Variation},
+    base64_parser::{
+        Base64Bruteforcer, BruteforcerTraits, ConvertString, DisplayLines, Permutation,
+    },
+    phrase_reduction::Phrase,
     phrase_solving::SchemaReduce,
 };
 use clap::Parser;
 use tool_args::ToolArgs;
-
-use crate::{
-    base64_parser::{Base64Bruteforcer, BruteforcerTraits, DisplayLines},
-    phrase_solving::StringBruteforcer,
-};
 
 mod base64_parser;
 mod phrase_solving;
@@ -25,48 +22,37 @@ fn main() {
     // set base64 string as bytes
     let example_string = parser.b64_string.as_bytes();
 
-    let string_permutation = match parser.use_utf16 {
+    let string_permutation: Phrase<String> = match parser.use_utf16 {
         false => {
             let mut bruteforcer = Base64Bruteforcer::<u8>::default();
             bruteforcer.collect_combinations(example_string);
-            StringBruteforcer::from(bruteforcer)
+            Phrase::from(bruteforcer)
         }
         true => {
             let mut bruteforcer = Base64Bruteforcer::<u16>::default();
             bruteforcer.collect_combinations(example_string);
-            StringBruteforcer::from(bruteforcer)
+            Phrase::from(bruteforcer)
         }
     };
 
-    let mut phrase: Phrase<String> = Phrase::new(
-        string_permutation
-            .schema
-            .iter()
-            .map(|section| {
-                section
-                    .iter()
-                    .map(|variation| Variation::new(variation.to_owned()))
-                    .collect()
-            })
-            .collect(),
-    );
+    let mut string_permutation = string_permutation;
 
     if !parser.no_prune {
         log::info!(
             "schema: {:?}\n# of permutations: {}",
-            phrase.convert_to_string(),
-            phrase.permutations(),
+            string_permutation.convert_to_string(),
+            string_permutation.permutations(),
         );
 
         log::info!("Reducing permutations to logical choices");
-        phrase.reduce_to_end();
+        string_permutation.reduce_to_end();
     }
 
     if parser.info {
         println!(
             "schema: {:?}\n# of permutations: {}",
-            phrase.convert_to_string(),
-            phrase.permutations(),
+            string_permutation.convert_to_string(),
+            string_permutation.permutations(),
         );
         return;
     }

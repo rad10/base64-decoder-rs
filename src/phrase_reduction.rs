@@ -1,5 +1,6 @@
 //! This module provides the schema and structures for how string snippets get
 //! selected and reduced down to better options
+#![allow(dead_code)]
 
 use std::{fmt::Display, sync::Arc};
 
@@ -92,11 +93,10 @@ impl Phrase<String> {
     }
 }
 
-impl From<StringBruteforcer> for Phrase<String> {
-    fn from(value: StringBruteforcer) -> Self {
+impl From<Vec<Vec<String>>> for Phrase<String> {
+    fn from(value: Vec<Vec<String>>) -> Self {
         Self {
             sections: value
-                .schema
                 .iter()
                 .map(|section| {
                     section
@@ -106,6 +106,24 @@ impl From<StringBruteforcer> for Phrase<String> {
                 })
                 .collect_vec(),
         }
+    }
+}
+
+impl From<StringBruteforcer> for Phrase<String>
+where
+    StringBruteforcer: ConvertString,
+{
+    fn from(value: StringBruteforcer) -> Self {
+        Self::from(value.convert_to_string())
+    }
+}
+
+impl<T> From<Base64Bruteforcer<T>> for Phrase<String>
+where
+    Base64Bruteforcer<T>: ConvertString,
+{
+    fn from(value: Base64Bruteforcer<T>) -> Self {
+        Self::from(value.convert_to_string())
     }
 }
 

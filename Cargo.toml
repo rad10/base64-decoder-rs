@@ -1,6 +1,6 @@
 [package]
 name = "base64-bruteforcer-rs"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 authors = ["Nick Cottrell <Captain Jabberjay>"]
 description = "Decrypts a lowered base64 string to get its original contents"

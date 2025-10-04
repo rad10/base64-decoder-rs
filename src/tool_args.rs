@@ -47,6 +47,6 @@ impl FromStr for Phrase<String> {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let raw_schema: Result<Vec<Vec<String>>, String> =
             serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
-        raw_schema.map(|schema| Self::from(schema))
+        raw_schema.map(Self::from)
     }
 }

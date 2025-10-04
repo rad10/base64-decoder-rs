@@ -25,7 +25,7 @@ pub trait BruteforcerTraits<T> {
 /// schema can produce
 pub trait Permutation {
     /// Produces the number of combinations this schema can produce
-    fn permutations(&self) -> f64;    
+    fn permutations(&self) -> f64;
 }
 
 /// Converts a schema of a non string type into a string type
@@ -110,7 +110,7 @@ impl BruteforcerTraits<u8> for Base64Bruteforcer<u8> {
     }
 }
 
-impl ConvertString for Base64Bruteforcer<u8>{
+impl ConvertString for Base64Bruteforcer<u8> {
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
     fn convert_to_string(&self) -> Vec<Vec<String>> {
@@ -127,7 +127,10 @@ impl ConvertString for Base64Bruteforcer<u8>{
     }
 }
 
-impl<T> DisplayLines<Vec<T>> for Base64Bruteforcer<T> where T: Clone {
+impl<T> DisplayLines<Vec<T>> for Base64Bruteforcer<T>
+where
+    T: Clone,
+{
     fn produce_lines(&self) -> impl Iterator<Item = Vec<T>> {
         return self
             .schema
@@ -147,11 +150,12 @@ impl Base64Bruteforcer<u16> {
             // Checking that output given is actual utf16. Array will always be
             // divisible by 2
             .filter(|correct_length| correct_length.len() % 2 == 0)
+            // Print value when debugging
+            .inspect(|content| {
+                log::debug!("convert.content: {:?}", content.escape_ascii().to_string())
+            })
+            // Convert to UTF16
             .map(|convert_utf16le| {
-                log::debug!(
-                    "convert.content: {:?}",
-                    convert_utf16le.escape_ascii().to_string()
-                );
                 let mut output: Vec<u16> = vec![0].repeat(convert_utf16le.len() / 2);
                 // https://stackoverflow.com/a/50244328
                 LittleEndian::read_u16_into(convert_utf16le.as_slice(), output.as_mut_slice());

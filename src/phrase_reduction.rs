@@ -76,6 +76,10 @@ where
         }
     }
 
+    pub fn iter(&self) -> std::slice::Iter<'_, Arc<T>> {
+        self.links.iter()
+    }
+
     /// Takes two links and creates a new link containing each value in concatenation
     pub fn combine(&self, other: &Variation<T>) -> Self
     where
@@ -95,6 +99,34 @@ where
                 .cloned()
                 .collect(),
         }
+    }
+}
+
+impl<T> Extend<Arc<T>> for Variation<T> {
+    fn extend<U: IntoIterator<Item = Arc<T>>>(&mut self, iter: U) {
+        self.links.extend(iter);
+    }
+}
+
+impl Variation<String> {
+    /// Takes the underlying value and produces a combined variant of the raw
+    /// value
+    pub fn value(&self) -> String {
+        self.links.iter().join("")
+    }
+}
+
+impl<T> Variation<Vec<T>> {
+    /// Takes the underlying value and produces a combined variant of the raw
+    /// value
+    pub fn value(&self) -> Vec<T>
+    where
+        Vec<T>: Clone,
+    {
+        self.links
+            .iter()
+            .flat_map(|v| Arc::unwrap_or_clone(v.to_owned()))
+            .collect()
     }
 }
 
@@ -274,7 +306,7 @@ impl SchemaReduce for Phrase<String> {
                         .map(Variation::join)
                         .inspect(|line| log::debug!("detect.string: {line}"))
                         // if confidence if over 10%, it moves on to the next round
-                        .filter(|line| determine_accuracy_whatlang(line.to_string().as_str(), 0.10))
+                        .filter(|line| determine_accuracy_whatlang(line.value().as_str(), 0.10))
                         .collect(),
                 ];
 

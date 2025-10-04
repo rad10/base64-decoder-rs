@@ -171,10 +171,9 @@ where
         Variation<T>: Display,
     {
         self.sections
-            .clone()
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
-            .map(|v| v.iter().map(|s| s.to_string()).join(""))
+            .map(|v| v.into_iter().map(|s| s.to_string()).join(""))
     }
 }
 

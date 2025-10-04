@@ -257,10 +257,9 @@ impl DisplayLines<String> for StringBruteforcer {
     /// Turns the schema into an iterator of every possible combination
     fn produce_lines(&self) -> impl Iterator<Item = String> {
         self.schema
-            .clone()
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
-            .map(|s| s.concat())
+            .map(|s| s.into_iter().join(""))
     }
 }
 
@@ -311,39 +310,36 @@ impl SchemaReduce for StringBruteforcer {
         self.schema = self
             .schema
             .par_chunks(pair_size)
-            .map(|v| v.to_vec())
+            .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
             .map(|pairs| {
-                log::debug!("Visible pair: {:?}", pairs);
                 // If its only 1 pair, we can skip this process
                 if pairs.len() == 1 {
-                    return pairs;
+                    return pairs.to_vec();
                 }
 
                 // If there is more than one pair, but each pair only has one
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 if pairs.iter().all(|v| v.len() == 1) {
-                    return vec![vec![pairs.concat().concat()]];
+                    return vec![vec![pairs.iter().flatten().join("")]];
                 }
 
                 // permuting values and collecting only viable options
                 let combined: Vec<Vec<String>> = vec![
                     pairs
-                        .clone()
-                        .into_iter()
+                        .iter()
                         .multi_cartesian_product()
                         .par_bridge()
-                        .map(|join| join.concat())
-                        .filter(|line| {
-                            log::debug!("detect.string: {line}");
-                            determine_accuracy_whatlang(line.as_str(), 0.10) // if confidence if over 10%, it moves on to the next round
-                        })
+                        .map(|join| join.into_iter().join(""))
+                        .inspect(|line| log::debug!("detect.string: {line}"))
+                        // if confidence if over 10%, it moves on to the next round
+                        .filter(|line| determine_accuracy_whatlang(line.as_str(), 0.10))
                         .collect(),
                 ];
 
                 // Go with originals if new choices aren't preferred
                 if combined[0].is_empty() {
-                    pairs
+                    pairs.to_vec()
                 } else {
                     combined
                 }

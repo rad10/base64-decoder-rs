@@ -50,12 +50,11 @@ impl<T> Default for Base64Bruteforcer<T> {
 
 impl<T> Permutation for Base64Bruteforcer<T> {
     fn permutations(&self) -> f64 {
-        return self
-            .schema
+        self.schema
             .iter()
             .map(|section| section.len())
             .map(|size| size as f64)
-            .product();
+            .product()
     }
 }
 
@@ -72,9 +71,9 @@ impl Base64Bruteforcer<u8> {
             }
         });
 
-        return set_list
+        set_list
             .multi_cartesian_product()
-            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok());
+            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
     }
 }
 
@@ -114,8 +113,7 @@ impl ConvertString for Base64Bruteforcer<u8> {
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
     fn convert_to_string(&self) -> Vec<Vec<String>> {
-        return self
-            .schema
+        self.schema
             .iter()
             .map(|sections| {
                 sections
@@ -123,7 +121,7 @@ impl ConvertString for Base64Bruteforcer<u8> {
                     .map(|variations| String::from_utf8(variations.to_owned()).unwrap())
                     .collect_vec()
             })
-            .collect_vec();
+            .collect_vec()
     }
 }
 
@@ -132,12 +130,11 @@ where
     T: Clone,
 {
     fn produce_lines(&self) -> impl Iterator<Item = Vec<T>> {
-        return self
-            .schema
+        self.schema
             .clone()
             .into_iter()
             .multi_cartesian_product()
-            .map(|section| section.concat());
+            .map(|section| section.concat())
     }
 }
 
@@ -146,7 +143,7 @@ impl Base64Bruteforcer<u16> {
     /// combinations of 3 characters. This can be useful if multiple valid sets
     /// appear and you need to compare sets to get the correct values
     fn get_valid_combinations(b64_slice: &[u8]) -> impl Iterator<Item = Vec<u16>> {
-        return Base64Bruteforcer::<u8>::get_valid_combinations(b64_slice)
+        Base64Bruteforcer::<u8>::get_valid_combinations(b64_slice)
             // Checking that output given is actual utf16. Array will always be
             // divisible by 2
             .filter(|correct_length| correct_length.len() % 2 == 0)
@@ -156,11 +153,11 @@ impl Base64Bruteforcer<u16> {
             })
             // Convert to UTF16
             .map(|convert_utf16le| {
-                let mut output: Vec<u16> = vec![0].repeat(convert_utf16le.len() / 2);
+                let mut output: Vec<u16> = [0].repeat(convert_utf16le.len() / 2);
                 // https://stackoverflow.com/a/50244328
                 LittleEndian::read_u16_into(convert_utf16le.as_slice(), output.as_mut_slice());
                 output
-            });
+            })
     }
 }
 
@@ -190,7 +187,7 @@ impl BruteforcerTraits<u16> for Base64Bruteforcer<u16> {
             })
             .map(|replace_empty| {
                 if replace_empty.is_empty() {
-                    vec![vec![b'?' as u16].repeat(3)]
+                    vec![[b'?' as u16].repeat(3)]
                 } else {
                     replace_empty
                 }
@@ -203,8 +200,7 @@ impl ConvertString for Base64Bruteforcer<u16> {
     /// Converts utf8 bytes into a rust string. This ends up more helpful when
     /// doing NLP processing on the lines created
     fn convert_to_string(&self) -> Vec<Vec<String>> {
-        return self
-            .schema
+        self.schema
             .iter()
             .map(|section| {
                 section
@@ -212,6 +208,6 @@ impl ConvertString for Base64Bruteforcer<u16> {
                     .map(|variation| String::from_utf16(variation.as_slice()).unwrap())
                     .collect_vec()
             })
-            .collect_vec();
+            .collect_vec()
     }
 }

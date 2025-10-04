@@ -82,14 +82,18 @@ where
         Self: Sized,
     {
         Self {
-            links: vec![self.links.clone(), other.links.clone()].concat(),
+            links: [self.links.clone(), other.links.clone()].concat(),
         }
     }
 
     /// Takes an array of variations and combines them in order into a single variation
     pub fn join(container: Vec<&Variation<T>>) -> Variation<T> {
         Self {
-            links: container.into_iter().map(|v| v.links.iter()).flatten().cloned().collect(),
+            links: container
+                .into_iter()
+                .flat_map(|v| v.links.iter())
+                .cloned()
+                .collect(),
         }
     }
 }
@@ -166,30 +170,27 @@ where
     where
         Variation<T>: Display,
     {
-        return self
-            .sections
+        self.sections
             .clone()
             .into_iter()
             .multi_cartesian_product()
-            .map(|v| v.iter().map(|s| s.to_string()).join(""));
+            .map(|v| v.iter().map(|s| s.to_string()).join(""))
     }
 }
 
 impl<T> Permutation for Phrase<T> {
     fn permutations(&self) -> f64 {
-        return self
-            .sections
+        self.sections
             .iter()
             .map(|section| section.len())
             .map(|size| size as f64)
-            .product();
+            .product()
     }
 }
 
 impl ConvertString for Phrase<String> {
     fn convert_to_string(&self) -> Vec<Vec<String>> {
-        return self
-            .sections
+        self.sections
             .iter()
             .map(|section| {
                 section
@@ -197,7 +198,7 @@ impl ConvertString for Phrase<String> {
                     .map(|variation| variation.to_string())
                     .collect()
             })
-            .collect();
+            .collect()
     }
 }
 

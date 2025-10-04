@@ -223,6 +223,7 @@ impl SchemaReduce for Base64Bruteforcer<u16> {
 
 /// This struct converts resulting bytes from whatever encoding into strings.
 /// This is used for ease of implementation over performance/memory management.
+#[derive(Default)]
 pub struct StringBruteforcer {
     /// Contains the permutation schema generated from collecting combinations
     /// from the bruteforcer
@@ -237,39 +238,29 @@ impl StringBruteforcer {
 
 impl Permutation for StringBruteforcer {
     fn permutations(&self) -> f64 {
-        return self
-            .schema
+        self.schema
             .iter()
             .map(|section| section.len())
             .map(|size| size as f64)
-            .product();
+            .product()
     }
 }
 
 impl ConvertString for StringBruteforcer {
     /// Returns a copy of the internal schema since nothing needs to be converted
     fn convert_to_string(&self) -> Vec<Vec<String>> {
-        return self.schema.clone();
+        self.schema.clone()
     }
 }
 
 impl DisplayLines<String> for StringBruteforcer {
     /// Turns the schema into an iterator of every possible combination
     fn produce_lines(&self) -> impl Iterator<Item = String> {
-        return self
-            .schema
+        self.schema
             .clone()
             .into_iter()
             .multi_cartesian_product()
-            .map(|s| s.concat());
-    }
-}
-
-impl Default for StringBruteforcer {
-    fn default() -> Self {
-        Self {
-            schema: Default::default(),
-        }
+            .map(|s| s.concat())
     }
 }
 

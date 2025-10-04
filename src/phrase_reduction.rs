@@ -14,17 +14,23 @@ use rayon::{
     slice::ParallelSlice,
 };
 
-/// This represents the whole phrase
+/// This represents the whole phrase including all of its variable sections.
 #[derive(Clone, Debug, Default)]
 pub struct Phrase<T> {
     sections: Vec<Section<T>>,
 }
 
 /// Represents a variable section. Contains example strings that can take the
-/// place of the section
+/// place of the section. This is used to determine which string is the correct
+/// one to use.
 pub type Section<T> = Vec<Variation<T>>;
 
-/// A smart method of containing links to snippets. This helps reduce memory usage when links get combined together
+/// A smart method of containing links to snippets. This helps reduce memory
+/// usage when links get combined together
+///
+/// The idea behind this is that combinations are held within 3 characters per
+/// snippet. When creating larger combinations of these characters, we can
+/// contain the link to the data instead of directly copying it.
 #[derive(Clone, Debug, Default)]
 pub struct Variation<T> {
     links: Vec<Arc<T>>,
@@ -33,7 +39,7 @@ pub struct Variation<T> {
 impl Display for Variation<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let combo = self.links.iter().join("");
-        write!(f, "{}", combo)
+        write!(f, "{combo}")
     }
 }
 
@@ -81,9 +87,10 @@ where
     }
 
     /// Takes an array of variations and combines them in order into a single variation
-    pub fn join(container: Vec<Variation<T>>) -> Variation<T> {
-        let links = container.iter().map(|v| v.links.clone()).concat();
-        Self { links: links }
+    pub fn join(container: Vec<&Variation<T>>) -> Variation<T> {
+        Self {
+            links: container.into_iter().map(|v| v.links.iter()).flatten().cloned().collect(),
+        }
     }
 }
 
@@ -242,12 +249,11 @@ impl SchemaReduce for Phrase<String> {
         self.sections = self
             .sections
             .par_chunks(pair_size)
-            .map(|v| v.to_vec())
+            .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
             .map(|pairs| {
-                log::debug!("Visible pair: {:?}", pairs);
                 // If its only 1 pair, we can skip this process
                 if pairs.len() == 1 {
-                    return pairs;
+                    return pairs.to_vec();
                 }
 
                 // If there is more than one pair, but each pair only has one
@@ -260,21 +266,21 @@ impl SchemaReduce for Phrase<String> {
                 // permuting values and collecting only viable options
                 let combined: Vec<Vec<Variation<String>>> = vec![
                     pairs
-                        .clone()
-                        .into_iter()
+                        .iter()
+                        // Get all combinations of the variations
                         .multi_cartesian_product()
                         .par_bridge()
-                        .map(|snippets| Variation::join(snippets))
-                        .filter(|line| {
-                            log::debug!("detect.string: {line}");
-                            determine_accuracy_whatlang(line.to_string().as_str(), 0.10) // if confidence if over 10%, it moves on to the next round
-                        })
+                        // Join them together to get the string to test against
+                        .map(Variation::join)
+                        .inspect(|line| log::debug!("detect.string: {line}"))
+                        // if confidence if over 10%, it moves on to the next round
+                        .filter(|line| determine_accuracy_whatlang(line.to_string().as_str(), 0.10))
                         .collect(),
                 ];
 
                 // Go with originals if new choices aren't preferred
                 if combined[0].is_empty() {
-                    pairs
+                    pairs.to_vec()
                 } else {
                     combined
                 }

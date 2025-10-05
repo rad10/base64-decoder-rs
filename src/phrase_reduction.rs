@@ -36,6 +36,13 @@ pub struct Variation<T> {
     links: Vec<Arc<T>>,
 }
 
+/// The goal of this trait is to allow Variation to produce an internal value
+/// of itself
+pub trait VariationValue<T> {
+    /// Constructs a value using the internal structure of the variation used
+    fn value(&self) -> T;
+}
+
 impl Display for Variation<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let combo = self.links.iter().join("");
@@ -108,18 +115,21 @@ impl<T> Extend<Arc<T>> for Variation<T> {
     }
 }
 
-impl Variation<String> {
+impl VariationValue<String> for Variation<String> {
     /// Takes the underlying value and produces a combined variant of the raw
     /// value
-    pub fn value(&self) -> String {
+    fn value(&self) -> String {
         self.links.iter().join("")
     }
 }
 
-impl<T> Variation<Vec<T>> {
+impl<T> VariationValue<Vec<T>> for Variation<Vec<T>>
+where
+    Vec<T>: Clone,
+{
     /// Takes the underlying value and produces a combined variant of the raw
     /// value
-    pub fn value(&self) -> Vec<T>
+    fn value(&self) -> Vec<T>
     where
         Vec<T>: Clone,
     {
@@ -212,10 +222,12 @@ where
 impl<T> DisplayLines<Vec<T>> for Phrase<Vec<T>>
 where
     T: Clone,
+    Vec<T>: VariationValue<Vec<T>>,
 {
     fn produce_lines(&self) -> impl Iterator<Item = Vec<T>>
     where
         T: Clone,
+        Vec<T>: VariationValue<Vec<T>>,
     {
         self.sections
             .iter()

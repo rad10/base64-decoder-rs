@@ -155,8 +155,7 @@ where
     }
 }
 
-impl From<StringBruteforcer> for Phrase<String>
-{
+impl From<StringBruteforcer> for Phrase<String> {
     fn from(value: StringBruteforcer) -> Self {
         Self::from(value.schema)
     }
@@ -210,12 +209,26 @@ where
     }
 }
 
+impl<T> DisplayLines<Vec<T>> for Phrase<Vec<T>>
+where
+    T: Clone,
+{
+    fn produce_lines(&self) -> impl Iterator<Item = Vec<T>>
+    where
+        T: Clone,
+    {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| v.into_iter().map(|t| t.value()).concat())
+    }
+}
+
 impl<T> Permutation for Phrase<T> {
     fn permutations(&self) -> f64 {
         self.sections
             .iter()
-            .map(|section| section.len())
-            .map(|size| size as f64)
+            .map(|section| section.len() as f64)
             .product()
     }
 }

@@ -317,7 +317,7 @@ impl SchemaReduce for Phrase<String> {
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 else if pairs.iter().all(|v| v.len() == 1) {
-                    vec![vec![pairs[0][0].combine(&pairs[1][0])]]
+                    vec![vec![Variation::join(pairs.iter().map(|s| &s[0]).collect())]]
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Vec<Variation<String>>> = vec![

@@ -130,14 +130,17 @@ impl<T> Variation<Vec<T>> {
     }
 }
 
-impl Phrase<String> {
-    pub fn new(schema: Vec<Section<String>>) -> Self {
+impl<T> Phrase<T> {
+    pub fn new(schema: Vec<Section<T>>) -> Self {
         Self { sections: schema }
     }
 }
 
-impl From<Vec<Vec<String>>> for Phrase<String> {
-    fn from(value: Vec<Vec<String>>) -> Self {
+impl<T> From<Vec<Vec<T>>> for Phrase<T>
+where
+    T: Clone,
+{
+    fn from(value: Vec<Vec<T>>) -> Self {
         Self {
             sections: value
                 .iter()

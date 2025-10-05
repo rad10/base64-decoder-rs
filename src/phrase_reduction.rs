@@ -156,11 +156,9 @@ where
 }
 
 impl From<StringBruteforcer> for Phrase<String>
-where
-    StringBruteforcer: ConvertString,
 {
     fn from(value: StringBruteforcer) -> Self {
-        Self::from(value.convert_to_string())
+        Self::from(value.schema)
     }
 }
 

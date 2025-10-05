@@ -299,36 +299,39 @@ impl SchemaReduce for Phrase<String> {
             .map(|pairs| {
                 // If its only 1 pair, we can skip this process
                 if pairs.len() == 1 {
-                    return pairs.to_vec();
+                    pairs.to_vec()
                 }
-
                 // If there is more than one pair, but each pair only has one
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
-                if pairs.iter().all(|v| v.len() == 1) {
-                    return vec![vec![pairs[0][0].combine(&pairs[1][0])]];
-                }
-
-                // permuting values and collecting only viable options
-                let combined: Vec<Vec<Variation<String>>> = vec![
-                    pairs
-                        .iter()
-                        // Get all combinations of the variations
-                        .multi_cartesian_product()
-                        .par_bridge()
-                        // Join them together to get the string to test against
-                        .map(Variation::join)
-                        .inspect(|line| log::debug!("detect.string: {line}"))
-                        // if confidence if over 10%, it moves on to the next round
-                        .filter(|line| determine_accuracy_whatlang(line.value().as_str(), 0.10))
-                        .collect(),
-                ];
-
-                // Go with originals if new choices aren't preferred
-                if combined[0].is_empty() {
-                    pairs.to_vec()
+                else if pairs.iter().all(|v| v.len() == 1) {
+                    vec![vec![pairs[0][0].combine(&pairs[1][0])]]
                 } else {
-                    combined
+                    // permuting values and collecting only viable options
+                    let combined: Vec<Vec<Variation<String>>> = vec![
+                        pairs
+                            .iter()
+                            // Get all combinations of the variations
+                            .multi_cartesian_product()
+                            .par_bridge()
+                            // Join them together to get the string to test against
+                            .map(Variation::join)
+                            .inspect(|line| log::debug!("detect.string: {line}"))
+                            // if confidence if over 10%, it moves on to the next round
+                            .filter(|line| determine_accuracy_whatlang(line.value().as_str(), 0.10))
+                            .collect(),
+                    ];
+
+                    // Go with originals if new choices aren't preferred
+                    // aka if its empty or the permutations is the same as it originally was
+                    if !combined[0].is_empty()
+                        && (combined[0].len() as f64)
+                            < pairs.iter().map(|s| s.len() as f64).product()
+                    {
+                        combined
+                    } else {
+                        pairs.to_vec()
+                    }
                 }
             })
             .collect::<Vec<Vec<Section<String>>>>()

@@ -41,6 +41,6 @@ pub(crate) struct ActionType {
 
 fn parse_json_to_schema(s: &str) -> Result<Phrase<String>, String> {
     let raw_schema: Result<Vec<Vec<String>>, String> =
-            serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
-        raw_schema.map(Phrase::from)
+        serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
+    raw_schema.map(Phrase::from)
 }

@@ -1,6 +1,4 @@
-use std::str::FromStr;
-
-use crate::phrase_reduction::Phrase;
+use base64_bruteforcer_rs::phrase_reduction::Phrase;
 use clap::{Args, Parser};
 
 #[derive(Parser)]
@@ -35,18 +33,14 @@ pub(crate) struct ActionType {
     pub(crate) b64_string: Option<String>,
 
     /// Takes an already pulled out schema to bruteforce
-    #[arg(short = 's', long)]
+    #[arg(short = 's', long, value_parser = parse_json_to_schema)]
     pub(crate) use_schema: Option<Phrase<String>>,
 }
 
 // Added implementation for fromstring to allow as argument
 
-impl FromStr for Phrase<String> {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let raw_schema: Result<Vec<Vec<String>>, String> =
+fn parse_json_to_schema(s: &str) -> Result<Phrase<String>, String> {
+    let raw_schema: Result<Vec<Vec<String>>, String> =
             serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
-        raw_schema.map(Self::from)
-    }
+        raw_schema.map(Phrase::from)
 }

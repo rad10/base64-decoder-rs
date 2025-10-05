@@ -1,20 +1,39 @@
 [package]
 name = "base64-bruteforcer-rs"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2024"
 authors = ["Nick Cottrell <Captain Jabberjay>"]
 description = "Decrypts a lowered base64 string to get its original contents"
 readme = "README.md"
 license = "GPL 3.0"
 
+[lib]
+crate-type = ["cdylib", "rlib", "staticlib"]
+test = true
+doctest = true
+bench = true
+doc = true
+
+[[bin]]
+name = "bruteforce-base64"
+path = "src/bins/bruteforce-base64/main.rs"
+required-features = ["bin"]
+test = true
+doctest = true
+bench = true
+doc = true
+
 [dependencies]
 base64 = "0.22.1"
 byteorder = "1.5.0"
-clap = { version = "4.5.47", features = ["derive"] }
-clap-verbosity-flag = "3.0.2"
-env_logger = "0.11.8"
+clap = { version = "4.5.48", optional = true, default-features = false }
+clap-verbosity-flag = { version = "3.0.2", default-features = false, optional = true }
+env_logger = { version = "0.11.8", optional = true }
 itertools = "0.14.0"
 log = "0.4.27"
 rayon = "1.11.0"
-serde_json = "1.0.145"
+serde_json = { version = "1.0.145", optional = true }
 whatlang = "0.16.4"
+
+[features]
+bin = ["dep:env_logger", "clap/derive", "clap-verbosity-flag/log", "dep:serde_json"]

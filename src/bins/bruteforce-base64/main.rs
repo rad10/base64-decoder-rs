@@ -1,4 +1,4 @@
-use crate::{
+use base64_bruteforcer_rs::{
     base64_parser::{
         Base64Bruteforcer, BruteforcerTraits, ConvertString, DisplayLines, Permutation,
     },
@@ -8,9 +8,6 @@ use crate::{
 use clap::Parser;
 use tool_args::ToolArgs;
 
-mod base64_parser;
-mod phrase_reduction;
-mod phrase_solving;
 mod tool_args;
 
 fn main() {

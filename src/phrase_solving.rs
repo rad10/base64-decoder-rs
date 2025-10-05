@@ -2,8 +2,6 @@
 //! to test human validity
 #![allow(dead_code)]
 
-use std::usize;
-
 use itertools::Itertools;
 use rayon::{
     iter::{ParallelBridge, ParallelIterator},

@@ -144,6 +144,52 @@ impl<T> Phrase<T> {
     pub fn new(schema: Vec<Section<T>>) -> Self {
         Self { sections: schema }
     }
+
+    /// Goes through its internal schema and joins all adjacent sections that
+    /// have one variation within itself into each other. While this will not
+    /// reduce permutation, it can make further reduction easier by reducing the
+    /// number of sections to begin with.
+    pub fn flatten_sections(&mut self) {
+        // Creating a copy of sections here because we cant have double mutability
+        let mut new_sections: Vec<Section<T>> = Vec::new();
+
+        // Cant do this in a chain method due to the strategy taken here.
+        // Because were using pop, we are doing this in reverse. This means
+        // variation needs to be handled with care, and we need to remember to
+        // reverse the array after were all done.
+        while let Some(mut item) = self.sections.pop() {
+            // If theres more than one variation, add it to the collection and
+            // move on to the next one
+            if item.len() > 1 {
+                new_sections.push(item);
+            } else {
+                // Reverse items string in preperation
+                item[0].links.reverse();
+                // Since we know that this item is only one value, we feed values
+                // to the current item until we meet a section with multiple
+                // variations
+                while let Some(mut second_item) = self.sections.pop() {
+                    // Escape and place items if this new item has multiple variations
+                    if second_item.len() > 1 {
+                        // Our loop ends. Clean up item and place it and this
+                        // new item into the vector
+                        item[0].links.reverse();
+                        new_sections.push(item);
+                        new_sections.push(second_item);
+                        break;
+                    }
+                    // Since the new item has only one value, reverse the inner
+                    // links of the new item and combine it with the old one
+                    second_item[0].links.reverse();
+                    item[0] = item[0].combine(&second_item[0]);
+                }
+            }
+        }
+        // At the end of the loop, we reverse the vec and replace sections
+        new_sections.reverse();
+
+        self.sections = new_sections;
+    }
 }
 
 impl<T> From<Vec<Vec<T>>> for Phrase<T>
@@ -261,6 +307,8 @@ impl ConvertString for Phrase<String> {
 
 impl SchemaReduce for Phrase<String> {
     fn reduce_to_end(&mut self) {
+        // Begin by flattening single variation items
+        self.flatten_sections();
         let mut pair_size = 2;
         while pair_size <= self.sections.len() {
             let mut last_size = usize::MAX;

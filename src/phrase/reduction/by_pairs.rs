@@ -25,7 +25,9 @@ pub trait ReducePairs {
         U: Sync + Send;
 
     /// Runs the reduce function until the it will not reduce anymore
-    fn pairs_to_end(&mut self);
+    fn pairs_to_end<U: Fn(String) -> f64>(&mut self, confidence_interpreter: U)
+    where
+        U: Sync + Send;
 }
 
 impl<T> ReducePairs for Phrase<T>
@@ -115,7 +117,10 @@ where
             .collect::<Vec<Section<T>>>()
     }
 
-    fn pairs_to_end(&mut self) {
+    fn pairs_to_end<U: Fn(String) -> f64>(&mut self, confidence_interpreter: U)
+    where
+        U: Sync + Send,
+    {
         // Begin by flattening single variation items
         self.flatten_sections();
         let mut pair_size = 2;
@@ -123,12 +128,7 @@ where
             let mut last_size = usize::MAX;
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
-                self.reduce_pairs(Some(pair_size), |phrase| {
-                    match whatlang::detect(phrase.as_str()) {
-                        Some(info) => info.confidence(),
-                        None => 0.0,
-                    }
-                });
+                self.reduce_pairs(Some(pair_size), &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(

@@ -16,7 +16,7 @@ pub trait ReduceHalves<T> {
         permutation_limit: f64,
         confidence_interpreter: U,
     ) where
-        U: Sync + Send + Clone;
+        U: Sync + Send;
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
@@ -28,7 +28,7 @@ pub trait ReduceHalves<T> {
         confidence_interpreter: U,
     ) -> Vec<Section<T>>
     where
-        U: Sync + Send + Clone;
+        U: Sync + Send;
 }
 
 impl ReduceHalves<String> for Phrase<String> {
@@ -37,7 +37,7 @@ impl ReduceHalves<String> for Phrase<String> {
         permutation_limit: f64,
         confidence_interpreter: U,
     ) where
-        U: Sync + Send + Clone,
+        U: Sync + Send,
     {
         self.sections = Self::reduce_schema_binary(
             permutation_limit,
@@ -52,7 +52,7 @@ impl ReduceHalves<String> for Phrase<String> {
         confidence_interpreter: U,
     ) -> Vec<Section<String>>
     where
-        U: Sync + Send + Clone,
+        U: Sync + Send,
     {
         // Leave early if section is empty or just one
         if sections.len() < 2 {
@@ -86,11 +86,7 @@ impl ReduceHalves<String> for Phrase<String> {
             sections
                 .par_chunks(sections.len() / 2)
                 .flat_map(|c| {
-                    Self::reduce_schema_binary(
-                        permutation_limit,
-                        c,
-                        confidence_interpreter.to_owned(),
-                    )
+                    Self::reduce_schema_binary(permutation_limit, c, &confidence_interpreter)
                 })
                 .collect()
         }

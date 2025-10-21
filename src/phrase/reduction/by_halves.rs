@@ -3,7 +3,7 @@
 use itertools::Itertools;
 use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
-use crate::phrase::schema::{Permutation, Phrase, Section, Variation};
+use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Variation};
 
 pub trait ReduceHalves<T> {
     /// This schema reduction strategy takes the reverse of pairs. While
@@ -28,6 +28,13 @@ pub trait ReduceHalves<T> {
         confidence_interpreter: &U,
     ) -> Vec<Section<T>>
     where
+        U: Sync + Send;
+
+    fn halves_to_end<U: Fn(String) -> f64>(
+        &mut self,
+        max_permutations: f64,
+        confidence_interpreter: U,
+    ) where
         U: Sync + Send;
 }
 
@@ -89,6 +96,46 @@ impl ReduceHalves<String> for Phrase<String> {
                     Self::reduce_schema_binary(permutation_limit, c, confidence_interpreter)
                 })
                 .collect()
+        }
+    }
+
+    fn halves_to_end<U: Fn(String) -> f64>(
+        &mut self,
+        max_permutations: f64,
+        confidence_interpreter: U,
+    ) where
+        U: Sync + Send,
+    {
+        // Begin by flattening single variation items
+        self.flatten_sections();
+        // Set the last permutation to last size. Stop if permutation doesnt
+        // shrink in any given instance
+        let mut last_size = usize::MAX;
+        while last_size > self.sections.len() {
+            last_size = self.sections.len();
+            self.reduce_halves(max_permutations, &confidence_interpreter);
+            match log::max_level() {
+                log::LevelFilter::Info => {
+                    log::info!(
+                        "Schema: {:?}\n# of permutations: {:e}",
+                        self.convert_to_string(),
+                        self.permutations()
+                    );
+                }
+                x if x >= log::LevelFilter::Debug => {
+                    log::debug!(
+                        "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
+                        self.sections,
+                        self.sections.len(),
+                        self.sections
+                            .iter()
+                            .flat_map(|s| s.iter().map(|v| v.links.len()))
+                            .sum::<usize>(),
+                        self.permutations()
+                    );
+                }
+                _ => (),
+            };
         }
     }
 }

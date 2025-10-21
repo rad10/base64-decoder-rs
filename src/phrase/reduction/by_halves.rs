@@ -1,5 +1,7 @@
 //! Uses the binary reduction algorithm to reduce up to a reasonable size
 
+use std::fmt::{Debug, Display};
+
 use itertools::Itertools;
 use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
@@ -24,12 +26,14 @@ pub trait ReduceHalves<T> {
     /// enough. Otherwise, cut it in half and try again.
     fn reduce_schema_binary<U: Fn(String) -> f64>(
         permutation_limit: f64,
-        sections: &[Section<String>],
+        sections: &[Section<T>],
         confidence_interpreter: &U,
     ) -> Vec<Section<T>>
     where
         U: Sync + Send;
 
+    /// Reduces the phrase until the reduction function cannot reduce it
+    /// anymore.
     fn halves_to_end<U: Fn(String) -> f64>(
         &mut self,
         max_permutations: f64,
@@ -38,7 +42,12 @@ pub trait ReduceHalves<T> {
         U: Sync + Send;
 }
 
-impl ReduceHalves<String> for Phrase<String> {
+impl<T> ReduceHalves<T> for Phrase<T>
+where
+    Section<T>: Send + Sync,
+    Variation<T>: Display + Clone,
+    T: Debug,
+{
     fn reduce_halves<U: Fn(String) -> f64>(
         &mut self,
         permutation_limit: f64,
@@ -55,9 +64,9 @@ impl ReduceHalves<String> for Phrase<String> {
 
     fn reduce_schema_binary<U: Fn(String) -> f64>(
         permutation_limit: f64,
-        sections: &[Section<String>],
+        sections: &[Section<T>],
         confidence_interpreter: &U,
-    ) -> Vec<Section<String>>
+    ) -> Vec<Section<T>>
     where
         U: Sync + Send,
     {
@@ -85,7 +94,7 @@ impl ReduceHalves<String> for Phrase<String> {
                         log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
                     })
                     .map(|collapse| collapse.1)
-                    .collect(),
+                    .collect::<Section<T>>(),
             ]
         }
         // If permutations are still too big, split it again

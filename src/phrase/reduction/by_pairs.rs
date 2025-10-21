@@ -35,7 +35,6 @@ where
     Section<T>: Send + Sync,
     T: Debug,
     Variation<T>: Clone + Display,
-    Vec<Variation<String>>: FromIterator<Variation<T>>,
 {
     fn reduce_pairs<U: Fn(String) -> f64>(
         &mut self,

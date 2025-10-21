@@ -25,7 +25,7 @@ pub trait ReduceHalves<T> {
     fn reduce_schema_binary<U: Fn(String) -> f64>(
         permutation_limit: f64,
         sections: &[Section<String>],
-        confidence_interpreter: U,
+        confidence_interpreter: &U,
     ) -> Vec<Section<T>>
     where
         U: Sync + Send;
@@ -42,14 +42,14 @@ impl ReduceHalves<String> for Phrase<String> {
         self.sections = Self::reduce_schema_binary(
             permutation_limit,
             self.sections.as_slice(),
-            confidence_interpreter,
+            &confidence_interpreter,
         );
     }
 
     fn reduce_schema_binary<U: Fn(String) -> f64>(
         permutation_limit: f64,
         sections: &[Section<String>],
-        confidence_interpreter: U,
+        confidence_interpreter: &U,
     ) -> Vec<Section<String>>
     where
         U: Sync + Send,
@@ -59,7 +59,7 @@ impl ReduceHalves<String> for Phrase<String> {
             sections.to_vec()
         }
         // If the permutations within the sections is less than limit, then start crunching through them
-        else if sections.iter().map(|v| v.len() as f64).product::<f64>() <= permutation_limit {
+        else if sections.permutations() <= permutation_limit {
             vec![
                 sections
                     .iter()
@@ -86,7 +86,7 @@ impl ReduceHalves<String> for Phrase<String> {
             sections
                 .par_chunks(sections.len() / 2)
                 .flat_map(|c| {
-                    Self::reduce_schema_binary(permutation_limit, c, &confidence_interpreter)
+                    Self::reduce_schema_binary(permutation_limit, c, confidence_interpreter)
                 })
                 .collect()
         }

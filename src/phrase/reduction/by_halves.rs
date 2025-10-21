@@ -76,9 +76,9 @@ impl ReduceHalves<String> for Phrase<String> {
                     .inspect(|(confidence, line)| {
                         log::debug!("confidence, string: {confidence}, {line:?}")
                     })
-                    // Keeping only half the values to make actual leeway
+                    // Keeping only square root of permitted permutations to allow rerunning the reduction
                     .k_largest_relaxed_by_key(
-                        (sections.permutations() / 2_f64).ceil() as usize,
+                        sections.permutations().sqrt().floor() as usize,
                         |best_var| (best_var.0 * 100_000_f64) as usize,
                     )
                     .inspect(|(confidence, line)| {

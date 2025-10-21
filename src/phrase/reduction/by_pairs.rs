@@ -78,11 +78,15 @@ where
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
-                            .filter_map(
-                                |(confidence, line)| {
-                                    if confidence >= 0.10 { Some(line) } else { None }
-                                },
+                            // Keeping only half the values to make actual leeway
+                            .k_largest_relaxed_by_key(
+                                (pairs.permutations() / 2_f64).ceil() as usize,
+                                |best_var| (best_var.0 * 100_000_f64) as usize,
                             )
+                            .inspect(|(confidence, line)| {
+                                log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
+                            })
+                            .map(|collapse| collapse.1)
                             .collect(),
                     ];
 
@@ -107,7 +111,7 @@ where
             let mut last_size = usize::MAX;
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
-                // self.reduce_schema(Some(pair_size));
+                self.reduce_pairs(Some(pair_size));
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(

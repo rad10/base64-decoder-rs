@@ -1,4 +1,4 @@
-use base64_bruteforcer_rs::phrase_reduction::Phrase;
+use base64_bruteforcer_rs::phrase::schema::Phrase;
 use clap::{Args, Parser};
 
 #[derive(Parser)]

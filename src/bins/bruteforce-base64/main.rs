@@ -1,9 +1,9 @@
 use base64_bruteforcer_rs::{
-    base64_parser::{
-        Base64Bruteforcer, BruteforcerTraits, ConvertString, DisplayLines, Permutation,
+    base64_parser::{Base64Bruteforcer, BruteforcerTraits},
+    phrase::{
+        reduction::by_pairs::ReducePairs,
+        schema::{ConvertString, Permutation, Phrase},
     },
-    phrase_reduction::Phrase,
-    phrase_solving::SchemaReduce,
 };
 use clap::Parser;
 use tool_args::ToolArgs;
@@ -23,12 +23,12 @@ fn main() {
             false => {
                 let mut bruteforcer = Base64Bruteforcer::<u8>::default();
                 bruteforcer.collect_combinations(b64_string.as_bytes());
-                Phrase::from(bruteforcer)
+                Phrase::from(bruteforcer).into()
             }
             true => {
                 let mut bruteforcer = Base64Bruteforcer::<u16>::default();
                 bruteforcer.collect_combinations(b64_string.as_bytes());
-                Phrase::from(bruteforcer)
+                Phrase::from(bruteforcer).into()
             }
         }
     } else if let Some(schema) = parser.input.use_schema {
@@ -47,7 +47,7 @@ fn main() {
         }
 
         log::info!("Reducing permutations to logical choices");
-        string_permutation.reduce_to_end();
+        string_permutation.pairs_to_end();
     }
 
     if parser.info {
@@ -61,6 +61,6 @@ fn main() {
 
     // Creating distinct lines to see results
     string_permutation
-        .produce_lines()
+        .iter()
         .for_each(|line| println!("{line}"));
 }

@@ -11,8 +11,18 @@ use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Variati
 
 pub trait ReducePairs {
     /// Takes a given schema and attempts to. Select how many pairs will be
-    /// compared at once. Default is 2
-    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>);
+    /// compared at once.
+    ///
+    /// `confidence_interpreter` is used to determine if a combined string is
+    /// closer to your objective than another.
+    ///
+    /// Default is 2
+    fn reduce_pairs<U: Fn(String) -> f64>(
+        &mut self,
+        number_of_pairs: Option<usize>,
+        confidence_interpreter: U,
+    ) where
+        U: Sync + Send;
 
     /// Runs the reduce function until the it will not reduce anymore
     fn pairs_to_end(&mut self);
@@ -25,7 +35,13 @@ where
     Variation<T>: Clone + Display,
     Vec<Variation<String>>: FromIterator<Variation<T>>,
 {
-    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>) {
+    fn reduce_pairs<U: Fn(String) -> f64>(
+        &mut self,
+        number_of_pairs: Option<usize>,
+        confidence_interpreter: U,
+    ) where
+        U: Sync + Send,
+    {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
@@ -69,12 +85,8 @@ where
                             .multi_cartesian_product()
                             // Join them together to get the string to test against
                             .map(|v| Variation::join(v.as_slice()))
-                            // .inspect(|line| log::debug!("detect.string: {line}"))
-                            // if confidence if over 10%, it moves on to the next round
-                            .map(|line| match whatlang::detect(line.to_string().as_str()) {
-                                Some(info) => (info.confidence(), line),
-                                None => (0.0, line),
-                            })
+                            // Use detector to gain a confidence on each line
+                            .map(|line| (confidence_interpreter(line.to_string()), line))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
@@ -111,7 +123,12 @@ where
             let mut last_size = usize::MAX;
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
-                self.reduce_pairs(Some(pair_size));
+                self.reduce_pairs(Some(pair_size), |phrase| {
+                    match whatlang::detect(phrase.as_str()) {
+                        Some(info) => info.confidence(),
+                        None => 0.0,
+                    }
+                });
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(

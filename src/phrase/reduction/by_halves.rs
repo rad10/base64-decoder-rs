@@ -1,4 +1,32 @@
 //! Uses the binary reduction algorithm to reduce up to a reasonable size
+//!
+//! The math behind this:
+//!
+//! Interpret the Cartesian Product as the function
+//!
+//! ```math
+//! C\left(n_b\right)=\prod_{i=1}^{n}b=b^n
+//! ```
+//!
+//! To assume all variables, we can interpret [`confidence_interpreter`] as
+//!
+//! ```math
+//! F(n)=n/2
+//! F\left(n\right)=\sqrt{n}
+//! ```
+//!
+//! The function [`reduce_halves`] can be represented with `f` and a resulting permutations `P`
+//!
+//! ```math
+//! f\left(S,P\right)=\left\{\begin{matrix}C\left(S\right)\leP=F\left(C\left(S\right)\right)\\C\left(S\right)>P=f\left(S\left[0\cdots\frac{S}{2}\right],P\right)\timesf\left(S\left[\frac{S}{2}\cdotsS\right],P\right)\\\end{matrix}\right.
+//!
+//! O\left(n_b,P\right)=\left\{\array{b^n\leP=b^n\\b^n>P=2O\left(\frac{n_b}{2},P\right)}\right.=\prod_{i=1}^{m}{\left\{\array{i\geqm=b^{\frac{n}{2^{i-1}}}\\i<m=2}\right.}=2^{m-1}b^{\frac{n}{2^{i-1}}}
+//!
+//! P\left(n_b,P\right)=2^{m-2}b^{\frac{n}{2^{m-1}}}
+//!
+//! m=\left\lceil1+\log_2{\frac{n}{\log_b{P}}}\right\rceil
+//! ```
+//!
 
 use std::fmt::{Debug, Display};
 

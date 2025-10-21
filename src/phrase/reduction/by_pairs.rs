@@ -1,6 +1,32 @@
 //! This module implements the reduce by pairs algorithm. This is meant to reduce
 //! permutations by checking snippets by pairs rather than checking the entire
-//! phrase at once
+//! phrase at once.
+//!
+//! The math behind this:
+//!
+//! Interpret the Cartesian Product as the function
+//!
+//! ```math
+//! C\left(n_b\right)=\prod_{i=1}^{n}b=b^n
+//! ```
+//!
+//! To assume all variables, we can interpret [`confidence_interpreter`] as
+//!
+//! ```math
+//! F(n)=n/2
+//! F\left(n\right)=\frac{n}{2}
+//! ```
+//!
+//! The function [`reduce_pairs`] can be represented with `f` and a resulting permutations `P`
+//!
+//! ```math
+//! f(n_b,m)=\prod_{i=1}^{\sfrac{n}{m}}{F\left(C\left(\left[n_{\left(i-1\right)m}\cdotsn_{im}\right]\right)\right)}
+//!
+//! \Theta\left(n_b,m\right)=\frac{n}{m}b^m
+//!
+//! P\left(n_b,m\right)=2^{\sfrac{-n}{m}}b^n
+//! ```
+//!
 
 use std::fmt::{Debug, Display};
 

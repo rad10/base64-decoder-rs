@@ -1,7 +1,7 @@
 use base64_bruteforcer_rs::{
     base64_parser::{Base64Bruteforcer, BruteforcerTraits},
     phrase::{
-        reduction::by_halves::ReduceHalves,
+        reduction::{by_halves::ReduceHalves, by_pairs::ReducePairs},
         schema::{ConvertString, Permutation, Phrase},
         validation::validate_with_whatlang,
     },
@@ -48,7 +48,14 @@ fn main() {
         }
 
         log::info!("Reducing permutations to logical choices");
-        string_permutation.halves_to_end(10_000_f64, validate_with_whatlang);
+        match parser.reduction_method {
+            tool_args::ReductionMethod::Pairs => {
+                string_permutation.pairs_to_end(validate_with_whatlang)
+            }
+            tool_args::ReductionMethod::Halves => {
+                string_permutation.halves_to_end(10_000_f64, validate_with_whatlang)
+            }
+        };
     }
 
     if parser.info {

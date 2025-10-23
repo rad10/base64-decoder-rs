@@ -1,5 +1,5 @@
 use base64_bruteforcer_rs::phrase::schema::Phrase;
-use clap::{Args, Parser};
+use clap::{Args, Parser, ValueEnum};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -22,6 +22,10 @@ pub(crate) struct ToolArgs {
     #[arg(short, long)]
     pub(crate) no_prune: bool,
 
+    /// Sets the form of reduction used on the string
+    #[arg(short, long, value_enum, default_value_t = ReductionMethod::Halves)]
+    pub(crate) reduction_method: ReductionMethod,
+
     #[command(flatten)]
     pub(crate) verbose: clap_verbosity_flag::Verbosity,
 }
@@ -43,4 +47,13 @@ fn parse_json_to_schema(s: &str) -> Result<Phrase<String>, String> {
     let raw_schema: Result<Vec<Vec<String>>, String> =
         serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
     raw_schema.map(Phrase::from)
+}
+
+/// Provides all possible ways to reduce the phrases permutations
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub(crate) enum ReductionMethod {
+    /// Uses Reduction by pairs
+    Pairs,
+    /// Uses reduction by halves
+    Halves,
 }

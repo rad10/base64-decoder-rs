@@ -35,54 +35,43 @@ use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
 use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Variation};
 
-pub trait ReduceHalves<T> {
+pub trait ReduceHalves<U: Fn(String) -> f64> {
+    /// Defines the type of item that is collected from the phrase
+    type Item;
+
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn reduce_halves<U: Fn(String) -> f64>(
-        &mut self,
-        permutation_limit: f64,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send;
+    fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U);
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
-    fn reduce_schema_binary<U: Fn(String) -> f64>(
+    fn reduce_schema_binary(
         permutation_limit: f64,
-        sections: &[Section<T>],
+        sections: &[Section<Self::Item>],
         confidence_interpreter: &U,
-    ) -> Vec<Section<T>>
-    where
-        U: Sync + Send;
+    ) -> Vec<Section<Self::Item>>;
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn halves_to_end<U: Fn(String) -> f64>(
-        &mut self,
-        max_permutations: f64,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send;
+    fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U);
 }
 
-impl<T> ReduceHalves<T> for Phrase<T>
+impl<T, U> ReduceHalves<U> for Phrase<T>
 where
     Section<T>: Send + Sync,
     Variation<T>: Display + Clone,
     T: Debug,
+    U: Fn(String) -> f64,
+    U: Sync + Send,
 {
-    fn reduce_halves<U: Fn(String) -> f64>(
-        &mut self,
-        permutation_limit: f64,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send,
-    {
+    type Item = T;
+
+    fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
         self.sections = Self::reduce_schema_binary(
             permutation_limit,
             self.sections.as_slice(),
@@ -90,14 +79,11 @@ where
         );
     }
 
-    fn reduce_schema_binary<U: Fn(String) -> f64>(
+    fn reduce_schema_binary(
         permutation_limit: f64,
-        sections: &[Section<T>],
+        sections: &[Section<Self::Item>],
         confidence_interpreter: &U,
-    ) -> Vec<Section<T>>
-    where
-        U: Sync + Send,
-    {
+    ) -> Vec<Section<Self::Item>> {
         // Leave early if section is empty or just one
         if sections.len() < 2 {
             sections.to_vec()
@@ -136,13 +122,7 @@ where
         }
     }
 
-    fn halves_to_end<U: Fn(String) -> f64>(
-        &mut self,
-        max_permutations: f64,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send,
-    {
+    fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U) {
         // Begin by flattening single variation items
         self.flatten_sections();
         // Set the last permutation to last size. Stop if permutation doesnt

@@ -35,7 +35,7 @@ use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
 use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Variation};
 
-pub trait ReducePairs {
+pub trait ReducePairs<U: Fn(String) -> f64> {
     /// Takes a given schema and attempts to. Select how many pairs will be
     /// compared at once.
     ///
@@ -43,32 +43,21 @@ pub trait ReducePairs {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U: Fn(String) -> f64>(
-        &mut self,
-        number_of_pairs: Option<usize>,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send;
+    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
 
     /// Runs the reduce function until the it will not reduce anymore
-    fn pairs_to_end<U: Fn(String) -> f64>(&mut self, confidence_interpreter: U)
-    where
-        U: Sync + Send;
+    fn pairs_to_end(&mut self, confidence_interpreter: U);
 }
 
-impl<T> ReducePairs for Phrase<T>
+impl<T, U> ReducePairs<U> for Phrase<T>
 where
     Section<T>: Send + Sync,
     T: Debug,
     Variation<T>: Clone + Display,
+    U: Fn(String) -> f64,
+    U: Sync + Send,
 {
-    fn reduce_pairs<U: Fn(String) -> f64>(
-        &mut self,
-        number_of_pairs: Option<usize>,
-        confidence_interpreter: U,
-    ) where
-        U: Sync + Send,
-    {
+    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
@@ -142,10 +131,7 @@ where
             .collect::<Vec<Section<T>>>()
     }
 
-    fn pairs_to_end<U: Fn(String) -> f64>(&mut self, confidence_interpreter: U)
-    where
-        U: Sync + Send,
-    {
+    fn pairs_to_end(&mut self, confidence_interpreter: U) {
         // Begin by flattening single variation items
         self.flatten_sections();
         let mut pair_size = 2;

@@ -82,7 +82,7 @@ where
     pub fn join(container: &[&Variation<T>]) -> Variation<T> {
         Self {
             links: container
-                .into_iter()
+                .iter()
                 .flat_map(|v| v.links.iter())
                 .cloned()
                 .collect(),

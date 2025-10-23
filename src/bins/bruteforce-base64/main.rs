@@ -1,7 +1,6 @@
 use base64_bruteforcer_rs::{
     base64_parser::{Base64Bruteforcer, BruteforcerTraits},
     phrase::{
-        reduction::{by_halves::ReduceHalves, by_pairs::ReducePairs},
         schema::{ConvertString, Permutation, Phrase},
         validation::validate_with_whatlang,
     },
@@ -10,6 +9,13 @@ use clap::Parser;
 use tool_args::ToolArgs;
 
 mod tool_args;
+
+#[cfg(not(feature = "rayon"))]
+use base64_bruteforcer_rs::phrase::reduction::{by_halves::ReduceHalves, by_pairs::ReducePairs};
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::phrase::reduction::{
+    by_halves::rayon::ParReduceHalves, by_pairs::rayon::ParReducePairs,
+};
 
 fn main() {
     let parser = ToolArgs::parse();

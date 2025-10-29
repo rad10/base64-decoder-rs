@@ -390,7 +390,7 @@ where
     Variation<Vec<T>>: Display,
 {
     fn from(value: Phrase<Vec<T>>) -> Self {
-        Phrase::from(
+        Self::from(
             value
                 .sections
                 .iter()

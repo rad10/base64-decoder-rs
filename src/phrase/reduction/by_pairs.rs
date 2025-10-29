@@ -33,12 +33,12 @@ use std::fmt::{Debug, Display};
 use itertools::Itertools;
 
 use crate::phrase::schema::{
-    ConvertString, Permutation, Phrase, Section, Variation, VariationValue,
+    ConvertString, Permutation, Phrase, Section, Snippet, Variation, VariationValue,
 };
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing pairs
-pub trait ReducePairs {
+pub trait ReducePairs<U> {
     /// Takes a given schema and attempts to. Select how many pairs will be
     /// compared at once.
     ///
@@ -46,54 +46,46 @@ pub trait ReducePairs {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
-    where
-        U: Fn(String) -> f64;
-
-    /// Takes a given schema and attempts to. Select how many pairs will be
-    /// compared at once.
-    ///
-    /// `confidence_interpreter` Takes an iterator of all possible permutations
-    /// and produces an iterator of equal size with the confidence values of
-    /// each string
-    ///
-    /// Default is 2
-    fn bulk_reduce_pairs<U, V>(
-        &mut self,
-        number_of_pairs: Option<usize>,
-        confidence_interpreter: U,
-    ) where
-        U: Fn(&[String]) -> V,
-        V: Iterator<Item = f64>;
+    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
 
     /// Runs the reduce function until the it will not reduce anymore
     ///
     /// `confidence_interpreter` is used to determine if a combined string is
     /// closer to your objective than another.
-    fn pairs_to_end<U>(&mut self, confidence_interpreter: U)
-    where
-        U: Fn(String) -> f64;
-
-    /// Runs the reduce function until the it will not reduce anymore
-    ///
-    /// `confidence_interpreter` Takes an iterator of all possible permutations
-    /// and produces an iterator of equal size with the confidence values of
-    /// each string
-    fn bulk_pairs_to_end<U, V>(&mut self, confidence_interpreter: U)
-    where
-        U: Fn(&[String]) -> V,
-        V: Iterator<Item = f64>;
+    fn pairs_to_end(&mut self, confidence_interpreter: U);
 }
 
-impl<T> ReducePairs for Phrase<T>
+/// Provides an interface to reduce an array like structure to through a
+/// validator utilizing pairs
+///
+/// While this is similar in function to [`ReducePairs`], the reduction functions
+/// take a validator that takes values in bulk
+pub trait ReducePairsBulk<U, V> {
+    /// Takes a given schema and attempts to. Select how many pairs will be
+    /// compared at once.
+    ///
+    /// `confidence_interpreter` Takes an iterator of all possible permutations
+    /// and produces an iterator of equal size with the confidence values of
+    /// each string
+    ///
+    /// Default is 2
+    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
+
+    /// Runs the reduce function until the it will not reduce anymore
+    ///
+    /// `confidence_interpreter` Takes an iterator of all possible permutations
+    /// and produces an iterator of equal size with the confidence values of
+    /// each string
+    fn bulk_pairs_to_end(&mut self, confidence_interpreter: U);
+}
+
+impl<T, U> ReducePairs<U> for Phrase<T>
 where
     T: Debug,
+    U: Fn(String) -> f64,
     Variation<T>: Clone + Display + VariationValue,
 {
-    fn reduce_pairs<U>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
-    where
-        U: Fn(String) -> f64,
-    {
+    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
@@ -166,10 +158,7 @@ where
             .collect::<Vec<Section<T>>>()
     }
 
-    fn pairs_to_end<U>(&mut self, confidence_interpreter: U)
-    where
-        U: Fn(String) -> f64,
-    {
+    fn pairs_to_end(&mut self, confidence_interpreter: U) {
         // Begin by flattening single variation items
         self.flatten_sections();
         let mut pair_size = 2;
@@ -205,12 +194,19 @@ where
             log::debug!("Increasing pair size to {pair_size}");
         }
     }
+}
 
-    fn bulk_reduce_pairs<U, V>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
+impl<T, U, V> ReducePairsBulk<U, V> for Phrase<T>
+where
+    T: Clone + Debug,
+    U: Fn(Snippet<'_, T>) -> V,
+    V: Iterator<Item = f64>,
+    Variation<T>: Display + VariationValue,
+{
+    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
     where
-        U: Fn(&[String]) -> V,
-        V: Iterator<Item = f64>,
-        Variation<T>: VariationValue,
+        T: Clone + Debug,
+        Variation<T>: Display + VariationValue,
     {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
@@ -248,33 +244,24 @@ where
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
-                        let combos = pairs
-                            .iter()
-                            // Get all combinations of the variations
-                            .multi_cartesian_product()
-                            // Join them together to get the string to test against
-                            .map(|v| Variation::join(v.as_slice()));
+                        let combos_snippet = Snippet::new(pairs);
 
-                        let combo_as_string = combos
-                            .clone()
-                            .map(|v| v.to_string())
-                            .collect::<Vec<String>>();
-                        let inspection_set = confidence_interpreter(combo_as_string.as_slice());
+                        let inspection_set = confidence_interpreter(combos_snippet.clone());
 
-                        combos
-                            .zip(inspection_set)
-                            .inspect(|(line, confidence)| {
+                        inspection_set
+                            .zip(combos_snippet.iter_var())
+                            .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
                             // Keeping only half the values to make actual leeway
                             .k_largest_relaxed_by_key(
-                                (pairs.permutations() / 2_f64).ceil() as usize,
-                                |best_var| (best_var.1 * 100_000_f64) as usize,
+                                (combos_snippet.permutations() / 2_f64).ceil() as usize,
+                                |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
-                            .inspect(|(line, confidence)| {
+                            .inspect(|(confidence, line)| {
                                 log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
                             })
-                            .map(|collapse| collapse.0)
+                            .map(|(_, line)| line)
                             .collect()
                     }];
 
@@ -291,11 +278,7 @@ where
             .collect::<Vec<Section<T>>>()
     }
 
-    fn bulk_pairs_to_end<U, V>(&mut self, confidence_interpreter: U)
-    where
-        U: Fn(&[String]) -> V,
-        V: Iterator<Item = f64>,
-    {
+    fn bulk_pairs_to_end(&mut self, confidence_interpreter: U) {
         // Begin by flattening single variation items
         self.flatten_sections();
         let mut pair_size = 2;
@@ -344,13 +327,13 @@ pub mod rayon {
         slice::ParallelSlice,
     };
 
-    use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Variation};
+    use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Snippet, Variation};
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait ParReducePairs {
+    pub trait ParReducePairs<U> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -358,10 +341,18 @@ pub mod rayon {
         /// closer to your objective than another.
         ///
         /// Default is 2
-        fn reduce_pairs<U>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
-        where
-            U: Fn(String) -> f64 + Sync;
+        fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
 
+        /// Runs the reduce function until the it will not reduce anymore
+        fn pairs_to_end(&mut self, confidence_interpreter: U);
+    }
+
+    /// Provides an interface to reduce an array like structure to through a
+    /// validator utilizing pairs
+    ///
+    /// While this is similar in function to [`ReducePairs`], the reduction functions
+    /// take a validator that takes values in bulk
+    pub trait ParReducePairsBulk<U, V> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -370,39 +361,23 @@ pub mod rayon {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs<U, V>(
-            &mut self,
-            number_of_pairs: Option<usize>,
-            confidence_interpreter: U,
-        ) where
-            U: Fn(&[String]) -> V + Sync,
-            V: Iterator<Item = f64>;
-
-        /// Runs the reduce function until the it will not reduce anymore
-        fn pairs_to_end<U>(&mut self, confidence_interpreter: U)
-        where
-            U: Fn(String) -> f64 + Sync;
+        fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
         /// each string
-        fn bulk_pairs_to_end<U, V>(&mut self, confidence_interpreter: U)
-        where
-            U: Fn(&[String]) -> V + Sync,
-            V: Iterator<Item = f64>;
+        fn bulk_pairs_to_end(&mut self, confidence_interpreter: U);
     }
 
-    impl<T> ParReducePairs for Phrase<T>
+    impl<T, U> ParReducePairs<U> for Phrase<T>
     where
         T: Debug + Send + Sync,
+        U: Fn(String) -> f64 + Sync,
         Variation<T>: Clone + Display,
     {
-        fn reduce_pairs<U>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
-        where
-            U: Fn(String) -> f64 + Sync,
-        {
+        fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
@@ -482,10 +457,7 @@ pub mod rayon {
                     .collect::<Vec<Section<T>>>()
         }
 
-        fn pairs_to_end<U>(&mut self, confidence_interpreter: U)
-        where
-            U: Fn(String) -> f64 + Sync,
-        {
+        fn pairs_to_end(&mut self, confidence_interpreter: U) {
             // Begin by flattening single variation items
             self.flatten_sections();
             let mut pair_size = 2;
@@ -521,14 +493,19 @@ pub mod rayon {
                 log::debug!("Increasing pair size to {pair_size}");
             }
         }
+    }
 
-        fn bulk_reduce_pairs<U, V>(
-            &mut self,
-            number_of_pairs: Option<usize>,
-            confidence_interpreter: U,
-        ) where
-            U: Fn(&[String]) -> V + Sync,
-            V: Iterator<Item = f64>,
+    impl<T, U, V> ParReducePairsBulk<U, V> for Phrase<T>
+    where
+        T: Clone + Debug + Send + Sync,
+        U: Fn(Snippet<'_, T>) -> V + Sync,
+        V: Iterator<Item = f64>,
+        Variation<T>: Display,
+    {
+        fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
+        where
+            T: Clone + Send + Sync,
+            Variation<T>: Display,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
@@ -566,35 +543,26 @@ pub mod rayon {
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
-                            let combos = pairs
-                                .iter()
-                                // Get all combinations of the variations
-                                .multi_cartesian_product()
-                                // Join them together to get the string to test against
-                                .map(|v| Variation::join(v.as_slice()));
+                            let combos_snippet = Snippet::new(pairs);
 
-                            let combo_as_string = combos
-                                .clone()
-                                .map(|v| v.to_string())
-                                .collect::<Vec<String>>();
-                            let inspection_set = confidence_interpreter(combo_as_string.as_slice());
+                            let inspection_set = confidence_interpreter(combos_snippet.clone());
 
-                            combos
-                                .zip(inspection_set)
-                                .inspect(|(line, confidence)| {
+                            inspection_set
+                                .zip(combos_snippet.iter_var())
+                                .inspect(|(confidence, line)| {
                                     log::debug!("confidence, string: {confidence}, {line:?}")
                                 })
                                 // Keeping only half the values to make actual leeway
                                 .k_largest_relaxed_by_key(
-                                    (pairs.permutations() / 2_f64).ceil() as usize,
-                                    |best_var| (best_var.1 * 100_000_f64) as usize,
+                                    (combos_snippet.permutations() / 2_f64).ceil() as usize,
+                                    |(confidence, _)| (confidence * 100_000_f64) as usize,
                                 )
-                                .inspect(|(line, confidence)| {
+                                .inspect(|(confidence, line)| {
                                     log::debug!(
                                         "Accepted: confidence, string: {confidence}, {line:?}"
                                     )
                                 })
-                                .map(|collapse| collapse.0)
+                                .map(|(_, line)| line)
                                 .collect()
                         }];
 
@@ -612,10 +580,9 @@ pub mod rayon {
                 .collect::<Vec<Section<T>>>()
         }
 
-        fn bulk_pairs_to_end<U, V>(&mut self, confidence_interpreter: U)
+        fn bulk_pairs_to_end(&mut self, confidence_interpreter: U)
         where
-            U: Fn(&[String]) -> V + Sync,
-            V: Iterator<Item = f64>,
+            Variation<T>: Display,
         {
             // Begin by flattening single variation items
             self.flatten_sections();

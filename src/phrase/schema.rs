@@ -28,10 +28,11 @@ pub struct Variation<T> {
 
 /// The goal of this trait is to allow Variation to produce an internal value
 /// of itself
-pub trait VariationValue<T> {
+pub trait VariationValue {
+    type Item;
     /// Takes the underlying value and produces a combined variant of the raw
     /// value
-    fn value(&self) -> T;
+    fn value(&self) -> Self::Item;
 }
 
 /// Provides an iterator to print all schema permutations
@@ -125,17 +126,21 @@ impl<T> Extend<Arc<T>> for Variation<T> {
     }
 }
 
-impl VariationValue<String> for Variation<String> {
+impl VariationValue for Variation<String> {
+    type Item = String;
+
     fn value(&self) -> String {
         self.links.iter().join("")
     }
 }
 
-impl<T> VariationValue<Vec<T>> for Variation<Vec<T>>
+impl<T> VariationValue for Variation<Vec<T>>
 where
     Vec<T>: Clone,
 {
-    fn value(&self) -> Vec<T>
+    type Item = Vec<T>;
+
+    fn value(&self) -> Self::Item
     where
         Vec<T>: Clone,
     {
@@ -209,12 +214,12 @@ impl<T> Phrase<T> {
 
 impl<T> Phrase<T>
 where
-    Variation<T>: VariationValue<T>,
+    Variation<T>: VariationValue,
 {
     /// Permutate through all variations that the phrase can take
     pub fn iter(&self) -> impl Iterator<Item = T>
     where
-        Variation<T>: VariationValue<T>,
+        Variation<T>: VariationValue<Item = T>,
     {
         self.sections
             .iter()
@@ -226,7 +231,10 @@ where
     /// Permutate through all variations that the phrase can take
     ///
     /// Same as [`iter`]
-    pub fn iter_val(&self) -> impl Iterator<Item = T> {
+    pub fn iter_val(&self) -> impl Iterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
         self.iter()
     }
 }

@@ -60,7 +60,7 @@ pub trait ReducePairs<U> {
 ///
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
-pub trait ReducePairsBulk<U, V> {
+pub trait ReducePairsBulk<U> {
     /// Takes a given schema and attempts to. Select how many pairs will be
     /// compared at once.
     ///
@@ -190,10 +190,10 @@ where
     }
 }
 
-impl<T, U, V> ReducePairsBulk<U, V> for Phrase<T>
+impl<T, U, V> ReducePairsBulk<U> for Phrase<T>
 where
     T: Clone + Debug,
-    U: Fn(Snippet<'_, T>) -> V,
+    U: Fn(&Snippet<'_, T>) -> V,
     V: Iterator<Item = (f64, Variation<T>)>,
     Variation<T>: Display + VariationValue,
 {
@@ -230,13 +230,14 @@ where
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
-                        confidence_interpreter(Snippet::new(pairs))
+                        let pair_snippet = Snippet::new(pairs);
+                        confidence_interpreter(&pair_snippet)
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
                             // Keeping only half the values to make actual leeway
                             .k_largest_relaxed_by_key(
-                                (pairs.permutations() / 2_f64).ceil() as usize,
+                                (pair_snippet.permutations() / 2_f64).ceil() as usize,
                                 |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {
@@ -330,7 +331,7 @@ pub mod rayon {
     ///
     /// While this is similar in function to [`ReducePairs`], the reduction functions
     /// take a validator that takes values in bulk
-    pub trait ParReducePairsBulk<U, V> {
+    pub trait ParReducePairsBulk<U> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -402,16 +403,16 @@ pub mod rayon {
                             })
                             // Collecting here to drop to a regular iterator
                             .collect::<Vec<(f64, Variation<T>)>>()
-                            .iter()
+                            .into_iter()
                             // Keeping only half the values to make actual leeway
                             .k_largest_relaxed_by_key(
                                 (pairs.permutations() / 2_f64).ceil() as usize,
-                                |best_var| (best_var.0 * 100_000_f64) as usize,
+                                |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {
                                 log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
                             })
-                            .map(|collapse| collapse.1.clone())
+                            .map(|(_, line)| line)
                             .collect(),
                     ];
 
@@ -470,10 +471,10 @@ pub mod rayon {
         }
     }
 
-    impl<T, U, V> ParReducePairsBulk<U, V> for Phrase<T>
+    impl<T, U, V> ParReducePairsBulk<U> for Phrase<T>
     where
         T: Clone + Debug + Send + Sync,
-        U: Fn(Snippet<'_, T>) -> V + Sync,
+        U: Fn(&Snippet<'_, T>) -> V + Sync,
         V: Iterator<Item = (f64, Variation<T>)>,
         Variation<T>: Display,
     {
@@ -514,13 +515,14 @@ pub mod rayon {
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
-                            confidence_interpreter(Snippet::new(pairs))
+                            let pair_snippet = Snippet::new(pairs);
+                            confidence_interpreter(&pair_snippet)
                                 .inspect(|(confidence, line)| {
                                     log::debug!("confidence, string: {confidence}, {line:?}")
                                 })
                                 // Keeping only half the values to make actual leeway
                                 .k_largest_relaxed_by_key(
-                                    (pairs.permutations() / 2_f64).ceil() as usize,
+                                    (pair_snippet.permutations() / 2_f64).ceil() as usize,
                                     |(confidence, _)| (confidence * 100_000_f64) as usize,
                                 )
                                 .inspect(|(confidence, line)| {

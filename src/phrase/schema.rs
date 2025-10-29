@@ -196,6 +196,15 @@ impl<T> Phrase<T> {
 
         self.sections = new_sections;
     }
+
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>> {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join(v.as_slice()))
+    }
 }
 
 impl<T> Phrase<T>
@@ -212,6 +221,27 @@ where
             .multi_cartesian_product()
             .map(|v| Variation::join(v.as_slice()))
             .map(|v| v.value())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    ///
+    /// Same as [`iter`]
+    pub fn iter_val(&self) -> impl Iterator<Item = T> {
+        self.iter()
+    }
+}
+
+impl<T> Phrase<T>
+where
+    Variation<T>: Display,
+{
+    /// Permutate through all variations that the phrase can take
+    pub fn iter_str(&self) -> impl Iterator<Item = String> {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| v.to_string())
     }
 }
 
@@ -230,6 +260,42 @@ where
                         .collect::<Vec<Variation<T>>>()
                 })
                 .collect::<Vec<Section<T>>>(),
+        }
+    }
+}
+
+impl<T> From<&[Vec<T>]> for Phrase<T>
+where
+    T: Clone,
+{
+    fn from(value: &[Vec<T>]) -> Self {
+        Self {
+            sections: value
+                .iter()
+                .map(|section| {
+                    section
+                        .iter()
+                        .map(|variation| Variation::new(variation.to_owned()))
+                        .collect::<Vec<Variation<T>>>()
+                })
+                .collect::<Vec<Section<T>>>(),
+        }
+    }
+}
+
+impl<T> From<Vec<Section<T>>> for Phrase<T> {
+    fn from(value: Vec<Section<T>>) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<T> From<&[Section<T>]> for Phrase<T>
+where
+    T: Clone,
+{
+    fn from(value: &[Section<T>]) -> Self {
+        Self {
+            sections: value.to_vec(),
         }
     }
 }

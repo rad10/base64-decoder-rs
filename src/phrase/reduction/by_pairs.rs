@@ -88,7 +88,7 @@ pub trait ReducePairs {
 impl<T> ReducePairs for Phrase<T>
 where
     T: Debug,
-    Variation<T>: Clone + Display + VariationValue<T>,
+    Variation<T>: Clone + Display + VariationValue,
 {
     fn reduce_pairs<U>(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
     where
@@ -210,7 +210,7 @@ where
     where
         U: Fn(&[String]) -> V,
         V: Iterator<Item = f64>,
-        Variation<T>: VariationValue<T>,
+        Variation<T>: VariationValue,
     {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {

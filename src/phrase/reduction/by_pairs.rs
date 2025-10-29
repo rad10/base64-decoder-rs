@@ -112,12 +112,8 @@ where
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 else if pairs.iter().all(|v| v.len() == 1) {
-                    vec![vec![Variation::join(
-                        pairs
-                            .iter()
-                            .map(|s| &s[0])
-                            .collect::<Vec<&Variation<T>>>()
-                            .as_slice(),
+                    vec![vec![Variation::join_vec(
+                        pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
                     )]]
                 } else {
                     // permuting values and collecting only viable options
@@ -127,7 +123,7 @@ where
                             // Get all combinations of the variations
                             .multi_cartesian_product()
                             // Join them together to get the string to test against
-                            .map(|v| Variation::join(v.as_slice()))
+                            .map(|v| Variation::join_vec(v))
                             // Use detector to gain a confidence on each line
                             .map(|line| (confidence_interpreter(line.to_string()), line))
                             .inspect(|(confidence, line)| {
@@ -234,12 +230,8 @@ where
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 else if pairs.iter().all(|v| v.len() == 1) {
-                    vec![vec![Variation::join(
-                        pairs
-                            .iter()
-                            .map(|s| &s[0])
-                            .collect::<Vec<&Variation<T>>>()
-                            .as_slice(),
+                    vec![vec![Variation::join_vec(
+                        pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
                     )]]
                 } else {
                     // permuting values and collecting only viable options
@@ -299,11 +291,8 @@ where
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
                             self.sections,
-                            self.sections.len(),
-                            self.sections
-                                .iter()
-                                .flat_map(|s| s.iter().map(|v| v.links.len()))
-                                .sum::<usize>(),
+                            self.len_sections(),
+                            self.num_of_references(),
                             self.permutations()
                         );
                     }
@@ -405,12 +394,8 @@ pub mod rayon {
                         // value, then just return a single combined form. It will give
                         // future runs more information and clarity
                         else if pairs.iter().all(|v| v.len() == 1) {
-                            vec![vec![Variation::join(
-                                pairs
-                                    .iter()
-                                    .map(|s| &s[0])
-                                    .collect::<Vec<&Variation<T>>>()
-                                    .as_slice(),
+                            vec![vec![Variation::join_vec(
+                                pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
                             )]]
                         } else {
                             // permuting values and collecting only viable options
@@ -533,12 +518,8 @@ pub mod rayon {
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
                     else if pairs.iter().all(|v| v.len() == 1) {
-                        vec![vec![Variation::join(
-                            pairs
-                                .iter()
-                                .map(|s| &s[0])
-                                .collect::<Vec<&Variation<T>>>()
-                                .as_slice(),
+                        vec![vec![Variation::join_vec(
+                            pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
                         )]]
                     } else {
                         // permuting values and collecting only viable options

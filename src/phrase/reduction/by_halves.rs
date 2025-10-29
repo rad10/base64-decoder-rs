@@ -235,7 +235,7 @@ pub mod rayon {
                         .multi_cartesian_product()
                         // Sending to parallel so multiple splits can happen at once
                         .par_bridge()
-                        .map(|v| Variation::join(v.as_slice()))
+                        .map(|v| Variation::join_vec(v))
                         .map(|line| (confidence_interpreter(line.to_string()), line))
                         .inspect(|(confidence, line)| {
                             log::debug!("confidence, string: {confidence}, {line:?}")

@@ -87,7 +87,10 @@ where
     }
 
     /// Takes an array of variations and combines them in order into a single variation
-    pub fn join(container: &[&Variation<T>]) -> Variation<T> {
+    pub fn join<'a>(container: [&'a Variation<T>]) -> Variation<T>
+    where
+        [&'a Variation<T>]: Sized,
+    {
         Self {
             links: container
                 .iter()
@@ -95,6 +98,36 @@ where
                 .cloned()
                 .collect(),
         }
+    }
+
+    /// Takes an array of variations and combines them in order into a single variation
+    pub fn join_vec(container: Vec<&Variation<T>>) -> Variation<T> {
+        Self {
+            links: container
+                .iter()
+                .flat_map(|v| v.links.iter())
+                .cloned()
+                .collect(),
+        }
+    }
+
+    /// Takes an array of variations and combines them in order into a single variation
+    pub fn join_slice(container: &[&Variation<T>]) -> Variation<T> {
+        Self {
+            links: container
+                .iter()
+                .flat_map(|v| v.links.iter())
+                .cloned()
+                .collect(),
+        }
+    }
+
+    /// Provides the number of segments that make up this variation
+    ///
+    /// Another way to describe this is to print the number of references used
+    /// to create this variation
+    pub fn num_of_refs(&self) -> usize {
+        self.links.len()
     }
 }
 
@@ -215,7 +248,28 @@ impl<T> Phrase<T> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
+    }
+
+    /// Gives the number of sections that make up this phrase
+    pub fn len_sections(&self) -> usize {
+        self.sections.len()
+    }
+
+    /// Gives the number of referenced segments used to make this phrase. This
+    /// is often used in debugging when developers are tracking memory issues
+    /// so this may not be important to you
+    pub fn num_of_references(&self) -> usize {
+        self.sections
+            .iter()
+            .flat_map(|s| s.iter().map(|v| v.num_of_refs()))
+            .sum()
+    }
+
+    /// Produces a snippet of the phrase where sections can be referenced in
+    /// memory rather than a whole new phrase
+    pub fn as_snippet(&self) -> Snippet<'_, T> {
+        Snippet::from(self)
     }
 }
 
@@ -235,7 +289,22 @@ impl<T> Snippet<'_, T> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
+    }
+
+    /// Gives the number of sections that make up this phrase
+    pub fn len_sections(&self) -> usize {
+        self.sections.len()
+    }
+
+    /// Gives the number of referenced segments used to make this phrase. This
+    /// is often used in debugging when developers are tracking memory issues
+    /// so this may not be important to you
+    pub fn num_of_references(&self) -> usize {
+        self.sections
+            .iter()
+            .flat_map(|s| s.iter().map(|v| v.num_of_refs()))
+            .sum()
     }
 }
 
@@ -251,7 +320,7 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
             .map(|v| v.value())
     }
 
@@ -275,7 +344,7 @@ impl<T> Snippet<'_, T> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
             .map(|v| v.value())
     }
 
@@ -299,7 +368,7 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
             .map(|v| v.to_string())
     }
 }
@@ -313,7 +382,7 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| Variation::join_vec(v))
             .map(|v| v.to_string())
     }
 }

@@ -10,6 +10,13 @@ pub struct Phrase<T> {
     pub(crate) sections: Vec<Section<T>>,
 }
 
+/// This represents part of a phrase by containing a section of a phrases memory
+/// within itself. This can function in all of the same ways a phrase can
+#[derive(Clone, Debug, Default)]
+pub struct Snippet<'a, T> {
+    pub(crate) sections: &'a [Section<T>],
+}
+
 /// Represents a variable section. Contains example strings that can take the
 /// place of the section. This is used to determine which string is the correct
 /// one to use.
@@ -212,6 +219,26 @@ impl<T> Phrase<T> {
     }
 }
 
+impl<'a, 'b, T> Snippet<'b, T>
+where
+    'a: 'b,
+{
+    pub fn new(schema: &'a [Section<T>]) -> Self {
+        Self { sections: schema }
+    }
+}
+
+impl<T> Snippet<'_, T> {
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>> {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join(v.as_slice()))
+    }
+}
+
 impl<T> Phrase<T>
 where
     Variation<T>: VariationValue,
@@ -239,7 +266,45 @@ where
     }
 }
 
+impl<T> Snippet<'_, T> {
+    /// Permutate through all variations that the phrase can take
+    pub fn iter(&self) -> impl Iterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| v.value())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    ///
+    /// Same as [`iter`]
+    pub fn iter_val(&self) -> impl Iterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.iter()
+    }
+}
+
 impl<T> Phrase<T>
+where
+    Variation<T>: Display,
+{
+    /// Permutate through all variations that the phrase can take
+    pub fn iter_str(&self) -> impl Iterator<Item = String> {
+        self.sections
+            .iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join(v.as_slice()))
+            .map(|v| v.to_string())
+    }
+}
+
+impl<T> Snippet<'_, T>
 where
     Variation<T>: Display,
 {
@@ -297,6 +362,18 @@ impl<T> From<Vec<Section<T>>> for Phrase<T> {
     }
 }
 
+impl<T> From<[Section<T>]> for Phrase<T>
+where
+    [Section<T>]: Sized,
+    Variation<T>: Clone,
+{
+    fn from(value: [Section<T>]) -> Self {
+        Self {
+            sections: value.to_vec(),
+        }
+    }
+}
+
 impl<T> From<&[Section<T>]> for Phrase<T>
 where
     T: Clone,
@@ -322,6 +399,27 @@ where
         )
     }
 }
+
+impl<'a, 'b, T> From<&'a [Section<T>]> for Snippet<'b, T>
+where
+    'a: 'b,
+{
+    fn from(value: &'a [Section<T>]) -> Self {
+        Self { sections: value }
+    }
+}
+
+impl<'a, 'b, T> From<&'a Phrase<T>> for Snippet<'b, T>
+where
+    'a: 'b,
+{
+    fn from(value: &'a Phrase<T>) -> Self {
+        Self {
+            sections: &value.sections,
+        }
+    }
+}
+
 impl<T> DisplayLines<String> for Phrase<T>
 where
     T: Clone,
@@ -362,7 +460,14 @@ impl<T> Permutation for [Vec<T>] {
         self.iter().map(|section| section.len() as f64).product()
     }
 }
+
 impl<T> Permutation for Phrase<T> {
+    fn permutations(&self) -> f64 {
+        self.sections.permutations()
+    }
+}
+
+impl<T> Permutation for Snippet<'_, T> {
     fn permutations(&self) -> f64 {
         self.sections.permutations()
     }

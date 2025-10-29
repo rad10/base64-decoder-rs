@@ -82,7 +82,7 @@ pub trait ReducePairsBulk<U, V> {
 impl<T, U> ReducePairs<U> for Phrase<T>
 where
     T: Debug,
-    U: Fn(Variation<T>) -> f64,
+    U: Fn(&Variation<T>) -> f64,
     Variation<T>: Clone + Display + VariationValue,
 {
     fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
@@ -123,7 +123,7 @@ where
                             // Join them together to get the string to test against
                             .iter_var()
                             // Use detector to gain a confidence on each line
-                            .map(|line| (confidence_interpreter(line.clone()), line))
+                            .map(|line| (confidence_interpreter(&line), line))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
@@ -352,7 +352,7 @@ pub mod rayon {
     impl<T, U> ParReducePairs<U> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(Variation<T>) -> f64 + Sync,
+        U: Fn(&Variation<T>) -> f64 + Sync,
         Variation<T>: Clone + Display,
     {
         fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
@@ -396,7 +396,7 @@ pub mod rayon {
                             .iter_var()
                             .par_bridge()
                             // Use detector to gain a confidence on each line
-                            .map(|line| (confidence_interpreter(line.clone()), line))
+                            .map(|line| (confidence_interpreter(&line), line))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })

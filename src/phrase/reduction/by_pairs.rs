@@ -82,7 +82,7 @@ pub trait ReducePairsBulk<U, V> {
 impl<T, U> ReducePairs<U> for Phrase<T>
 where
     T: Debug,
-    U: Fn(String) -> f64,
+    U: Fn(Variation<T>) -> f64,
     Variation<T>: Clone + Display + VariationValue,
 {
     fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
@@ -118,14 +118,12 @@ where
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![
-                        pairs
-                            .iter()
+                        Snippet::new(pairs)
                             // Get all combinations of the variations
-                            .multi_cartesian_product()
                             // Join them together to get the string to test against
-                            .map(|v| Variation::join_vec(v))
+                            .iter_var()
                             // Use detector to gain a confidence on each line
-                            .map(|line| (confidence_interpreter(line.to_string()), line))
+                            .map(|line| (confidence_interpreter(line.clone()), line))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
@@ -196,14 +194,10 @@ impl<T, U, V> ReducePairsBulk<U, V> for Phrase<T>
 where
     T: Clone + Debug,
     U: Fn(Snippet<'_, T>) -> V,
-    V: Iterator<Item = f64>,
+    V: Iterator<Item = (f64, Variation<T>)>,
     Variation<T>: Display + VariationValue,
 {
-    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
-    where
-        T: Clone + Debug,
-        Variation<T>: Display + VariationValue,
-    {
+    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
@@ -236,18 +230,13 @@ where
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
-                        let combos_snippet = Snippet::new(pairs);
-
-                        let inspection_set = confidence_interpreter(combos_snippet.clone());
-
-                        inspection_set
-                            .zip(combos_snippet.iter_var())
+                        confidence_interpreter(Snippet::new(pairs))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
                             // Keeping only half the values to make actual leeway
                             .k_largest_relaxed_by_key(
-                                (combos_snippet.permutations() / 2_f64).ceil() as usize,
+                                (pairs.permutations() / 2_f64).ceil() as usize,
                                 |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {
@@ -363,7 +352,7 @@ pub mod rayon {
     impl<T, U> ParReducePairs<U> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(String) -> f64 + Sync,
+        U: Fn(Variation<T>) -> f64 + Sync,
         Variation<T>: Clone + Display,
     {
         fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
@@ -401,15 +390,13 @@ pub mod rayon {
                             // permuting values and collecting only viable options
                             let combined: Vec<Section<T>> =
                                 vec![
-                        pairs
-                            .iter()
+                            Snippet::new(pairs)
                             // Get all combinations of the variations
-                            .multi_cartesian_product()
-                            .par_bridge()
                             // Join them together to get the string to test against
-                            .map(|v| Variation::join(v.as_slice()))
+                            .iter_var()
+                            .par_bridge()
                             // Use detector to gain a confidence on each line
-                            .map(|line| (confidence_interpreter(line.to_string()), line))
+                            .map(|line| (confidence_interpreter(line.clone()), line))
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
@@ -442,7 +429,10 @@ pub mod rayon {
                     .collect::<Vec<Section<T>>>()
         }
 
-        fn pairs_to_end(&mut self, confidence_interpreter: U) {
+        fn pairs_to_end(&mut self, confidence_interpreter: U)
+        where
+            Variation<T>: Display,
+        {
             // Begin by flattening single variation items
             self.flatten_sections();
             let mut pair_size = 2;
@@ -484,7 +474,7 @@ pub mod rayon {
     where
         T: Clone + Debug + Send + Sync,
         U: Fn(Snippet<'_, T>) -> V + Sync,
-        V: Iterator<Item = f64>,
+        V: Iterator<Item = (f64, Variation<T>)>,
         Variation<T>: Display,
     {
         fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
@@ -524,18 +514,13 @@ pub mod rayon {
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
-                            let combos_snippet = Snippet::new(pairs);
-
-                            let inspection_set = confidence_interpreter(combos_snippet.clone());
-
-                            inspection_set
-                                .zip(combos_snippet.iter_var())
+                            confidence_interpreter(Snippet::new(pairs))
                                 .inspect(|(confidence, line)| {
                                     log::debug!("confidence, string: {confidence}, {line:?}")
                                 })
                                 // Keeping only half the values to make actual leeway
                                 .k_largest_relaxed_by_key(
-                                    (combos_snippet.permutations() / 2_f64).ceil() as usize,
+                                    (pairs.permutations() / 2_f64).ceil() as usize,
                                     |(confidence, _)| (confidence * 100_000_f64) as usize,
                                 )
                                 .inspect(|(confidence, line)| {

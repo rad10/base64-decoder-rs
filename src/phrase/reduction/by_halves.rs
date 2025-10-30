@@ -563,6 +563,7 @@ pub mod rayon {
 }
 
 /// Provides and implements the reduction trait using the asynchronous calls for smoother processing
+#[cfg(feature = "async")]
 pub mod r#async {
     use std::fmt::{Debug, Display};
 

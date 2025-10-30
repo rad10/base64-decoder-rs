@@ -26,6 +26,10 @@ pub(crate) struct ToolArgs {
     #[arg(short, long, value_enum, default_value_t = ReductionMethod::Halves)]
     pub(crate) reduction_method: ReductionMethod,
 
+    /// Sets which validator is used on the strings
+    #[arg(short = 'a', long, value_enum, default_value_t = StringValidator::WhatLang)]
+    pub(crate) validation_method: StringValidator,
+
     #[command(flatten)]
     pub(crate) verbose: clap_verbosity_flag::Verbosity,
 }
@@ -56,4 +60,12 @@ pub(crate) enum ReductionMethod {
     Pairs,
     /// Uses reduction by halves
     Halves,
+}
+
+/// Determines what function to use when validating part of a phrase
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub(crate) enum StringValidator {
+    /// Uses the whatlang library to validate strings during reduction
+    #[cfg(feature = "whatlang")]
+    WhatLang,
 }

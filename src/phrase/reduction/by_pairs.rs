@@ -589,3 +589,309 @@ pub mod rayon {
         }
     }
 }
+
+/// Provides and implements the reduction trait using the rayon library to speed up processes
+#[cfg(feature = "async")]
+pub mod r#async {
+    use std::fmt::{Debug, Display};
+
+    use futures::{Stream, StreamExt, stream};
+    use itertools::Itertools;
+
+    use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Snippet, Variation};
+
+    /// Provides an interface to reduce an array like structure to through a
+    /// validator utilizing pairs
+    ///
+    /// Utilizes the rayon library to validate pairs in parallel
+    pub trait AsyncReducePairs<U> {
+        /// Takes a given schema and attempts to. Select how many pairs will be
+        /// compared at once.
+        ///
+        /// `confidence_interpreter` is used to determine if a combined string is
+        /// closer to your objective than another.
+        ///
+        /// Default is 2
+        fn reduce_pairs(
+            &mut self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) -> impl Future<Output = ()> + Send;
+
+        /// Runs the reduce function until the it will not reduce anymore
+        fn pairs_to_end(
+            &mut self,
+            confidence_interpreter: U,
+        ) -> impl std::future::Future<Output = ()> + Send;
+    }
+
+    /// Provides an interface to reduce an array like structure to through a
+    /// validator utilizing pairs
+    ///
+    /// While this is similar in function to [`ReducePairs`], the reduction functions
+    /// take a validator that takes values in bulk
+    pub trait AsyncReducePairsBulk<U> {
+        /// Takes a given schema and attempts to. Select how many pairs will be
+        /// compared at once.
+        ///
+        /// `confidence_interpreter` Takes an iterator of all possible permutations
+        /// and produces an iterator of equal size with the confidence values of
+        /// each string
+        ///
+        /// Default is 2
+        fn bulk_reduce_pairs(
+            &mut self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) -> impl std::future::Future<Output = ()> + Send;
+
+        /// Runs the reduce function until the it will not reduce anymore
+        ///
+        /// `confidence_interpreter` Takes an iterator of all possible permutations
+        /// and produces an iterator of equal size with the confidence values of
+        /// each string
+        fn bulk_pairs_to_end(
+            &mut self,
+            confidence_interpreter: U,
+        ) -> impl std::future::Future<Output = ()> + Send;
+    }
+
+    impl<T, U, FnFut> AsyncReducePairs<U> for Phrase<T>
+    where
+        T: Debug + Send + Sync,
+        U: Fn(&'_ Variation<T>) -> FnFut + Send + Sync,
+        FnFut: Future<Output = f64> + Send,
+        Variation<T>: Clone + Display,
+    {
+        async fn reduce_pairs(
+            &mut self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) {
+            // Check to make sure size is correctly placed or replace with own value
+            let pair_size = match number_of_pairs {
+                Some(0..2) | None => 2, // Overwrite any stupid options with the
+                // default
+                Some(n) if n < self.sections.len() => n,
+                Some(_) => self.sections.len(), // If the number is bigger than the
+                                                // source itself, just use the length of the source. Its not
+                                                // recommended to ever do this since its no different than checking
+                                                // line by line.
+            };
+
+            // Take and operate on each pair in the schema. Will either combine a
+            // pair into one section or (worst case scenario) leave the pairs as is
+            self.sections = stream::iter(self.sections.clone())
+                .chunks(pair_size)
+                .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
+                .then(async |pairs| {
+                    // If its only 1 pair, we can skip this process
+                    if pairs.len() == 1 {
+                        stream::iter(pairs)
+                    }
+                    // If there is more than one pair, but each pair only has one
+                    // value, then just return a single combined form. It will give
+                    // future runs more information and clarity
+                    else if pairs.iter().all(|v| v.len() == 1) {
+                        stream::iter(vec![vec![Variation::join_vec(
+                            pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
+                        )]])
+                    } else {
+                        // permuting values and collecting only viable options
+                        let combined: Vec<Section<T>> = vec![
+                            stream::iter(
+                                Snippet::new(pairs.as_slice())
+                                    // Get all combinations of the variations
+                                    // Join them together to get the string to test against
+                                    .iter_var(),
+                            )
+                            // Use detector to gain a confidence on each line
+                            .then(async |line| (confidence_interpreter(&line).await, line))
+                            .inspect(|(confidence, line)| {
+                                log::debug!("confidence, string: {confidence}, {line:?}")
+                            })
+                            .collect::<Vec<(f64, Variation<T>)>>()
+                            .await
+                            .into_iter()
+                            // Keeping only half the values to make actual leeway
+                            .k_largest_relaxed_by_key(
+                                (pairs.permutations() / 2_f64).ceil() as usize,
+                                |(confidence, _)| (confidence * 100_000_f64) as usize,
+                            )
+                            .inspect(|(confidence, line)| {
+                                log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
+                            })
+                            .map(|(_, line)| line)
+                            .collect(),
+                        ];
+
+                        // Go with originals if new choices aren't preferred
+                        // aka if its empty or the permutations is the same as it originally was
+                        if !combined[0].is_empty()
+                            && (combined[0].len() as f64) < pairs.permutations()
+                        {
+                            stream::iter(combined)
+                        } else {
+                            stream::iter(pairs)
+                        }
+                    }
+                })
+                .boxed()
+                .flatten()
+                .collect::<Vec<Section<T>>>()
+                .await
+        }
+
+        async fn pairs_to_end(&mut self, confidence_interpreter: U) {
+            // Begin by flattening single variation items
+            self.flatten_sections();
+            let mut pair_size = 2;
+            while pair_size <= self.sections.len() {
+                let mut last_size = usize::MAX;
+                while last_size > self.sections.len() {
+                    last_size = self.sections.len();
+                    self.reduce_pairs(Some(pair_size), &confidence_interpreter)
+                        .await;
+                    match log::max_level() {
+                        log::LevelFilter::Info => {
+                            log::info!(
+                                "Schema: {:?}\n# of permutations: {:e}",
+                                self.convert_to_string(),
+                                self.permutations()
+                            );
+                        }
+                        x if x >= log::LevelFilter::Debug => {
+                            log::debug!(
+                                "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
+                                self.sections,
+                                self.len_sections(),
+                                self.num_of_references(),
+                                self.permutations()
+                            );
+                        }
+                        _ => (),
+                    };
+                }
+                pair_size += 1;
+                log::debug!("Increasing pair size to {pair_size}");
+            }
+        }
+    }
+
+    impl<T, U, FnFut> AsyncReducePairsBulk<U> for Phrase<T>
+    where
+        T: Clone + Debug + Send + Sync,
+        U: Fn(&'_ Snippet<'_, T>) -> FnFut + Send + Sync,
+        FnFut: Stream<Item = (f64, Variation<T>)> + Send,
+        Variation<T>: Display,
+    {
+        async fn bulk_reduce_pairs(
+            &mut self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) {
+            // Check to make sure size is correctly placed or replace with own value
+            let pair_size = match number_of_pairs {
+                Some(0..2) | None => 2, // Overwrite any stupid options with the
+                // default
+                Some(n) if n < self.sections.len() => n,
+                Some(_) => self.sections.len(), // If the number is bigger than the
+                                                // source itself, just use the length of the source. Its not
+                                                // recommended to ever do this since its no different than checking
+                                                // line by line.
+            };
+
+            // Take and operate on each pair in the schema. Will either combine a
+            // pair into one section or (worst case scenario) leave the pairs as is
+            self.sections =
+                stream::iter(self.sections.clone())
+                    .chunks(pair_size)
+                    .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
+                    .then(async |pairs| {
+                        // If its only 1 pair, we can skip this process
+                        if pairs.len() == 1 {
+                            stream::iter(pairs)
+                        }
+                        // If there is more than one pair, but each pair only has one
+                        // value, then just return a single combined form. It will give
+                        // future runs more information and clarity
+                        else if pairs.iter().all(|v| v.len() == 1) {
+                            stream::iter(vec![vec![Variation::join_vec(
+                                pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
+                            )]])
+                        } else {
+                            // permuting values and collecting only viable options
+                            let combined: Vec<Section<T>> =
+                                vec![{
+                                    let pair_snippet = Snippet::new(pairs.as_slice());
+                                    confidence_interpreter(&pair_snippet)
+                        .inspect(|(confidence, line)| {
+                            log::debug!("confidence, string: {confidence}, {line:?}")
+                        })
+                            .collect::<Vec<(f64, Variation<T>)>>().await
+                            .into_iter()
+                        // Keeping only half the values to make actual leeway
+                        .k_largest_relaxed_by_key(
+                            (pair_snippet.permutations() / 2_f64).ceil() as usize,
+                            |(confidence, _)| (confidence * 100_000_f64) as usize,
+                        )
+                        .inspect(|(confidence, line)| {
+                            log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
+                        })
+                        .map(|(_, line)| line)
+                        .collect()
+                                }];
+
+                            // Go with originals if new choices aren't preferred
+                            // aka if its empty or the permutations is the same as it originally was
+                            if !combined[0].is_empty()
+                                && (combined[0].len() as f64) < pairs.permutations()
+                            {
+                                stream::iter(combined)
+                            } else {
+                                stream::iter(pairs)
+                            }
+                        }
+                    })
+                    .boxed()
+                    .flatten()
+                    .collect::<Vec<Section<T>>>()
+                    .await
+        }
+
+        async fn bulk_pairs_to_end(&mut self, confidence_interpreter: U) {
+            // Begin by flattening single variation items
+            self.flatten_sections();
+            let mut pair_size = 2;
+            while pair_size <= self.sections.len() {
+                let mut last_size = usize::MAX;
+                while last_size > self.sections.len() {
+                    last_size = self.sections.len();
+                    self.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter)
+                        .await;
+                    match log::max_level() {
+                        log::LevelFilter::Info => {
+                            log::info!(
+                                "Schema: {:?}\n# of permutations: {:e}",
+                                self.convert_to_string(),
+                                self.permutations()
+                            );
+                        }
+                        x if x >= log::LevelFilter::Debug => {
+                            log::debug!(
+                                "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
+                                self.sections,
+                                self.len_sections(),
+                                self.num_of_references(),
+                                self.permutations()
+                            );
+                        }
+                        _ => (),
+                    };
+                }
+                pair_size += 1;
+                log::debug!("Increasing pair size to {pair_size}");
+            }
+        }
+    }
+}

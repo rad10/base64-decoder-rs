@@ -61,10 +61,7 @@ pub trait Permutation {
     fn permutations(&self) -> f64;
 }
 
-impl<T> Variation<T>
-where
-    T: Sized,
-{
+impl<T> Variation<T> {
     /// Creates a new link using the given type
     pub fn new(value: T) -> Self {
         Self {
@@ -128,6 +125,20 @@ where
     /// to create this variation
     pub fn num_of_refs(&self) -> usize {
         self.links.len()
+    }
+}
+
+impl<T> Variation<Vec<T>> {
+    /// Gets the len of the value within the variation
+    pub fn len(&self) -> usize {
+        self.links.iter().map(|l| l.len()).sum()
+    }
+}
+
+impl Variation<String> {
+    /// Gets the len of the value within the variation
+    pub fn len(&self) -> usize {
+        self.links.iter().map(|l| l.len()).sum()
     }
 }
 
@@ -273,6 +284,20 @@ impl<T> Phrase<T> {
     }
 }
 
+impl<T> Phrase<Vec<T>> {
+    /// Gets the length of the phrase
+    pub fn len(&self) -> usize {
+        self.sections.iter().map(|s| s[0].len()).sum()
+    }
+}
+
+impl Phrase<String> {
+    /// Gets the length of the phrase
+    pub fn len(&self) -> usize {
+        self.sections.iter().map(|s| s[0].len()).sum()
+    }
+}
+
 impl<'a, 'b, T> Snippet<'b, T>
 where
     'a: 'b,
@@ -305,6 +330,20 @@ impl<T> Snippet<'_, T> {
             .iter()
             .flat_map(|s| s.iter().map(|v| v.num_of_refs()))
             .sum()
+    }
+}
+
+impl<T> Snippet<'_, Vec<T>> {
+    /// Gets the length of the phrase
+    pub fn len(&self) -> usize {
+        self.sections.iter().map(|s| s[0].len()).sum()
+    }
+}
+
+impl Snippet<'_, String> {
+    /// Gets the length of the phrase
+    pub fn len(&self) -> usize {
+        self.sections.iter().map(|s| s[0].len()).sum()
     }
 }
 

@@ -36,7 +36,7 @@ use crate::phrase::schema::{ConvertString, Permutation, Phrase, Section, Snippet
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalves<U> {
+pub trait ReduceHalves<U, V> {
     /// Defines the type of item that is collected from the phrase
     type Item;
 
@@ -45,26 +45,26 @@ pub trait ReduceHalves<U> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U);
+    fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
     fn reduce_schema_binary(
-        permutation_limit: f64,
+        size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
-        confidence_interpreter: &U,
+        confidence_interpreter: &V,
     ) -> Vec<Section<Self::Item>>;
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U);
+    fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
 }
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalvesBulk<U> {
+pub trait ReduceHalvesBulk<U, V> {
     /// Defines the type of item that is collected from the phrase
     type Item;
 
@@ -73,50 +73,51 @@ pub trait ReduceHalvesBulk<U> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn bulk_reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U);
+    fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
     fn bulk_reduce_schema_binary(
-        permutation_limit: f64,
+        size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
-        confidence_interpreter: &U,
+        confidence_interpreter: &V,
     ) -> Vec<Section<Self::Item>>;
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn bulk_halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U);
+    fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
 }
 
-impl<T, U> ReduceHalves<U> for Phrase<T>
+impl<T, U, V> ReduceHalves<U, V> for Phrase<T>
 where
     T: Debug,
-    U: Fn(&Variation<T>) -> f64,
+    U: Fn(&Snippet<'_, T>) -> bool,
+    V: Fn(&Variation<T>) -> f64,
     Variation<T>: Clone + Display,
 {
     type Item = T;
 
-    fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+    fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
         self.sections = Self::reduce_schema_binary(
-            permutation_limit,
+            &size_checker,
             Snippet::from(self.sections.as_slice()),
             &confidence_interpreter,
         );
     }
 
     fn reduce_schema_binary(
-        permutation_limit: f64,
+        size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
-        confidence_interpreter: &U,
+        confidence_interpreter: &V,
     ) -> Vec<Section<Self::Item>> {
         // Leave early if section is empty or just one
         if phrase_snippet.len_sections() < 2 {
             phrase_snippet.sections.to_vec()
         }
         // If the permutations within the sections is less than limit, then start crunching through them
-        else if phrase_snippet.permutations() <= permutation_limit {
+        else if size_checker(&phrase_snippet) {
             vec![
                 phrase_snippet
                     .iter_var()
@@ -143,7 +144,7 @@ where
                 .chunks(phrase_snippet.len_sections() / 2)
                 .flat_map(|c| {
                     Self::reduce_schema_binary(
-                        permutation_limit,
+                        size_checker,
                         Snippet::new(c),
                         confidence_interpreter,
                     )
@@ -152,7 +153,7 @@ where
         }
     }
 
-    fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U)
+    fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
     where
         Variation<T>: Display,
     {
@@ -163,7 +164,7 @@ where
         let mut last_size = usize::MAX;
         while last_size > self.len_sections() {
             last_size = self.len_sections();
-            self.reduce_halves(max_permutations, &confidence_interpreter);
+            self.reduce_halves(&size_checker, &confidence_interpreter);
             match log::max_level() {
                 log::LevelFilter::Info => {
                     log::info!(
@@ -187,27 +188,28 @@ where
     }
 }
 
-impl<T, U, V> ReduceHalvesBulk<U> for Phrase<T>
+impl<T, U, V, W> ReduceHalvesBulk<U, V> for Phrase<T>
 where
     T: Debug,
-    U: Fn(&Snippet<'_, T>) -> V,
-    V: Iterator<Item = (f64, Variation<T>)>,
+    U: Fn(&Snippet<'_, T>) -> bool,
+    V: Fn(&Snippet<'_, T>) -> W,
+    W: Iterator<Item = (f64, Variation<T>)>,
     Variation<T>: Clone + Display,
 {
     type Item = T;
 
-    fn bulk_reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+    fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
         self.sections = Self::bulk_reduce_schema_binary(
-            permutation_limit,
+            &size_checker,
             Snippet::from(self.sections.as_slice()),
             &confidence_interpreter,
         );
     }
 
     fn bulk_reduce_schema_binary(
-        permutation_limit: f64,
+        size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
-        confidence_interpreter: &U,
+        confidence_interpreter: &V,
     ) -> Vec<Section<Self::Item>>
     where
         Variation<T>: Clone,
@@ -217,7 +219,7 @@ where
             phrase_snippet.sections.to_vec()
         }
         // If the permutations within the sections is less than limit, then start crunching through them
-        else if phrase_snippet.permutations() <= permutation_limit {
+        else if size_checker(&phrase_snippet) {
             vec![
                 confidence_interpreter(&phrase_snippet)
                     .inspect(|(confidence, line)| {
@@ -242,7 +244,7 @@ where
                 .chunks(phrase_snippet.len_sections() / 2)
                 .flat_map(|c| {
                     Self::bulk_reduce_schema_binary(
-                        permutation_limit,
+                        size_checker,
                         Snippet::new(c),
                         confidence_interpreter,
                     )
@@ -251,7 +253,7 @@ where
         }
     }
 
-    fn bulk_halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U)
+    fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
     where
         T: Debug,
         Variation<T>: Display,
@@ -263,7 +265,7 @@ where
         let mut last_size = usize::MAX;
         while last_size > self.sections.len() {
             last_size = self.sections.len();
-            self.bulk_reduce_halves(max_permutations, &confidence_interpreter);
+            self.bulk_reduce_halves(&size_checker, &confidence_interpreter);
             match log::max_level() {
                 log::LevelFilter::Info => {
                     log::info!(
@@ -304,7 +306,7 @@ pub mod rayon {
     /// validator utilizing a recursive process
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait ParReduceHalves<U> {
+    pub trait ParReduceHalves<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
 
@@ -313,28 +315,28 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U);
+        fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
         fn reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             sections: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> Vec<Section<Self::Item>>;
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U);
+        fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
     }
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait ParReduceHalvesBulk<U> {
+    pub trait ParReduceHalvesBulk<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
 
@@ -343,50 +345,51 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn bulk_reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U);
+        fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
         fn bulk_reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> Vec<Section<Self::Item>>;
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn bulk_halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U);
+        fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
     }
 
-    impl<T, U> ParReduceHalves<U> for Phrase<T>
+    impl<T, U, V> ParReduceHalves<U, V> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(&Variation<T>) -> f64 + Sync,
+        U: Fn(&Snippet<'_, T>) -> bool + Sync,
+        V: Fn(&Variation<T>) -> f64 + Sync,
         Variation<T>: Clone + Display,
     {
         type Item = T;
 
-        fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+        fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
             self.sections = Self::reduce_schema_binary(
-                permutation_limit,
+                &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
             );
         }
 
         fn reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> Vec<Section<Self::Item>> {
             // Leave early if section is empty or just one
             if phrase_snippet.len_sections() < 2 {
                 phrase_snippet.sections.to_vec()
             }
             // If the permutations within the sections is less than limit, then start crunching through them
-            else if phrase_snippet.permutations() <= permutation_limit {
+            else if size_checker(&phrase_snippet) {
                 vec![
                     phrase_snippet
                         .iter_var()
@@ -417,7 +420,7 @@ pub mod rayon {
                     .par_chunks(phrase_snippet.len_sections() / 2)
                     .flat_map(|c| {
                         Self::reduce_schema_binary(
-                            permutation_limit,
+                            size_checker,
                             Snippet::new(c),
                             confidence_interpreter,
                         )
@@ -426,7 +429,7 @@ pub mod rayon {
             }
         }
 
-        fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U)
+        fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
         where
             Variation<T>: Display,
         {
@@ -437,7 +440,7 @@ pub mod rayon {
             let mut last_size = usize::MAX;
             while last_size > self.len_sections() {
                 last_size = self.len_sections();
-                self.reduce_halves(max_permutations, &confidence_interpreter);
+                self.reduce_halves(&size_checker, &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
@@ -461,27 +464,28 @@ pub mod rayon {
         }
     }
 
-    impl<T, U, V> ParReduceHalvesBulk<U> for Phrase<T>
+    impl<T, U, V, W> ParReduceHalvesBulk<U, V> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(&Snippet<'_, T>) -> V + Sync,
-        V: Iterator<Item = (f64, Variation<T>)>,
+        U: Fn(&Snippet<'_, T>) -> bool + Sync,
+        V: Fn(&Snippet<'_, T>) -> W + Sync,
+        W: Iterator<Item = (f64, Variation<T>)>,
         Variation<T>: Clone + Display,
     {
         type Item = T;
 
-        fn bulk_reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+        fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
             self.sections = Self::bulk_reduce_schema_binary(
-                permutation_limit,
+                &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
             );
         }
 
         fn bulk_reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> Vec<Section<Self::Item>>
         where
             Variation<T>: Clone,
@@ -491,7 +495,7 @@ pub mod rayon {
                 phrase_snippet.sections.to_vec()
             }
             // If the permutations within the sections is less than limit, then start crunching through them
-            else if phrase_snippet.permutations() <= permutation_limit {
+            else if size_checker(&phrase_snippet) {
                 vec![
                     confidence_interpreter(&phrase_snippet)
                         .inspect(|(confidence, line)| {
@@ -516,7 +520,7 @@ pub mod rayon {
                     .par_chunks(phrase_snippet.len_sections() / 2)
                     .flat_map(|c| {
                         Self::bulk_reduce_schema_binary(
-                            permutation_limit,
+                            size_checker,
                             Snippet::new(c),
                             confidence_interpreter,
                         )
@@ -525,7 +529,7 @@ pub mod rayon {
             }
         }
 
-        fn bulk_halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U)
+        fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
         where
             T: Debug,
             Variation<T>: Display,
@@ -537,7 +541,7 @@ pub mod rayon {
             let mut last_size = usize::MAX;
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
-                self.bulk_reduce_halves(max_permutations, &confidence_interpreter);
+                self.bulk_reduce_halves(&size_checker, &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
@@ -576,7 +580,7 @@ pub mod r#async {
     /// validator utilizing a recursive process
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
-    pub trait AsyncReduceHalves<U> {
+    pub trait AsyncReduceHalves<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
 
@@ -587,8 +591,8 @@ pub mod r#async {
         /// to decide the size of the section.
         fn reduce_halves(
             &mut self,
-            permutation_limit: f64,
-            confidence_interpreter: U,
+            size_checker: U,
+            confidence_interpreter: V,
         ) -> impl Future<Output = ()> + Send;
 
         /// A helper function to `reduce_halves`. Takes a binary search
@@ -596,17 +600,17 @@ pub mod r#async {
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
         fn reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> impl Future<Output = Vec<Section<Self::Item>>> + Send;
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
         fn halves_to_end(
             &mut self,
-            max_permutations: f64,
-            confidence_interpreter: U,
+            size_checker: U,
+            confidence_interpreter: V,
         ) -> impl Future<Output = ()> + Send;
     }
 
@@ -614,7 +618,7 @@ pub mod r#async {
     /// validator utilizing a recursive process
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
-    pub trait AsyncReduceHalvesBulk<U> {
+    pub trait AsyncReduceHalvesBulk<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
 
@@ -625,8 +629,8 @@ pub mod r#async {
         /// to decide the size of the section.
         fn bulk_reduce_halves(
             &mut self,
-            permutation_limit: f64,
-            confidence_interpreter: U,
+            size_checker: U,
+            confidence_interpreter: V,
         ) -> impl Future<Output = ()> + Send;
 
         /// A helper function to `reduce_halves`. Takes a binary search
@@ -634,32 +638,34 @@ pub mod r#async {
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
         fn bulk_reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> impl Future<Output = Vec<Section<Self::Item>>> + Send;
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
         fn bulk_halves_to_end(
             &mut self,
-            max_permutations: f64,
-            confidence_interpreter: U,
+            size_checker: U,
+            confidence_interpreter: V,
         ) -> impl Future<Output = ()> + Send;
     }
 
-    impl<T, U, FnFut> AsyncReduceHalves<U> for Phrase<T>
+    impl<T, U, V, FnFutBool, FnFut> AsyncReduceHalves<U, V> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(&'_ Variation<T>) -> FnFut + Send + Sync,
+        U: Fn(&Snippet<'_, T>) -> FnFutBool + Send + Sync,
+        FnFutBool: Future<Output = bool> + Send,
+        V: Fn(&'_ Variation<T>) -> FnFut + Send + Sync,
         FnFut: Future<Output = f64> + Send,
         Variation<T>: Clone + Display,
     {
         type Item = T;
 
-        async fn reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+        async fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
             self.sections = Self::reduce_schema_binary(
-                permutation_limit,
+                &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
             )
@@ -667,9 +673,9 @@ pub mod r#async {
         }
 
         fn reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> impl Future<Output = Vec<Section<Self::Item>>> + Send {
             async move {
                 // Leave early if section is empty or just one
@@ -677,7 +683,7 @@ pub mod r#async {
                     phrase_snippet.sections.to_vec()
                 }
                 // If the permutations within the sections is less than limit, then start crunching through them
-                else if phrase_snippet.permutations() <= permutation_limit {
+                else if size_checker(&phrase_snippet).await {
                     vec![
                         stream::iter(phrase_snippet.iter_var())
                             .then(async |line| (confidence_interpreter(&line).await, line))
@@ -706,7 +712,7 @@ pub mod r#async {
                         .then(async |c| {
                             stream::iter(
                                 Self::reduce_schema_binary(
-                                    permutation_limit,
+                                    size_checker,
                                     Snippet::new(c.as_slice()),
                                     confidence_interpreter,
                                 )
@@ -721,7 +727,7 @@ pub mod r#async {
             }
         }
 
-        async fn halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U) {
+        async fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V) {
             // Begin by flattening single variation items
             self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
@@ -729,7 +735,7 @@ pub mod r#async {
             let mut last_size = usize::MAX;
             while last_size > self.len_sections() {
                 last_size = self.len_sections();
-                self.reduce_halves(max_permutations, &confidence_interpreter)
+                self.reduce_halves(&size_checker, &confidence_interpreter)
                     .await;
                 match log::max_level() {
                     log::LevelFilter::Info => {
@@ -754,18 +760,20 @@ pub mod r#async {
         }
     }
 
-    impl<T, U, FnFut> AsyncReduceHalvesBulk<U> for Phrase<T>
+    impl<T, U, V, FnFutBool, FnFut> AsyncReduceHalvesBulk<U, V> for Phrase<T>
     where
         T: Debug + Send + Sync,
-        U: Fn(&Snippet<'_, T>) -> FnFut + Send + Sync,
+        U: Fn(&Snippet<'_, T>) -> FnFutBool + Send + Sync,
+        FnFutBool: Future<Output = bool> + Send,
+        V: Fn(&Snippet<'_, T>) -> FnFut + Send + Sync,
         FnFut: Stream<Item = (f64, Variation<T>)> + Send,
         Variation<T>: Clone + Display,
     {
         type Item = T;
 
-        async fn bulk_reduce_halves(&mut self, permutation_limit: f64, confidence_interpreter: U) {
+        async fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
             self.sections = Self::bulk_reduce_schema_binary(
-                permutation_limit,
+                &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
             )
@@ -773,9 +781,9 @@ pub mod r#async {
         }
 
         fn bulk_reduce_schema_binary(
-            permutation_limit: f64,
+            size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
-            confidence_interpreter: &U,
+            confidence_interpreter: &V,
         ) -> impl Future<Output = Vec<Section<Self::Item>>> + Send {
             async move {
                 // Leave early if section is empty or just one
@@ -783,7 +791,7 @@ pub mod r#async {
                     phrase_snippet.sections.to_vec()
                 }
                 // If the permutations within the sections is less than limit, then start crunching through them
-                else if phrase_snippet.permutations() <= permutation_limit {
+                else if size_checker(&phrase_snippet).await {
                     vec![
                         confidence_interpreter(&phrase_snippet)
                             .inspect(|(confidence, line)| {
@@ -811,7 +819,7 @@ pub mod r#async {
                         .then(async |c| {
                             stream::iter(
                                 Self::bulk_reduce_schema_binary(
-                                    permutation_limit,
+                                    size_checker,
                                     Snippet::new(c.as_slice()),
                                     confidence_interpreter,
                                 )
@@ -826,7 +834,7 @@ pub mod r#async {
             }
         }
 
-        async fn bulk_halves_to_end(&mut self, max_permutations: f64, confidence_interpreter: U) {
+        async fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V) {
             // Begin by flattening single variation items
             self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
@@ -834,7 +842,7 @@ pub mod r#async {
             let mut last_size = usize::MAX;
             while last_size > self.sections.len() {
                 last_size = self.sections.len();
-                self.bulk_reduce_halves(max_permutations, &confidence_interpreter)
+                self.bulk_reduce_halves(&size_checker, &confidence_interpreter)
                     .await;
                 match log::max_level() {
                     log::LevelFilter::Info => {

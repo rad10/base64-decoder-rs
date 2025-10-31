@@ -18,10 +18,6 @@ pub(crate) struct ToolArgs {
     #[arg(short, long)]
     pub(crate) info: bool,
 
-    /// Skips human inferences to reduce possible combinations
-    #[arg(short, long)]
-    pub(crate) no_prune: bool,
-
     /// Sets the form of reduction used on the string
     #[arg(short, long, value_enum, default_value_t = ReductionMethod::Halves)]
     pub(crate) reduction_method: ReductionMethod,
@@ -65,6 +61,9 @@ pub(crate) enum ReductionMethod {
 /// Determines what function to use when validating part of a phrase
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub(crate) enum StringValidator {
+    /// Sets no validation method and skips reduction before printing
+    /// possibilities
+    None,
     /// Uses the whatlang library to validate strings during reduction
     #[cfg(feature = "whatlang")]
     WhatLang,

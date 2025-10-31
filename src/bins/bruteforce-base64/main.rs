@@ -17,6 +17,8 @@ use base64_bruteforcer_rs::phrase::reduction::{
     by_halves::rayon::ParReduceHalves, by_pairs::rayon::ParReducePairs,
 };
 
+use crate::tool_args::{ReductionMethod, StringValidator};
+
 fn main() {
     let parser = ToolArgs::parse();
 
@@ -44,7 +46,7 @@ fn main() {
         unreachable!();
     };
 
-    if !parser.no_prune {
+    if parser.validation_method != StringValidator::None {
         if parser.info {
             println!(
                 "schema: {:?}\n# of permutations: {}",
@@ -54,12 +56,13 @@ fn main() {
         }
 
         log::info!("Reducing permutations to logical choices");
-        match parser.reduction_method {
-            tool_args::ReductionMethod::Pairs => {
+        match (parser.reduction_method, parser.validation_method) {
+            (_, StringValidator::None) => unreachable!(),
+            (ReductionMethod::Pairs, StringValidator::WhatLang) => {
                 string_permutation.pairs_to_end(validate_with_whatlang)
             }
-            tool_args::ReductionMethod::Halves => {
-                string_permutation.halves_to_end(10_000_f64, validate_with_whatlang)
+            (ReductionMethod::Halves, StringValidator::WhatLang) => {
+                string_permutation.halves_to_end(|snip| snip.permutations() <= 100_000_f64, validate_with_whatlang)
             }
         };
     }

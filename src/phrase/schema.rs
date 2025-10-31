@@ -133,12 +133,20 @@ impl<T> Variation<Vec<T>> {
     pub fn len(&self) -> usize {
         self.links.iter().map(|l| l.len()).sum()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl Variation<String> {
     /// Gets the len of the value within the variation
     pub fn len(&self) -> usize {
         self.links.iter().map(|l| l.len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -289,12 +297,20 @@ impl<T> Phrase<Vec<T>> {
     pub fn len(&self) -> usize {
         self.sections.iter().map(|s| s[0].len()).sum()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl Phrase<String> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
         self.sections.iter().map(|s| s[0].len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -338,12 +354,20 @@ impl<T> Snippet<'_, Vec<T>> {
     pub fn len(&self) -> usize {
         self.sections.iter().map(|s| s[0].len()).sum()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl Snippet<'_, String> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
         self.sections.iter().map(|s| s[0].len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

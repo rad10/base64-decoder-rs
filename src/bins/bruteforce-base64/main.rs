@@ -17,7 +17,7 @@ use base64_bruteforcer_rs::phrase::reduction::{
     by_halves::rayon::ParReduceHalves, by_pairs::rayon::ParReducePairs,
 };
 
-use crate::tool_args::{ReductionMethod, StringValidator};
+use crate::tool_args::{ReductionMethod, StringValidator, parse_json_to_schema};
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> () {
@@ -27,24 +27,33 @@ async fn main() -> () {
         .filter_level(parser.verbose.log_level_filter())
         .init();
 
-    // set base64 string as bytes
-    let mut string_permutation: Phrase<String> = if let Some(b64_string) = parser.input.b64_string {
-        match parser.use_utf16 {
-            false => {
-                let mut bruteforcer = Base64Bruteforcer::<u8>::default();
-                bruteforcer.collect_combinations(b64_string.as_bytes());
-                Phrase::from(bruteforcer).into()
-            }
-            true => {
-                let mut bruteforcer = Base64Bruteforcer::<u16>::default();
-                bruteforcer.collect_combinations(b64_string.as_bytes());
-                Phrase::from(bruteforcer).into()
-            }
-        }
-    } else if let Some(schema) = parser.input.use_schema {
-        schema
+    // Attempt to read contents of file. Fail tool if it fails
+    let b64_string = if let Ok(input_content) = parser.input.async_read_to_string().await {
+        input_content
     } else {
-        unreachable!();
+        log::error!("Failed to get file content. Failing early.");
+        return;
+    };
+
+    // Determine if input is a schema that has already been processed in past
+    // or is a base64 string
+    let mut string_permutation = if parser.use_schema {
+        if let Ok(string_schema) = parse_json_to_schema(&b64_string) {
+            string_schema
+        } else {
+            log::error!(
+                "Input does not match expected outputs. Please reobtain bruteforce progress in correct format."
+            );
+            return;
+        }
+    } else if parser.use_utf16 {
+        let mut bruteforcer = Base64Bruteforcer::<u16>::default();
+        bruteforcer.collect_combinations(b64_string.as_bytes());
+        Phrase::from(bruteforcer).into()
+    } else {
+        let mut bruteforcer = Base64Bruteforcer::<u8>::default();
+        bruteforcer.collect_combinations(b64_string.as_bytes());
+        Phrase::from(bruteforcer).into()
     };
 
     if parser.validation_method != StringValidator::None {

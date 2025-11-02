@@ -46,13 +46,13 @@ pub trait ReducePairs<U> {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
+    fn reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self;
 
     /// Runs the reduce function until the it will not reduce anymore
     ///
     /// `confidence_interpreter` is used to determine if a combined string is
     /// closer to your objective than another.
-    fn pairs_to_end(&mut self, confidence_interpreter: U);
+    fn pairs_to_end(&self, confidence_interpreter: U) -> Self;
 }
 
 /// Provides an interface to reduce an array like structure to through a
@@ -69,14 +69,14 @@ pub trait ReducePairsBulk<U> {
     /// each string
     ///
     /// Default is 2
-    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
+    fn bulk_reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self;
 
     /// Runs the reduce function until the it will not reduce anymore
     ///
     /// `confidence_interpreter` Takes an iterator of all possible permutations
     /// and produces an iterator of equal size with the confidence values of
     /// each string
-    fn bulk_pairs_to_end(&mut self, confidence_interpreter: U);
+    fn bulk_pairs_to_end(&self, confidence_interpreter: U) -> Self;
 }
 
 impl<T, U> ReducePairs<U> for Phrase<T>
@@ -85,13 +85,13 @@ where
     U: Fn(&Variation<T>) -> f64,
     Variation<T>: Clone + Display + VariationValue,
 {
-    fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
+    fn reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
             // default
-            Some(n) if n < self.sections.len() => n,
-            Some(_) => self.sections.len(), // If the number is bigger than the
+            Some(n) if n < self.len_sections() => n,
+            Some(_) => self.len_sections(), // If the number is bigger than the
                                             // source itself, just use the length of the source. Its not
                                             // recommended to ever do this since its no different than checking
                                             // line by line.
@@ -99,7 +99,7 @@ where
 
         // Take and operate on each pair in the schema. Will either combine a
         // pair into one section or (worst case scenario) leave the pairs as is
-        self.sections = self
+        let new_sections = self
             .sections
             .chunks(pair_size)
             .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
@@ -149,36 +149,34 @@ where
                     }
                 }
             })
-            .collect::<Vec<Section<T>>>()
+            .collect::<Vec<Section<T>>>();
+        Self::new(new_sections)
     }
 
-    fn pairs_to_end(&mut self, confidence_interpreter: U) {
+    fn pairs_to_end(&self, confidence_interpreter: U) -> Self {
         // Begin by flattening single variation items
-        self.flatten_sections();
+        let mut new_phrase = self.flatten_sections();
         let mut pair_size = 2;
-        while pair_size <= self.sections.len() {
+        while pair_size <= new_phrase.len_sections() {
             let mut last_size = usize::MAX;
-            while last_size > self.sections.len() {
-                last_size = self.sections.len();
-                self.reduce_pairs(Some(pair_size), &confidence_interpreter);
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase.reduce_pairs(Some(pair_size), &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.sections.len(),
-                            self.sections
-                                .iter()
-                                .flat_map(|s| s.iter().map(|v| v.links.len()))
-                                .sum::<usize>(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
@@ -187,6 +185,7 @@ where
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
         }
+        new_phrase
     }
 }
 
@@ -197,13 +196,13 @@ where
     V: Iterator<Item = (f64, Variation<T>)>,
     Variation<T>: Display + VariationValue,
 {
-    fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
+    fn bulk_reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
             // default
-            Some(n) if n < self.sections.len() => n,
-            Some(_) => self.sections.len(), // If the number is bigger than the
+            Some(n) if n < self.len_sections() => n,
+            Some(_) => self.len_sections(), // If the number is bigger than the
                                             // source itself, just use the length of the source. Its not
                                             // recommended to ever do this since its no different than checking
                                             // line by line.
@@ -211,7 +210,7 @@ where
 
         // Take and operate on each pair in the schema. Will either combine a
         // pair into one section or (worst case scenario) leave the pairs as is
-        self.sections = self
+        let new_sections = self
             .sections
             .chunks(pair_size)
             .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
@@ -257,33 +256,34 @@ where
                     }
                 }
             })
-            .collect::<Vec<Section<T>>>()
+            .collect::<Vec<Section<T>>>();
+        Self::new(new_sections)
     }
 
-    fn bulk_pairs_to_end(&mut self, confidence_interpreter: U) {
+    fn bulk_pairs_to_end(&self, confidence_interpreter: U) -> Self {
         // Begin by flattening single variation items
-        self.flatten_sections();
+        let mut new_phrase = self.flatten_sections();
         let mut pair_size = 2;
-        while pair_size <= self.sections.len() {
+        while pair_size <= new_phrase.len_sections() {
             let mut last_size = usize::MAX;
-            while last_size > self.sections.len() {
-                last_size = self.sections.len();
-                self.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter);
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.len_sections(),
-                            self.num_of_references(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
@@ -292,6 +292,7 @@ where
             pair_size += 1;
             log::debug!("Increasing pair size to {pair_size}");
         }
+        new_phrase
     }
 }
 
@@ -320,10 +321,10 @@ pub mod rayon {
         /// closer to your objective than another.
         ///
         /// Default is 2
-        fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
+        fn reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self;
 
         /// Runs the reduce function until the it will not reduce anymore
-        fn pairs_to_end(&mut self, confidence_interpreter: U);
+        fn pairs_to_end(&self, confidence_interpreter: U) -> Self;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -340,14 +341,18 @@ pub mod rayon {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U);
+        fn bulk_reduce_pairs(
+            &self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) -> Self;
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
         /// each string
-        fn bulk_pairs_to_end(&mut self, confidence_interpreter: U);
+        fn bulk_pairs_to_end(&self, confidence_interpreter: U) -> Self;
     }
 
     impl<T, U> ParReducePairs<U> for Phrase<T>
@@ -356,13 +361,13 @@ pub mod rayon {
         U: Fn(&Variation<T>) -> f64 + Sync,
         Variation<T>: Clone + Display,
     {
-        fn reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U) {
+        fn reduce_pairs(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
-                Some(n) if n < self.sections.len() => n,
-                Some(_) => self.sections.len(), // If the number is bigger than the
+                Some(n) if n < self.len_sections() => n,
+                Some(_) => self.len_sections(), // If the number is bigger than the
                                                 // source itself, just use the length of the source. Its not
                                                 // recommended to ever do this since its no different than checking
                                                 // line by line.
@@ -370,7 +375,7 @@ pub mod rayon {
 
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
-            self.sections =
+            let new_sections =
                 self.sections
                     .par_chunks(pair_size)
                     // .chunks(pair_size)
@@ -427,39 +432,37 @@ pub mod rayon {
                             }
                         }
                     })
-                    .collect::<Vec<Section<T>>>()
+                    .collect::<Vec<Section<T>>>();
+            Self::new(new_sections)
         }
 
-        fn pairs_to_end(&mut self, confidence_interpreter: U)
+        fn pairs_to_end(&self, confidence_interpreter: U) -> Self
         where
             Variation<T>: Display,
         {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             let mut pair_size = 2;
-            while pair_size <= self.sections.len() {
+            while pair_size <= new_phrase.len_sections() {
                 let mut last_size = usize::MAX;
-                while last_size > self.sections.len() {
-                    last_size = self.sections.len();
-                    self.reduce_pairs(Some(pair_size), &confidence_interpreter);
+                while last_size > new_phrase.len_sections() {
+                    last_size = new_phrase.len_sections();
+                    new_phrase = new_phrase.reduce_pairs(Some(pair_size), &confidence_interpreter);
                     match log::max_level() {
                         log::LevelFilter::Info => {
                             log::info!(
                                 "Schema: {:?}\n# of permutations: {:e}",
-                                self.convert_to_string(),
-                                self.permutations()
+                                new_phrase.convert_to_string(),
+                                new_phrase.permutations(),
                             );
                         }
                         x if x >= log::LevelFilter::Debug => {
                             log::debug!(
                                 "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                                self.sections,
-                                self.sections.len(),
-                                self.sections
-                                    .iter()
-                                    .flat_map(|s| s.iter().map(|v| v.links.len()))
-                                    .sum::<usize>(),
-                                self.permutations()
+                                new_phrase.sections,
+                                new_phrase.len_sections(),
+                                new_phrase.num_of_references(),
+                                new_phrase.permutations(),
                             );
                         }
                         _ => (),
@@ -468,6 +471,7 @@ pub mod rayon {
                 pair_size += 1;
                 log::debug!("Increasing pair size to {pair_size}");
             }
+            new_phrase
         }
     }
 
@@ -478,7 +482,11 @@ pub mod rayon {
         V: Iterator<Item = (f64, Variation<T>)>,
         Variation<T>: Display,
     {
-        fn bulk_reduce_pairs(&mut self, number_of_pairs: Option<usize>, confidence_interpreter: U)
+        fn bulk_reduce_pairs(
+            &self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) -> Self
         where
             T: Clone + Send + Sync,
             Variation<T>: Display,
@@ -487,8 +495,8 @@ pub mod rayon {
             let pair_size = match number_of_pairs {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
-                Some(n) if n < self.sections.len() => n,
-                Some(_) => self.sections.len(), // If the number is bigger than the
+                Some(n) if n < self.len_sections() => n,
+                Some(_) => self.len_sections(), // If the number is bigger than the
                                                 // source itself, just use the length of the source. Its not
                                                 // recommended to ever do this since its no different than checking
                                                 // line by line.
@@ -496,7 +504,7 @@ pub mod rayon {
 
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
-            self.sections = self
+            let new_sections = self
                 .sections
                 .par_chunks(pair_size)
                 .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
@@ -545,39 +553,38 @@ pub mod rayon {
                         }
                     }
                 })
-                .collect::<Vec<Section<T>>>()
+                .collect::<Vec<Section<T>>>();
+            Self::new(new_sections)
         }
 
-        fn bulk_pairs_to_end(&mut self, confidence_interpreter: U)
+        fn bulk_pairs_to_end(&self, confidence_interpreter: U) -> Self
         where
             Variation<T>: Display,
         {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             let mut pair_size = 2;
-            while pair_size <= self.sections.len() {
+            while pair_size <= new_phrase.len_sections() {
                 let mut last_size = usize::MAX;
-                while last_size > self.sections.len() {
-                    last_size = self.sections.len();
-                    self.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter);
+                while last_size > new_phrase.len_sections() {
+                    last_size = new_phrase.len_sections();
+                    new_phrase =
+                        new_phrase.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter);
                     match log::max_level() {
                         log::LevelFilter::Info => {
                             log::info!(
                                 "Schema: {:?}\n# of permutations: {:e}",
-                                self.convert_to_string(),
-                                self.permutations()
+                                new_phrase.convert_to_string(),
+                                new_phrase.permutations(),
                             );
                         }
                         x if x >= log::LevelFilter::Debug => {
                             log::debug!(
                                 "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                                self.sections,
-                                self.sections.len(),
-                                self.sections
-                                    .iter()
-                                    .flat_map(|s| s.iter().map(|v| v.links.len()))
-                                    .sum::<usize>(),
-                                self.permutations()
+                                new_phrase.sections,
+                                new_phrase.len_sections(),
+                                new_phrase.num_of_references(),
+                                new_phrase.permutations(),
                             );
                         }
                         _ => (),
@@ -586,6 +593,7 @@ pub mod rayon {
                 pair_size += 1;
                 log::debug!("Increasing pair size to {pair_size}");
             }
+            new_phrase
         }
     }
 }
@@ -613,16 +621,16 @@ pub mod r#async {
         ///
         /// Default is 2
         fn reduce_pairs(
-            &mut self,
+            &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: U,
-        ) -> impl Future<Output = ()> + Send;
+        ) -> impl Future<Output = Self> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
         fn pairs_to_end(
-            &mut self,
+            &self,
             confidence_interpreter: U,
-        ) -> impl std::future::Future<Output = ()> + Send;
+        ) -> impl std::future::Future<Output = Self> + Send;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -640,10 +648,10 @@ pub mod r#async {
         ///
         /// Default is 2
         fn bulk_reduce_pairs(
-            &mut self,
+            &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: U,
-        ) -> impl std::future::Future<Output = ()> + Send;
+        ) -> impl std::future::Future<Output = Self> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
@@ -651,9 +659,9 @@ pub mod r#async {
         /// and produces an iterator of equal size with the confidence values of
         /// each string
         fn bulk_pairs_to_end(
-            &mut self,
+            &self,
             confidence_interpreter: U,
-        ) -> impl std::future::Future<Output = ()> + Send;
+        ) -> impl std::future::Future<Output = Self> + Send;
     }
 
     impl<T, U, FnFut> AsyncReducePairs<U> for Phrase<T>
@@ -664,16 +672,16 @@ pub mod r#async {
         Variation<T>: Clone + Display,
     {
         async fn reduce_pairs(
-            &mut self,
+            &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: U,
-        ) {
+        ) -> Self {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
-                Some(n) if n < self.sections.len() => n,
-                Some(_) => self.sections.len(), // If the number is bigger than the
+                Some(n) if n < self.len_sections() => n,
+                Some(_) => self.len_sections(), // If the number is bigger than the
                                                 // source itself, just use the length of the source. Its not
                                                 // recommended to ever do this since its no different than checking
                                                 // line by line.
@@ -681,7 +689,7 @@ pub mod r#async {
 
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
-            self.sections = stream::iter(self.sections.clone())
+            let new_sections = stream::iter(self.sections.clone())
                 .chunks(pair_size)
                 .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
                 .then(async |pairs| {
@@ -739,34 +747,36 @@ pub mod r#async {
                 .boxed()
                 .flatten()
                 .collect::<Vec<Section<T>>>()
-                .await
+                .await;
+            Self::new(new_sections)
         }
 
-        async fn pairs_to_end(&mut self, confidence_interpreter: U) {
+        async fn pairs_to_end(&self, confidence_interpreter: U) -> Self {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             let mut pair_size = 2;
-            while pair_size <= self.sections.len() {
+            while pair_size <= new_phrase.len_sections() {
                 let mut last_size = usize::MAX;
-                while last_size > self.sections.len() {
-                    last_size = self.sections.len();
-                    self.reduce_pairs(Some(pair_size), &confidence_interpreter)
+                while last_size > new_phrase.len_sections() {
+                    last_size = new_phrase.len_sections();
+                    new_phrase = new_phrase
+                        .reduce_pairs(Some(pair_size), &confidence_interpreter)
                         .await;
                     match log::max_level() {
                         log::LevelFilter::Info => {
                             log::info!(
                                 "Schema: {:?}\n# of permutations: {:e}",
-                                self.convert_to_string(),
-                                self.permutations()
+                                new_phrase.convert_to_string(),
+                                new_phrase.permutations()
                             );
                         }
                         x if x >= log::LevelFilter::Debug => {
                             log::debug!(
                                 "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                                self.sections,
-                                self.len_sections(),
-                                self.num_of_references(),
-                                self.permutations()
+                                new_phrase.sections,
+                                new_phrase.len_sections(),
+                                new_phrase.num_of_references(),
+                                new_phrase.permutations()
                             );
                         }
                         _ => (),
@@ -775,6 +785,7 @@ pub mod r#async {
                 pair_size += 1;
                 log::debug!("Increasing pair size to {pair_size}");
             }
+            new_phrase
         }
     }
 
@@ -786,16 +797,16 @@ pub mod r#async {
         Variation<T>: Display,
     {
         async fn bulk_reduce_pairs(
-            &mut self,
+            &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: U,
-        ) {
+        ) -> Self {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
-                Some(n) if n < self.sections.len() => n,
-                Some(_) => self.sections.len(), // If the number is bigger than the
+                Some(n) if n < self.len_sections() => n,
+                Some(_) => self.len_sections(), // If the number is bigger than the
                                                 // source itself, just use the length of the source. Its not
                                                 // recommended to ever do this since its no different than checking
                                                 // line by line.
@@ -803,7 +814,7 @@ pub mod r#async {
 
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
-            self.sections =
+            let new_sections =
                 stream::iter(self.sections.clone())
                     .chunks(pair_size)
                     .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
@@ -856,34 +867,36 @@ pub mod r#async {
                     .boxed()
                     .flatten()
                     .collect::<Vec<Section<T>>>()
-                    .await
+                    .await;
+            Self::new(new_sections)
         }
 
-        async fn bulk_pairs_to_end(&mut self, confidence_interpreter: U) {
+        async fn bulk_pairs_to_end(&self, confidence_interpreter: U) -> Self {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             let mut pair_size = 2;
-            while pair_size <= self.sections.len() {
+            while pair_size <= new_phrase.len_sections() {
                 let mut last_size = usize::MAX;
-                while last_size > self.sections.len() {
-                    last_size = self.sections.len();
-                    self.bulk_reduce_pairs(Some(pair_size), &confidence_interpreter)
+                while last_size > new_phrase.len_sections() {
+                    last_size = new_phrase.len_sections();
+                    new_phrase = new_phrase
+                        .bulk_reduce_pairs(Some(pair_size), &confidence_interpreter)
                         .await;
                     match log::max_level() {
                         log::LevelFilter::Info => {
                             log::info!(
                                 "Schema: {:?}\n# of permutations: {:e}",
-                                self.convert_to_string(),
-                                self.permutations()
+                                new_phrase.convert_to_string(),
+                                new_phrase.permutations()
                             );
                         }
                         x if x >= log::LevelFilter::Debug => {
                             log::debug!(
                                 "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                                self.sections,
-                                self.len_sections(),
-                                self.num_of_references(),
-                                self.permutations()
+                                new_phrase.sections,
+                                new_phrase.len_sections(),
+                                new_phrase.num_of_references(),
+                                new_phrase.permutations()
                             );
                         }
                         _ => (),
@@ -892,6 +905,7 @@ pub mod r#async {
                 pair_size += 1;
                 log::debug!("Increasing pair size to {pair_size}");
             }
+            new_phrase
         }
     }
 }

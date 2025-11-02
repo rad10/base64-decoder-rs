@@ -45,7 +45,7 @@ pub trait ReduceHalves<U, V> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
+    fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
@@ -59,7 +59,7 @@ pub trait ReduceHalves<U, V> {
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
+    fn halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self;
 }
 
 /// Provides an interface to reduce an array like structure to through a
@@ -73,7 +73,7 @@ pub trait ReduceHalvesBulk<U, V> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
+    fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
     /// A helper function to `reduce_halves`. Takes a binary search
     /// approach by cutting the sections in half and running the validation
@@ -87,7 +87,7 @@ pub trait ReduceHalvesBulk<U, V> {
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
+    fn bulk_halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self;
 }
 
 impl<T, U, V> ReduceHalves<U, V> for Phrase<T>
@@ -99,12 +99,12 @@ where
 {
     type Item = T;
 
-    fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-        self.sections = Self::reduce_schema_binary(
+    fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+        Self::new(Self::reduce_schema_binary(
             &size_checker,
             Snippet::from(self.sections.as_slice()),
             &confidence_interpreter,
-        );
+        ))
     }
 
     fn reduce_schema_binary(
@@ -153,38 +153,39 @@ where
         }
     }
 
-    fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
+    fn halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self
     where
         Variation<T>: Display,
     {
         // Begin by flattening single variation items
-        self.flatten_sections();
+        let mut new_phrase = self.flatten_sections();
         // Set the last permutation to last size. Stop if permutation doesnt
         // shrink in any given instance
         let mut last_size = usize::MAX;
-        while last_size > self.len_sections() {
-            last_size = self.len_sections();
-            self.reduce_halves(&size_checker, &confidence_interpreter);
+        while last_size > new_phrase.len_sections() {
+            last_size = new_phrase.len_sections();
+            new_phrase = new_phrase.reduce_halves(&size_checker, &confidence_interpreter);
             match log::max_level() {
                 log::LevelFilter::Info => {
                     log::info!(
                         "Schema: {:?}\n# of permutations: {:e}",
-                        self.convert_to_string(),
-                        self.permutations()
+                        new_phrase.convert_to_string(),
+                        new_phrase.permutations(),
                     );
                 }
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                        self.sections,
-                        self.len_sections(),
-                        self.num_of_references(),
-                        self.permutations()
+                        new_phrase.sections,
+                        new_phrase.len_sections(),
+                        new_phrase.num_of_references(),
+                        new_phrase.permutations(),
                     );
                 }
                 _ => (),
             };
         }
+        new_phrase
     }
 }
 
@@ -198,12 +199,12 @@ where
 {
     type Item = T;
 
-    fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-        self.sections = Self::bulk_reduce_schema_binary(
+    fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+        Self::new(Self::bulk_reduce_schema_binary(
             &size_checker,
             Snippet::from(self.sections.as_slice()),
             &confidence_interpreter,
-        );
+        ))
     }
 
     fn bulk_reduce_schema_binary(
@@ -253,39 +254,40 @@ where
         }
     }
 
-    fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
+    fn bulk_halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self
     where
         T: Debug,
         Variation<T>: Display,
     {
         // Begin by flattening single variation items
-        self.flatten_sections();
+        let mut new_phrase = self.flatten_sections();
         // Set the last permutation to last size. Stop if permutation doesnt
         // shrink in any given instance
         let mut last_size = usize::MAX;
-        while last_size > self.sections.len() {
-            last_size = self.sections.len();
-            self.bulk_reduce_halves(&size_checker, &confidence_interpreter);
+        while last_size > new_phrase.len_sections() {
+            last_size = new_phrase.len_sections();
+            new_phrase = new_phrase.bulk_reduce_halves(&size_checker, &confidence_interpreter);
             match log::max_level() {
                 log::LevelFilter::Info => {
                     log::info!(
                         "Schema: {:?}\n# of permutations: {:e}",
-                        self.convert_to_string(),
-                        self.permutations()
+                        new_phrase.convert_to_string(),
+                        new_phrase.permutations()
                     );
                 }
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                        self.sections,
-                        self.len_sections(),
-                        self.num_of_references(),
-                        self.permutations()
+                        new_phrase.sections,
+                        new_phrase.len_sections(),
+                        new_phrase.num_of_references(),
+                        new_phrase.permutations()
                     );
                 }
                 _ => (),
             };
         }
+        new_phrase
     }
 }
 
@@ -315,7 +317,7 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
+        fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -329,7 +331,7 @@ pub mod rayon {
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
+        fn halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -345,7 +347,7 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V);
+        fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -359,7 +361,7 @@ pub mod rayon {
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V);
+        fn bulk_halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self;
     }
 
     impl<T, U, V> ParReduceHalves<U, V> for Phrase<T>
@@ -371,12 +373,12 @@ pub mod rayon {
     {
         type Item = T;
 
-        fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-            self.sections = Self::reduce_schema_binary(
+        fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+            Self::new(Self::reduce_schema_binary(
                 &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
-            );
+            ))
         }
 
         fn reduce_schema_binary(
@@ -429,38 +431,39 @@ pub mod rayon {
             }
         }
 
-        fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
+        fn halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self
         where
             Variation<T>: Display,
         {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
             // shrink in any given instance
             let mut last_size = usize::MAX;
-            while last_size > self.len_sections() {
-                last_size = self.len_sections();
-                self.reduce_halves(&size_checker, &confidence_interpreter);
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase.reduce_halves(&size_checker, &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.len_sections(),
-                            self.num_of_references(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
                 };
             }
+            new_phrase
         }
     }
 
@@ -474,12 +477,12 @@ pub mod rayon {
     {
         type Item = T;
 
-        fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-            self.sections = Self::bulk_reduce_schema_binary(
+        fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+            Self::new(Self::bulk_reduce_schema_binary(
                 &size_checker,
                 Snippet::from(self.sections.as_slice()),
                 &confidence_interpreter,
-            );
+            ))
         }
 
         fn bulk_reduce_schema_binary(
@@ -529,39 +532,40 @@ pub mod rayon {
             }
         }
 
-        fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V)
+        fn bulk_halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self
         where
             T: Debug,
             Variation<T>: Display,
         {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
             // shrink in any given instance
             let mut last_size = usize::MAX;
-            while last_size > self.sections.len() {
-                last_size = self.sections.len();
-                self.bulk_reduce_halves(&size_checker, &confidence_interpreter);
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase.bulk_reduce_halves(&size_checker, &confidence_interpreter);
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.len_sections(),
-                            self.num_of_references(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
                 };
             }
+            new_phrase
         }
     }
 }
@@ -590,10 +594,10 @@ pub mod r#async {
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
         fn reduce_halves(
-            &mut self,
+            &self,
             size_checker: U,
             confidence_interpreter: V,
-        ) -> impl Future<Output = ()> + Send;
+        ) -> impl Future<Output = Self> + Send;
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -608,10 +612,10 @@ pub mod r#async {
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
         fn halves_to_end(
-            &mut self,
+            &self,
             size_checker: U,
             confidence_interpreter: V,
-        ) -> impl Future<Output = ()> + Send;
+        ) -> impl Future<Output = Self> + Send;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -628,10 +632,10 @@ pub mod r#async {
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
         fn bulk_reduce_halves(
-            &mut self,
+            &self,
             size_checker: U,
             confidence_interpreter: V,
-        ) -> impl Future<Output = ()> + Send;
+        ) -> impl Future<Output = Self> + Send;
 
         /// A helper function to `reduce_halves`. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -646,10 +650,10 @@ pub mod r#async {
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
         fn bulk_halves_to_end(
-            &mut self,
+            &self,
             size_checker: U,
             confidence_interpreter: V,
-        ) -> impl Future<Output = ()> + Send;
+        ) -> impl Future<Output = Self> + Send;
     }
 
     impl<T, U, V, FnFutBool, FnFut> AsyncReduceHalves<U, V> for Phrase<T>
@@ -663,13 +667,15 @@ pub mod r#async {
     {
         type Item = T;
 
-        async fn reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-            self.sections = Self::reduce_schema_binary(
-                &size_checker,
-                Snippet::from(self.sections.as_slice()),
-                &confidence_interpreter,
+        async fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+            Self::new(
+                Self::reduce_schema_binary(
+                    &size_checker,
+                    Snippet::from(self.sections.as_slice()),
+                    &confidence_interpreter,
+                )
+                .await,
             )
-            .await;
         }
 
         fn reduce_schema_binary(
@@ -727,36 +733,38 @@ pub mod r#async {
             }
         }
 
-        async fn halves_to_end(&mut self, size_checker: U, confidence_interpreter: V) {
+        async fn halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
             // shrink in any given instance
             let mut last_size = usize::MAX;
-            while last_size > self.len_sections() {
-                last_size = self.len_sections();
-                self.reduce_halves(&size_checker, &confidence_interpreter)
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase
+                    .reduce_halves(&size_checker, &confidence_interpreter)
                     .await;
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.len_sections(),
-                            self.num_of_references(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
                 };
             }
+            new_phrase
         }
     }
 
@@ -771,13 +779,15 @@ pub mod r#async {
     {
         type Item = T;
 
-        async fn bulk_reduce_halves(&mut self, size_checker: U, confidence_interpreter: V) {
-            self.sections = Self::bulk_reduce_schema_binary(
-                &size_checker,
-                Snippet::from(self.sections.as_slice()),
-                &confidence_interpreter,
+        async fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self {
+            Self::new(
+                Self::bulk_reduce_schema_binary(
+                    &size_checker,
+                    Snippet::from(self.sections.as_slice()),
+                    &confidence_interpreter,
+                )
+                .await,
             )
-            .await;
         }
 
         fn bulk_reduce_schema_binary(
@@ -834,36 +844,38 @@ pub mod r#async {
             }
         }
 
-        async fn bulk_halves_to_end(&mut self, size_checker: U, confidence_interpreter: V) {
+        async fn bulk_halves_to_end(&self, size_checker: U, confidence_interpreter: V) -> Self {
             // Begin by flattening single variation items
-            self.flatten_sections();
+            let mut new_phrase = self.flatten_sections();
             // Set the last permutation to last size. Stop if permutation doesnt
             // shrink in any given instance
             let mut last_size = usize::MAX;
-            while last_size > self.sections.len() {
-                last_size = self.sections.len();
-                self.bulk_reduce_halves(&size_checker, &confidence_interpreter)
+            while last_size > new_phrase.len_sections() {
+                last_size = new_phrase.len_sections();
+                new_phrase = new_phrase
+                    .bulk_reduce_halves(&size_checker, &confidence_interpreter)
                     .await;
                 match log::max_level() {
                     log::LevelFilter::Info => {
                         log::info!(
                             "Schema: {:?}\n# of permutations: {:e}",
-                            self.convert_to_string(),
-                            self.permutations()
+                            new_phrase.convert_to_string(),
+                            new_phrase.permutations()
                         );
                     }
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
-                            self.sections,
-                            self.len_sections(),
-                            self.num_of_references(),
-                            self.permutations()
+                            new_phrase.sections,
+                            new_phrase.len_sections(),
+                            new_phrase.num_of_references(),
+                            new_phrase.permutations()
                         );
                     }
                     _ => (),
                 };
             }
+            new_phrase
         }
     }
 }

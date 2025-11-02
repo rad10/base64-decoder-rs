@@ -219,26 +219,30 @@ impl<T> Phrase<T> {
     /// have one variation within itself into each other. While this will not
     /// reduce permutation, it can make further reduction easier by reducing the
     /// number of sections to begin with.
-    pub fn flatten_sections(&mut self) {
+    pub fn flatten_sections(&self) -> Self
+    where
+        Section<T>: Clone,
+    {
         // Creating a copy of sections here because we cant have double mutability
+        let mut old_sections = self.sections.clone();
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
         // Cant do this in a chain method due to the strategy taken here.
         // Because were using pop, we are doing this in reverse. This means
         // variation needs to be handled with care, and we need to remember to
         // reverse the array after were all done.
-        while let Some(mut item) = self.sections.pop() {
+        while let Some(mut item) = old_sections.pop() {
             // If theres more than one variation, add it to the collection and
             // move on to the next one
             if item.len() > 1 {
                 new_sections.push(item);
             } else {
-                // Reverse items string in preperation
+                // Reverse items string in preparation
                 item[0].links.reverse();
                 // Since we know that this item is only one value, we feed values
                 // to the current item until we meet a section with multiple
                 // variations
-                while let Some(mut second_item) = self.sections.pop() {
+                while let Some(mut second_item) = old_sections.pop() {
                     // Escape and place items if this new item has multiple variations
                     if second_item.len() > 1 {
                         // Our loop ends. Clean up item and place it and this
@@ -258,7 +262,7 @@ impl<T> Phrase<T> {
         // At the end of the loop, we reverse the vec and replace sections
         new_sections.reverse();
 
-        self.sections = new_sections;
+        Self::new(new_sections)
     }
 
     /// Creates an iterator of all possible combinations based on the memory

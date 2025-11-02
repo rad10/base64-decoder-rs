@@ -19,7 +19,8 @@ use base64_bruteforcer_rs::phrase::reduction::{
 
 use crate::tool_args::{ReductionMethod, StringValidator};
 
-fn main() {
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> () {
     let parser = ToolArgs::parse();
 
     env_logger::builder()
@@ -56,13 +57,33 @@ fn main() {
         }
 
         log::info!("Reducing permutations to logical choices");
-        match (parser.reduction_method, parser.validation_method) {
+        string_permutation = match (parser.reduction_method, parser.validation_method) {
             (_, StringValidator::None) => unreachable!(),
             (ReductionMethod::Pairs, StringValidator::WhatLang) => {
-                string_permutation.pairs_to_end(validate_with_whatlang)
+                #[cfg(not(feature = "rayon"))]
+                {
+                    string_permutation.pairs_to_end(validate_with_whatlang)
+                }
+                #[cfg(feature = "rayon")]
+                tokio_rayon::spawn(move || string_permutation.pairs_to_end(validate_with_whatlang))
+                    .await
             }
             (ReductionMethod::Halves, StringValidator::WhatLang) => {
-                string_permutation.halves_to_end(|snip| snip.permutations() <= 100_000_f64, validate_with_whatlang)
+                #[cfg(not(feature = "rayon"))]
+                {
+                    string_permutation.halves_to_end(
+                        |snip| snip.permutations() <= 100_000_f64,
+                        validate_with_whatlang,
+                    )
+                }
+                #[cfg(feature = "rayon")]
+                tokio_rayon::spawn(move || {
+                    string_permutation.halves_to_end(
+                        |snip| snip.permutations() <= 100_000_f64,
+                        validate_with_whatlang,
+                    )
+                })
+                .await
             }
         };
     }

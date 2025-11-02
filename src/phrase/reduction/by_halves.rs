@@ -127,7 +127,7 @@ where
                     })
                     // Keeping only square root of permitted permutations to allow rerunning the reduction
                     .k_largest_relaxed_by_key(
-                        phrase_snippet.permutations().sqrt().floor() as usize,
+                        usize::max(phrase_snippet.permutations().sqrt().floor() as usize, 1),
                         |(confidence, _)| (confidence * 100_000_f64) as usize,
                     )
                     .inspect(|(confidence, line)| {
@@ -228,7 +228,7 @@ where
                     })
                     // Keeping only square root of permitted permutations to allow rerunning the reduction
                     .k_largest_relaxed_by_key(
-                        phrase_snippet.permutations().sqrt().floor() as usize,
+                        usize::max(phrase_snippet.permutations().sqrt().floor() as usize, 1),
                         |(confidence, _)| (confidence * 100_000_f64) as usize,
                     )
                     .inspect(|(confidence, line)| {
@@ -405,7 +405,7 @@ pub mod rayon {
                         .into_iter()
                         // Keeping only square root of permitted permutations to allow rerunning the reduction
                         .k_largest_relaxed_by_key(
-                            phrase_snippet.permutations().sqrt().floor() as usize,
+                            usize::max(phrase_snippet.permutations().sqrt().floor() as usize, 1),
                             |(confidence, _)| (confidence * 100_000_f64) as usize,
                         )
                         .inspect(|(confidence, line)| {
@@ -506,7 +506,7 @@ pub mod rayon {
                         })
                         // Keeping only square root of permitted permutations to allow rerunning the reduction
                         .k_largest_relaxed_by_key(
-                            phrase_snippet.permutations().sqrt().floor() as usize,
+                            usize::max(phrase_snippet.permutations().sqrt().floor() as usize, 1),
                             |(confidence, _)| (confidence * 100_000_f64) as usize,
                         )
                         .inspect(|(confidence, line)| {
@@ -701,7 +701,10 @@ pub mod r#async {
                             .into_iter()
                             // Keeping only square root of permitted permutations to allow rerunning the reduction
                             .k_largest_relaxed_by_key(
-                                phrase_snippet.permutations().sqrt().floor() as usize,
+                                usize::max(
+                                    phrase_snippet.permutations().sqrt().floor() as usize,
+                                    1,
+                                ),
                                 |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {
@@ -812,7 +815,10 @@ pub mod r#async {
                             .into_iter()
                             // Keeping only square root of permitted permutations to allow rerunning the reduction
                             .k_largest_relaxed_by_key(
-                                phrase_snippet.permutations().sqrt().floor() as usize,
+                                usize::max(
+                                    phrase_snippet.permutations().sqrt().floor() as usize,
+                                    1,
+                                ),
                                 |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {

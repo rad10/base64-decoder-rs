@@ -8,7 +8,7 @@
 //! C\left(n_b\right)=\prod_{i=1}^{n}b=b^n
 //! ```
 //!
-//! To assume all variables, we can interpret [`confidence_interpreter`] as
+//! To assume all variables, we can interpret `confidence_interpreter` as
 //!
 //! ```math
 //! F(n)=n/2
@@ -27,6 +27,7 @@
 //! m=\left\lceil1+\log_2{\frac{n}{\log_b{P}}}\right\rceil
 //! ```
 //!
+//! [`reduce_halves`]: ReduceHalves::reduce_halves
 
 use std::fmt::{Debug, Display};
 
@@ -47,10 +48,12 @@ pub trait ReduceHalves<U, V> {
     /// to decide the size of the section.
     fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
-    /// A helper function to `reduce_halves`. Takes a binary search
+    /// A helper function to [`reduce_halves`]. Takes a binary search
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
+    /// 
+    /// [`reduce_halves`]: Self::reduce_halves
     fn reduce_schema_binary(
         size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
@@ -75,10 +78,12 @@ pub trait ReduceHalvesBulk<U, V> {
     /// to decide the size of the section.
     fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
-    /// A helper function to `reduce_halves`. Takes a binary search
+    /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
+    /// 
+    /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
     fn bulk_reduce_schema_binary(
         size_checker: &U,
         phrase_snippet: Snippet<'_, Self::Item>,
@@ -307,7 +312,7 @@ pub mod rayon {
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
-    /// Utilizes the rayon library to validate pairs in parallel
+    /// Utilizes the [`rayon`] library to validate pairs in parallel
     pub trait ParReduceHalves<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
@@ -319,10 +324,12 @@ pub mod rayon {
         /// to decide the size of the section.
         fn reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
-        /// A helper function to `reduce_halves`. Takes a binary search
+        /// A helper function to [`reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
+        /// 
+        /// [`reduce_halves`]: Self::reduce_halves
         fn reduce_schema_binary(
             size_checker: &U,
             sections: Snippet<'_, Self::Item>,
@@ -337,7 +344,7 @@ pub mod rayon {
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
-    /// Utilizes the rayon library to validate pairs in parallel
+    /// Utilizes the [`rayon`] library to validate pairs in parallel
     pub trait ParReduceHalvesBulk<U, V> {
         /// Defines the type of item that is collected from the phrase
         type Item;
@@ -345,14 +352,16 @@ pub mod rayon {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
-        /// This largest available permutation will depend on `permutation_limit`
+        /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
         fn bulk_reduce_halves(&self, size_checker: U, confidence_interpreter: V) -> Self;
 
-        /// A helper function to `reduce_halves`. Takes a binary search
+        /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
+        /// 
+        /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
         fn bulk_reduce_schema_binary(
             size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
@@ -591,7 +600,7 @@ pub mod r#async {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
-        /// This largest available permutation will depend on `permutation_limit`
+        /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
         fn reduce_halves(
             &self,
@@ -599,10 +608,12 @@ pub mod r#async {
             confidence_interpreter: V,
         ) -> impl Future<Output = Self> + Send;
 
-        /// A helper function to `reduce_halves`. Takes a binary search
+        /// A helper function to [`reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
+        /// 
+        /// [`reduce_halves`]: Self::reduce_halves
         fn reduce_schema_binary(
             size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,
@@ -637,10 +648,12 @@ pub mod r#async {
             confidence_interpreter: V,
         ) -> impl Future<Output = Self> + Send;
 
-        /// A helper function to `reduce_halves`. Takes a binary search
+        /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
+        /// 
+        /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
         fn bulk_reduce_schema_binary(
             size_checker: &U,
             phrase_snippet: Snippet<'_, Self::Item>,

@@ -394,6 +394,8 @@ where
     /// Permutate through all variations that the phrase can take
     ///
     /// Same as [`iter`]
+    /// 
+    /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
@@ -418,6 +420,8 @@ impl<T> Snippet<'_, T> {
     /// Permutate through all variations that the phrase can take
     ///
     /// Same as [`iter`]
+    /// 
+    /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,

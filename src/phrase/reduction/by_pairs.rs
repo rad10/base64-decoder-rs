@@ -10,7 +10,7 @@
 //! C\left(n_b\right)=\prod_{i=1}^{n}b=b^n
 //! ```
 //!
-//! To assume all variables, we can interpret [`confidence_interpreter`] as
+//! To assume all variables, we can interpret `confidence_interpreter` as
 //!
 //! ```math
 //! F(n)=n/2
@@ -27,6 +27,7 @@
 //! P\left(n_b,m\right)=2^{\sfrac{-n}{m}}b^n
 //! ```
 //!
+//! [`reduce_pairs`]: ReducePairs::reduce_pairs
 
 use std::fmt::{Debug, Display};
 
@@ -332,6 +333,8 @@ pub mod rayon {
     ///
     /// While this is similar in function to [`ReducePairs`], the reduction functions
     /// take a validator that takes values in bulk
+    /// 
+    /// [`ReducePairs`]: super::ReducePairs
     pub trait ParReducePairsBulk<U> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
@@ -638,6 +641,8 @@ pub mod r#async {
     ///
     /// While this is similar in function to [`ReducePairs`], the reduction functions
     /// take a validator that takes values in bulk
+    /// 
+    /// [`ReducePairs`]: super::ReducePairs
     pub trait AsyncReducePairsBulk<U> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.

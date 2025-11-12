@@ -358,7 +358,7 @@ impl<T> Phrase<T> {
 
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    pub fn into_iter_var(self) -> impl IntoIterator<Item = Variation<T>>
+    pub fn into_iter_var(self) -> impl Iterator<Item = Variation<T>>
     where
         Variation<T>: Clone,
     {
@@ -433,7 +433,7 @@ impl<T> Snippet<'_, T> {
 
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    pub fn into_iter_var(self) -> impl IntoIterator<Item = Variation<T>> {
+    pub fn into_iter_var(self) -> impl Iterator<Item = Variation<T>> {
         self.sections
             .into_iter()
             .multi_cartesian_product()
@@ -512,7 +512,7 @@ where
     Variation<T>: Clone + VariationValue,
 {
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter(self) -> impl IntoIterator<Item = T>
+    pub fn into_iter(self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
@@ -528,7 +528,7 @@ where
     /// Same as [`into_iter`]
     ///
     /// [`into_iter`]: Self::into_iter
-    pub fn into_iter_val(self) -> impl IntoIterator<Item = T>
+    pub fn into_iter_val(self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
@@ -550,7 +550,7 @@ impl<T> Snippet<'_, T> {
     }
 
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter(self) -> impl IntoIterator<Item = T>
+    pub fn into_iter(self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
@@ -578,7 +578,7 @@ impl<T> Snippet<'_, T> {
     /// Same as [`into_iter`]
     ///
     /// [`into_iter`]: Self::into_iter
-    pub fn into_iter_val(self) -> impl IntoIterator<Item = T>
+    pub fn into_iter_val(self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
@@ -600,7 +600,7 @@ where
     }
 
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter_str(self) -> impl IntoIterator<Item = String>
+    pub fn into_iter_str(self) -> impl Iterator<Item = String>
     where
         Variation<T>: Clone,
     {
@@ -626,7 +626,7 @@ where
     }
 
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter_str(self) -> impl IntoIterator<Item = String> {
+    pub fn into_iter_str(self) -> impl Iterator<Item = String> {
         self.sections
             .into_iter()
             .multi_cartesian_product()

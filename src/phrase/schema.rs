@@ -40,6 +40,10 @@ pub trait VariationValue {
     /// Takes the underlying value and produces a combined variant of the raw
     /// value
     fn value(&self) -> Self::Item;
+
+    /// Takes the underlying value and produces a combined variant of the raw
+    /// value
+    fn into_value(self) -> Self::Item;
 }
 
 /// Provides an iterator to print all schema permutations
@@ -98,7 +102,7 @@ impl<T> Variation<T> {
     }
 
     /// Takes an array of variations and combines them in order into a single variation
-    pub fn join_vec(container: Vec<&Variation<T>>) -> Variation<T> {
+    pub fn join_var_vec(container: Vec<&Variation<T>>) -> Variation<T> {
         Self {
             links: container
                 .iter()
@@ -109,10 +113,30 @@ impl<T> Variation<T> {
     }
 
     /// Takes an array of variations and combines them in order into a single variation
-    pub fn join_slice(container: &[&Variation<T>]) -> Variation<T> {
+    pub fn join_into_var_vec(container: Vec<Variation<T>>) -> Variation<T> {
+        Self {
+            links: container
+                .into_iter()
+                .flat_map(|v| v.links.into_iter())
+                .collect(),
+        }
+    }
+
+    /// Takes an array of variations and combines them in order into a single variation
+    pub fn join_var_slice(container: &[&Variation<T>]) -> Variation<T> {
         Self {
             links: container
                 .iter()
+                .flat_map(|v| v.links.iter())
+                .cloned()
+                .collect(),
+        }
+    }
+
+    pub fn join_into_var_slice(container: &[Variation<T>]) -> Variation<T> {
+        Self {
+            links: container
+                .into_iter()
                 .flat_map(|v| v.links.iter())
                 .cloned()
                 .collect(),
@@ -191,6 +215,10 @@ impl VariationValue for Variation<String> {
     fn value(&self) -> String {
         self.links.iter().join("")
     }
+
+    fn into_value(self) -> String {
+        self.links.into_iter().join("")
+    }
 }
 
 impl<T> VariationValue for Variation<Vec<T>>
@@ -199,13 +227,17 @@ where
 {
     type Item = Vec<T>;
 
-    fn value(&self) -> Self::Item
-    where
-        Vec<T>: Clone,
-    {
+    fn value(&self) -> Self::Item {
         self.links
             .iter()
             .flat_map(|v| Arc::unwrap_or_clone(v.to_owned()))
+            .collect()
+    }
+
+    fn into_value(self) -> Self::Item {
+        self.links
+            .into_iter()
+            .flat_map(|v| Arc::unwrap_or_clone(v))
             .collect()
     }
 }
@@ -265,13 +297,75 @@ impl<T> Phrase<T> {
         Self::new(new_sections)
     }
 
+    /// Goes through its internal schema and joins all adjacent sections that
+    /// have one variation within itself into each other. While this will not
+    /// reduce permutation, it can make further reduction easier by reducing the
+    /// number of sections to begin with.
+    pub fn into_flatten_sections(self) -> Self
+    where
+        Section<T>: Clone,
+    {
+        // Creating a copy of sections here because we cant have double mutability
+        let mut old_sections = self.sections.clone();
+        let mut new_sections: Vec<Section<T>> = Vec::new();
+
+        // Cant do this in a chain method due to the strategy taken here.
+        // Because were using pop, we are doing this in reverse. This means
+        // variation needs to be handled with care, and we need to remember to
+        // reverse the array after were all done.
+        while let Some(mut item) = old_sections.pop() {
+            // If theres more than one variation, add it to the collection and
+            // move on to the next one
+            if item.len() > 1 {
+                new_sections.push(item);
+            } else {
+                // Reverse items string in preparation
+                item[0].links.reverse();
+                // Since we know that this item is only one value, we feed values
+                // to the current item until we meet a section with multiple
+                // variations
+                while let Some(mut second_item) = old_sections.pop() {
+                    // Escape and place items if this new item has multiple variations
+                    if second_item.len() > 1 {
+                        // Our loop ends. Clean up item and place it and this
+                        // new item into the vector
+                        item[0].links.reverse();
+                        new_sections.push(item);
+                        new_sections.push(second_item);
+                        break;
+                    }
+                    // Since the new item has only one value, reverse the inner
+                    // links of the new item and combine it with the old one
+                    second_item[0].links.reverse();
+                    item[0] = item[0].combine(&second_item[0]);
+                }
+            }
+        }
+        // At the end of the loop, we reverse the vec and replace sections
+        new_sections.reverse();
+
+        Self::new(new_sections)
+    }
+
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
     pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
+    }
+
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    pub fn into_iter_var(self) -> impl IntoIterator<Item = Variation<T>>
+    where
+        Variation<T>: Clone,
+    {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_into_var_vec(v))
     }
 
     /// Gives the number of sections that make up this phrase
@@ -334,7 +428,16 @@ impl<T> Snippet<'_, T> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
+    }
+
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    pub fn into_iter_var(self) -> impl IntoIterator<Item = Variation<T>> {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_var_vec(v))
     }
 
     /// Gives the number of sections that make up this phrase
@@ -387,20 +490,49 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
             .map(|v| v.value())
     }
 
     /// Permutate through all variations that the phrase can take
     ///
     /// Same as [`iter`]
-    /// 
+    ///
     /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
         self.iter()
+    }
+}
+
+impl<T> Phrase<T>
+where
+    Variation<T>: Clone + VariationValue,
+{
+    /// Permutate through all variations that the phrase can take
+    pub fn into_iter(self) -> impl IntoIterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_into_var_vec(v))
+            .map(|v| v.into_value())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    ///
+    /// Same as [`into_iter`]
+    ///
+    /// [`into_iter`]: Self::into_iter
+    pub fn into_iter_val(self) -> impl IntoIterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.into_iter()
     }
 }
 
@@ -413,20 +545,44 @@ impl<T> Snippet<'_, T> {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
             .map(|v| v.value())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    pub fn into_iter(self) -> impl IntoIterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_var_vec(v))
+            .map(|v| v.into_value())
     }
 
     /// Permutate through all variations that the phrase can take
     ///
     /// Same as [`iter`]
-    /// 
+    ///
     /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
     where
         Variation<T>: VariationValue<Item = T>,
     {
         self.iter()
+    }
+
+    /// Permutate through all variations that the phrase can take
+    ///
+    /// Same as [`into_iter`]
+    ///
+    /// [`into_iter`]: Self::into_iter
+    pub fn into_iter_val(self) -> impl IntoIterator<Item = T>
+    where
+        Variation<T>: VariationValue<Item = T>,
+    {
+        self.into_iter()
     }
 }
 
@@ -439,7 +595,19 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
+            .map(|v| v.to_string())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    pub fn into_iter_str(self) -> impl IntoIterator<Item = String>
+    where
+        Variation<T>: Clone,
+    {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_into_var_vec(v))
             .map(|v| v.to_string())
     }
 }
@@ -453,7 +621,16 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| Variation::join_vec(v))
+            .map(|v| Variation::join_var_vec(v))
+            .map(|v| v.to_string())
+    }
+
+    /// Permutate through all variations that the phrase can take
+    pub fn into_iter_str(self) -> impl IntoIterator<Item = String> {
+        self.sections
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|v| Variation::join_var_vec(v))
             .map(|v| v.to_string())
     }
 }

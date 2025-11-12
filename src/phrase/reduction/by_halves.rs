@@ -52,7 +52,7 @@ pub trait ReduceHalves<U, V> {
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
-    /// 
+    ///
     /// [`reduce_halves`]: Self::reduce_halves
     fn reduce_schema_binary(
         size_checker: &U,
@@ -82,7 +82,7 @@ pub trait ReduceHalvesBulk<U, V> {
     /// approach by cutting the sections in half and running the validation
     /// check on all values in that section if the permutation value is low
     /// enough. Otherwise, cut it in half and try again.
-    /// 
+    ///
     /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
     fn bulk_reduce_schema_binary(
         size_checker: &U,
@@ -328,7 +328,7 @@ pub mod rayon {
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
-        /// 
+        ///
         /// [`reduce_halves`]: Self::reduce_halves
         fn reduce_schema_binary(
             size_checker: &U,
@@ -360,7 +360,7 @@ pub mod rayon {
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
-        /// 
+        ///
         /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
         fn bulk_reduce_schema_binary(
             size_checker: &U,
@@ -612,7 +612,7 @@ pub mod r#async {
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
-        /// 
+        ///
         /// [`reduce_halves`]: Self::reduce_halves
         fn reduce_schema_binary(
             size_checker: &U,
@@ -652,7 +652,7 @@ pub mod r#async {
         /// approach by cutting the sections in half and running the validation
         /// check on all values in that section if the permutation value is low
         /// enough. Otherwise, cut it in half and try again.
-        /// 
+        ///
         /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
         fn bulk_reduce_schema_binary(
             size_checker: &U,

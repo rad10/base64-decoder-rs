@@ -73,9 +73,6 @@ pub trait ReduceHalves<'a, T> {
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
 pub trait ReduceHalvesBulk<'a, T, U> {
-    // /// Defines the type of item that is collected from the phrase
-    // type Item;
-
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
@@ -107,7 +104,7 @@ pub trait ReduceHalvesBulk<'a, T, U> {
     /// anymore.
     fn bulk_halves_to_end<V, W>(
         &'a self,
-        recursive_val: Option<(usize, usize)>,
+        recursive_val: Option<usize>,
         size_checker: V,
         confidence_interpreter: W,
     ) -> Self
@@ -164,7 +161,7 @@ where
         W: Fn(Snippet<'a, T>) -> U,
     {
         Self::new(Self::bulk_reduce_schema_binary(
-            &size_checker,
+            size_checker,
             self.as_snippet(),
             confidence_interpreter,
         ))
@@ -222,7 +219,7 @@ where
 
     fn bulk_halves_to_end<V, W>(
         &'a self,
-        recursive_val: Option<(usize, usize)>,
+        recursive_val: Option<usize>,
         size_checker: V,
         confidence_interpreter: W,
     ) -> Self
@@ -232,27 +229,21 @@ where
         W: Fn(Snippet<'a, T>) -> U,
         Variation<T>: Display,
     {
-        if let Some((pair_size, last_size)) = recursive_val {
+        if let Some(last_size) = recursive_val {
             // Currently in recursive loop
             // Collecting section len to determine if ending or not
-            if pair_size < self.len_sections() {
+            if last_size <= self.len_sections() {
                 self.clone()
-            } else if last_size <= self.len_sections() {
-                self.bulk_halves_to_end(
-                    Some((pair_size + 1, usize::MAX)),
-                    size_checker,
-                    confidence_interpreter,
-                )
             } else {
                 self.bulk_halves_to_end(
-                    Some((pair_size, self.len_sections())),
+                    Some(self.len_sections()),
                     size_checker,
                     confidence_interpreter,
                 )
             }
         } else {
             // Setting up initial recursion
-            self.bulk_halves_to_end(Some((2, usize::MAX)), size_checker, confidence_interpreter)
+            self.bulk_halves_to_end(Some(usize::MAX), size_checker, confidence_interpreter)
         }
     }
 }

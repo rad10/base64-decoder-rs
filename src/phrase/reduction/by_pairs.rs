@@ -47,7 +47,6 @@ pub trait ReducePairs<T> {
     /// Default is 2
     fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: &U) -> Self
     where
-        T: Clone + Debug,
         U: Fn(&Variation<T>) -> f64;
 
     /// Runs the reduce function until the it will not reduce anymore
@@ -56,7 +55,7 @@ pub trait ReducePairs<T> {
     /// closer to your objective than another.
     fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
     where
-        T: Clone + Debug,
+        Self: Clone,
         U: Fn(&Variation<T>) -> f64;
 }
 
@@ -81,6 +80,7 @@ pub trait ReducePairsBulk<'a, T, U: ?Sized> {
     ) -> Self
     where
         T: 'a,
+        Variation<T>: Clone,
         V: FnMut(Snippet<'a, T>) -> U;
 
     /// Runs the reduce function until the it will not reduce anymore
@@ -94,14 +94,20 @@ pub trait ReducePairsBulk<'a, T, U: ?Sized> {
         confidence_interpreter: V,
     ) -> Self
     where
+        Self: Clone,
         T: 'a,
         V: FnMut(Snippet<'a, T>) -> U;
 }
 
-impl<T> ReducePairs<T> for Phrase<T> {
+impl<T> ReducePairs<T> for Phrase<T>
+where
+    T: Debug,
+    Variation<T>: Clone,
+{
     fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: &U) -> Self
     where
-        T: Clone + Debug,
+        T: Debug,
+        Variation<T>: Clone,
         U: Fn(&Variation<T>) -> f64,
     {
         self.bulk_reduce_pairs(number_of_pairs, move |snip| {
@@ -112,7 +118,7 @@ impl<T> ReducePairs<T> for Phrase<T> {
 
     fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
     where
-        T: Clone + Debug,
+        Self: Clone,
         U: Fn(&Variation<T>) -> f64,
     {
         self.bulk_pairs_to_end(None, move |snip| {
@@ -124,7 +130,7 @@ impl<T> ReducePairs<T> for Phrase<T> {
 
 impl<'a, T, U> ReducePairsBulk<'a, T, U> for Phrase<T>
 where
-    T: Clone + Debug,
+    T: Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
 {
     fn bulk_reduce_pairs<V>(
@@ -133,7 +139,7 @@ where
         mut confidence_interpreter: V,
     ) -> Self
     where
-        T: 'a,
+        Variation<T>: Clone,
         V: FnMut(Snippet<'a, T>) -> U,
     {
         // Check to make sure size is correctly placed or replace with own value
@@ -207,9 +213,8 @@ where
         confidence_interpreter: V,
     ) -> Self
     where
-        T: 'a,
+        Self: Clone,
         V: FnMut(Snippet<'a, T>) -> U,
-        Self: 'a,
     {
         if let Some((pair_size, last_size)) = recursive_val {
             // Currently in recursive loop
@@ -262,13 +267,14 @@ pub mod rayon {
             confidence_interpreter: &U,
         ) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync;
 
         /// Runs the reduce function until the it will not reduce anymore
         fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync;
     }
 
@@ -294,6 +300,7 @@ pub mod rayon {
             confidence_interpreter: V,
         ) -> Self
         where
+            Variation<T>: Clone,
             T: 'a + Send + Sync,
             V: Fn(Snippet<'a, T>) -> U + Send + Sync;
 
@@ -308,18 +315,23 @@ pub mod rayon {
             confidence_interpreter: V,
         ) -> Self
         where
+            Self: Clone,
             T: 'a + Send + Sync,
             V: Fn(Snippet<'a, T>) -> U + Send + Sync;
     }
 
-    impl<T> ParReducePairs<T> for Phrase<T> {
+    impl<T> ParReducePairs<T> for Phrase<T>
+    where
+        T: Debug,
+        Variation<T>: Clone,
+    {
         fn reduce_pairs<U>(
             &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: &U,
         ) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
             self.bulk_reduce_pairs(number_of_pairs, move |snip| {
@@ -337,7 +349,8 @@ pub mod rayon {
 
         fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
             self.bulk_pairs_to_end(None, move |snip| {
@@ -356,7 +369,7 @@ pub mod rayon {
 
     impl<'a, T, U> ParReducePairsBulk<'a, T, U> for Phrase<T>
     where
-        T: 'a + Clone + Debug + Send + Sync,
+        T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)> + Sync,
     {
         fn bulk_reduce_pairs<V>(
@@ -365,7 +378,8 @@ pub mod rayon {
             confidence_interpreter: V,
         ) -> Self
         where
-            T: 'a + Clone + Debug + Send + Sync,
+            T: Send + Sync,
+            Variation<T>: Clone,
             V: Fn(Snippet<'a, T>) -> U + Send + Sync,
         {
             // Check to make sure size is correctly placed or replace with own value
@@ -442,7 +456,8 @@ pub mod rayon {
             confidence_interpreter: V,
         ) -> Self
         where
-            T: 'a + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             V: Fn(Snippet<'a, T>) -> U + Send + Sync,
         {
             if let Some((pair_size, last_size)) = recursive_val {

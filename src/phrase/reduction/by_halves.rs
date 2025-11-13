@@ -37,37 +37,25 @@ use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalves<'a, T> {
+pub trait ReduceHalves<T> {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn reduce_halves<'b, V, W>(
-        &'a self,
-        size_checker: &'b V,
-        confidence_interpreter: &'b W,
-    ) -> Self
+    fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
     where
-        Self: ReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-        T: 'a,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64 + 'b,
-        'a: 'b;
+        Variation<T>: Clone,
+        V: Fn(&Snippet<'_, T>) -> bool,
+        W: Fn(&Variation<T>) -> f64;
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn halves_to_end<'b, V, W>(
-        &'a self,
-        size_checker: &'b V,
-        confidence_interpreter: &'b W,
-    ) -> Self
+    fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
     where
-        Self: ReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-        T: 'a,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64 + 'b,
-        'a: 'b;
+        Self: Clone,
+        V: Fn(&Snippet<'_, T>) -> bool,
+        W: Fn(&Variation<T>) -> f64;
 }
 
 /// Provides an interface to reduce an array like structure to through a
@@ -81,6 +69,7 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
     fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
     where
         T: 'a,
+        Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U;
 
@@ -97,6 +86,7 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
     ) -> Vec<Section<T>>
     where
         T: 'a,
+        Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U;
 
@@ -109,53 +99,51 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
         confidence_interpreter: W,
     ) -> Self
     where
+        Self: Clone,
         T: 'a,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U;
 }
 
-impl<'a, T> ReduceHalves<'a, T> for Phrase<T> {
-    fn reduce_halves<'b, V, W>(&'a self, size_checker: &'b V, confidence_interpreter: &'b W) -> Self
+impl<T> ReduceHalves<T> for Phrase<T>
+where
+    T: Debug,
+{
+    fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
     where
-        Self: ReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-        T: 'a,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64 + 'b,
-        'a: 'b,
+        T: Debug,
+        Variation<T>: Clone,
+        V: Fn(&Snippet<'_, T>) -> bool,
+        W: Fn(&Variation<T>) -> f64,
     {
-        self.bulk_reduce_halves(size_checker, |snip| {
-            Box::new(
-                snip.into_iter_var()
-                    .map(|line| (confidence_interpreter(&line), line)),
-            )
+        self.bulk_reduce_halves(size_checker, move |snip| {
+            snip.into_iter_var()
+                .map(move |line| (confidence_interpreter(&line), line))
         })
     }
 
-    fn halves_to_end<'b, V, W>(&'a self, size_checker: &'b V, confidence_interpreter: &'b W) -> Self
+    fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
     where
-        Self: ReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-        T: 'a,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64 + 'b,
-        'a: 'b,
+        Self: Clone,
+        V: Fn(&Snippet<'_, T>) -> bool,
+        W: Fn(&Variation<T>) -> f64,
     {
-        self.bulk_halves_to_end(None, size_checker, |snip| {
-            Box::new(
-                snip.into_iter_var()
-                    .map(|line| (confidence_interpreter(&line), line)),
-            )
+        self.bulk_halves_to_end(None, size_checker, move |snip| {
+            snip.into_iter_var()
+                .map(move |line| (confidence_interpreter(&line), line))
         })
     }
 }
 
 impl<'a, T, U> ReduceHalvesBulk<'a, T, U> for Phrase<T>
 where
-    T: Clone + Debug,
+    T: Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
 {
     fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
     where
         T: 'a,
+        Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U,
     {
@@ -172,7 +160,8 @@ where
         confidence_interpreter: W,
     ) -> Vec<Section<T>>
     where
-        T: 'a + Clone + Debug,
+        T: Debug,
+        Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U,
     {
@@ -224,7 +213,7 @@ where
         confidence_interpreter: W,
     ) -> Self
     where
-        T: 'a + Clone + Debug,
+        Self: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U,
     {
@@ -709,7 +698,7 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl< T, U> AsyncReduceHalvesBulk<T, U> for Phrase<T>
+    impl<T, U> AsyncReduceHalvesBulk<T, U> for Phrase<T>
     where
         T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)>,
@@ -729,12 +718,8 @@ pub mod r#async {
             U: Send,
         {
             Self::new(
-                Self::bulk_reduce_schema_binary(
-                    size_checker,
-                    self.clone(),
-                    confidence_interpreter,
-                )
-                .await,
+                Self::bulk_reduce_schema_binary(size_checker, self.clone(), confidence_interpreter)
+                    .await,
             )
         }
 

@@ -59,10 +59,7 @@ pub trait ReducePairs<'a, T> {
     ///
     /// `confidence_interpreter` is used to determine if a combined string is
     /// closer to your objective than another.
-    fn pairs_to_end<'b, U>(
-        &'a self,
-        confidence_interpreter: &'b U,
-    ) -> Self
+    fn pairs_to_end<'b, U>(&'a self, confidence_interpreter: &'b U) -> Self
     where
         Self: ReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
         U: Fn(&Variation<T>) -> f64,
@@ -126,10 +123,7 @@ impl<'a, T> ReducePairs<'a, T> for Phrase<T> {
         })
     }
 
-    fn pairs_to_end<'b, U>(
-        &'a self,
-        confidence_interpreter: &'b U,
-    ) -> Self
+    fn pairs_to_end<'b, U>(&'a self, confidence_interpreter: &'b U) -> Self
     where
         Self: ReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
         U: Fn(&Variation<T>) -> f64,
@@ -289,10 +283,7 @@ pub mod rayon {
             'a: 'b;
 
         /// Runs the reduce function until the it will not reduce anymore
-        fn pairs_to_end<'b, U>(
-            &'a self,
-            confidence_interpreter: &'b U,
-        ) -> Self
+        fn pairs_to_end<'b, U>(&'a self, confidence_interpreter: &'b U) -> Self
         where
             T: 'a + Send + Sync,
             Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + Sync + 'b>>,
@@ -371,10 +362,7 @@ pub mod rayon {
             })
         }
 
-        fn pairs_to_end<'b, U>(
-            &'a self,
-            confidence_interpreter: &'b U,
-        ) -> Self
+        fn pairs_to_end<'b, U>(&'a self, confidence_interpreter: &'b U) -> Self
         where
             T: Send + Sync,
             Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + Sync + 'b>>,

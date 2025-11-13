@@ -136,7 +136,7 @@ impl<T> Variation<T> {
     pub fn join_into_var_slice(container: &[Variation<T>]) -> Variation<T> {
         Self {
             links: container
-                .into_iter()
+                .iter()
                 .flat_map(|v| v.links.iter())
                 .cloned()
                 .collect(),
@@ -237,7 +237,7 @@ where
     fn into_value(self) -> Self::Item {
         self.links
             .into_iter()
-            .flat_map(|v| Arc::unwrap_or_clone(v))
+            .flat_map(Arc::unwrap_or_clone)
             .collect()
     }
 }
@@ -435,7 +435,7 @@ impl<T> Snippet<'_, T> {
     /// efficient variation structure
     pub fn into_iter_var(self) -> impl Iterator<Item = Variation<T>> {
         self.sections
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
             .map(|v| Variation::join_var_vec(v))
     }
@@ -555,7 +555,7 @@ impl<T> Snippet<'_, T> {
         Variation<T>: VariationValue<Item = T>,
     {
         self.sections
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
             .map(|v| Variation::join_var_vec(v))
             .map(|v| v.into_value())
@@ -628,7 +628,7 @@ where
     /// Permutate through all variations that the phrase can take
     pub fn into_iter_str(self) -> impl Iterator<Item = String> {
         self.sections
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
             .map(|v| Variation::join_var_vec(v))
             .map(|v| v.to_string())

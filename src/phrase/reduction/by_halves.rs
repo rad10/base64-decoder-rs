@@ -250,45 +250,26 @@ pub mod rayon {
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalves<'a, T> {
+    pub trait ParReduceHalves<T> {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn reduce_halves<'b, V, W>(
-            &'a self,
-            size_checker: &'b V,
-            confidence_interpreter: &'b W,
-        ) -> Self
+        fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
         where
-            Self: ParReduceHalvesBulk<
-                    'a,
-                    T,
-                    Box<dyn Iterator<Item = (f64, Variation<T>)> + Send + Sync + 'b>,
-                >,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + 'b + Send + Sync,
-            'a: 'b;
+            T: Send + Sync,
+            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
+            W: Fn(&Variation<T>) -> f64 + Send + Sync;
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn halves_to_end<'b, V, W>(
-            &'a self,
-            size_checker: &'b V,
-            confidence_interpreter: &'b W,
-        ) -> Self
+        fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
         where
-            Self: ParReduceHalvesBulk<
-                    'a,
-                    T,
-                    Box<dyn Iterator<Item = (f64, Variation<T>)> + Send + Sync + 'b>,
-                >,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + 'b + Send + Sync,
-            'a: 'b;
+            Self: Clone,
+            T: Send + Sync,
+            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
+            W: Fn(&Variation<T>) -> f64 + Send + Sync;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -304,6 +285,7 @@ pub mod rayon {
         fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
         where
             T: 'a + Send + Sync,
+            Variation<T>: Clone,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,
             U: Send + Sync;
@@ -321,6 +303,7 @@ pub mod rayon {
         ) -> Vec<Section<T>>
         where
             T: 'a + Send + Sync,
+            Variation<T>: Clone,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,
             U: Send + Sync;
@@ -334,70 +317,53 @@ pub mod rayon {
             confidence_interpreter: W,
         ) -> Self
         where
+            Self: Clone,
             T: 'a + Send + Sync,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,
             U: Send + Sync;
     }
 
-    impl<'a, T> ParReduceHalves<'a, T> for Phrase<T> {
-        fn reduce_halves<'b, V, W>(
-            &'a self,
-            size_checker: &'b V,
-            confidence_interpreter: &'b W,
-        ) -> Self
+    impl<T> ParReduceHalves<T> for Phrase<T>
+    where
+        T: Debug,
+        Variation<T>: Clone,
+    {
+        fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
         where
-            Self: ParReduceHalvesBulk<
-                    'a,
-                    T,
-                    Box<dyn Iterator<Item = (f64, Variation<T>)> + Send + Sync + 'b>,
-                >,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + 'b + Send + Sync,
-            'a: 'b,
+            T: Send + Sync,
+            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
+            W: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
-            self.bulk_reduce_halves(size_checker, |snip| {
-                Box::new(
-                    snip.into_iter_var()
-                        .map(|line| (confidence_interpreter(&line), line)),
-                )
+            self.bulk_reduce_halves(size_checker, move |snip| {
+                snip.into_iter_var()
+                    .map(move |line| (confidence_interpreter(&line), line))
             })
         }
 
-        fn halves_to_end<'b, V, W>(
-            &'a self,
-            size_checker: &'b V,
-            confidence_interpreter: &'b W,
-        ) -> Self
+        fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
         where
-            Self: ParReduceHalvesBulk<
-                    'a,
-                    T,
-                    Box<dyn Iterator<Item = (f64, Variation<T>)> + Send + Sync + 'b>,
-                >,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + 'b + Send + Sync,
-            'a: 'b,
+            Self: Clone,
+            T: Send + Sync,
+            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
+            W: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
-            self.bulk_halves_to_end(None, size_checker, |snip| {
-                Box::new(
-                    snip.into_iter_var()
-                        .map(|line| (confidence_interpreter(&line), line)),
-                )
+            self.bulk_halves_to_end(None, size_checker, move |snip| {
+                snip.into_iter_var()
+                    .map(move |line| (confidence_interpreter(&line), line))
             })
         }
     }
 
     impl<'a, T, U> ParReduceHalvesBulk<'a, T, U> for Phrase<T>
     where
-        T: Clone + Debug,
+        T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)>,
     {
         fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
         where
             T: 'a + Send + Sync,
+            Variation<T>: Clone,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,
             U: Send + Sync,
@@ -415,7 +381,8 @@ pub mod rayon {
             confidence_interpreter: W,
         ) -> Vec<Section<T>>
         where
-            T: 'a + Clone + Debug + Send + Sync,
+            T: 'a + Send + Sync,
+            Variation<T>: Clone,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,
             U: Send + Sync,
@@ -470,6 +437,7 @@ pub mod rayon {
             confidence_interpreter: W,
         ) -> Self
         where
+            Self: Clone,
             T: 'a + Send + Sync,
             V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
             W: Fn(Snippet<'a, T>) -> U + Send + Sync,

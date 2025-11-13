@@ -29,7 +29,7 @@
 //!
 //! [`reduce_halves`]: ReduceHalves::reduce_halves
 
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use itertools::Itertools;
 
@@ -152,7 +152,6 @@ impl<'a, T, U> ReduceHalvesBulk<'a, T, U> for Phrase<T>
 where
     T: Clone + Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
-    Variation<T>: Display,
 {
     fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
     where
@@ -207,7 +206,7 @@ where
             phrase_snippet
                 .sections
                 .chunks(phrase_snippet.len_sections() / 2)
-                .flat_map(|c| {
+                .flat_map(move |c| {
                     Self::bulk_reduce_schema_binary(
                         &size_checker,
                         Snippet::new(c),
@@ -228,7 +227,6 @@ where
         T: 'a + Clone + Debug,
         V: Fn(&Snippet<'a, T>) -> bool,
         W: Fn(Snippet<'a, T>) -> U,
-        Variation<T>: Display,
     {
         if let Some(last_size) = recursive_val {
             // Currently in recursive loop
@@ -448,6 +446,8 @@ pub mod rayon {
                         })
                         // Keeping only square root of permitted permutations to allow rerunning the reduction
                         .k_largest_relaxed_by_key(
+                            // You may think you will want to use `sqrt().ceil()` but we want floor, because this
+                            // prevents returned values from failing `size_checker` on the 2nd run of this function.
                             usize::max(snippet_permutation.sqrt().floor() as usize, 1),
                             |(confidence, _)| (confidence * 100_000_f64) as usize,
                         )
@@ -566,7 +566,7 @@ pub mod r#async {
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
     #[async_trait]
-    pub trait AsyncReduceHalvesBulk<'a, T, U: ?Sized> {
+    pub trait AsyncReduceHalvesBulk<T, U: ?Sized> {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
@@ -578,16 +578,18 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_halves<V, FutBool, W>(
-            &'a self,
+        async fn bulk_reduce_halves<V, FutBool, W, Fut>(
+            &self,
             size_checker: V,
             confidence_interpreter: W,
         ) -> Self
         where
+            Self: Clone,
             T: Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send;
 
         /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
@@ -602,7 +604,7 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_schema_binary<V, FutBool, W>(
+        async fn bulk_reduce_schema_binary<V, FutBool, W, Fut>(
             size_checker: V,
             phrase_snippet: Phrase<T>,
             confidence_interpreter: W,
@@ -611,7 +613,8 @@ pub mod r#async {
             T: Send + Sync + 'async_trait,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send;
 
         /// Reduces the phrase until the reduction function cannot reduce it
@@ -622,17 +625,19 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_halves_to_end<V, FutBool, W>(
-            &'a self,
+        async fn bulk_halves_to_end<V, FutBool, W, Fut>(
+            &self,
             recursive_val: Option<usize>,
             size_checker: V,
             confidence_interpreter: W,
         ) -> Self
         where
+            Self: Clone,
             T: Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send;
     }
 
@@ -704,34 +709,36 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<'a, T, U> AsyncReduceHalvesBulk<'a, T, U> for Phrase<T>
+    impl< T, U> AsyncReduceHalvesBulk<T, U> for Phrase<T>
     where
-        T: Clone + Debug,
-        U: Stream<Item = (f64, Variation<T>)>,
+        T: Debug,
+        U: IntoIterator<Item = (f64, Variation<T>)>,
     {
-        async fn bulk_reduce_halves<V, FutBool, W>(
-            &'a self,
+        async fn bulk_reduce_halves<V, FutBool, W, Fut>(
+            &self,
             size_checker: V,
             confidence_interpreter: W,
         ) -> Self
         where
+            Self: Clone,
             T: Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send,
         {
             Self::new(
                 Self::bulk_reduce_schema_binary(
-                    &size_checker,
+                    size_checker,
                     self.clone(),
-                    &confidence_interpreter,
+                    confidence_interpreter,
                 )
                 .await,
             )
         }
 
-        async fn bulk_reduce_schema_binary<V, FutBool, W>(
+        async fn bulk_reduce_schema_binary<V, FutBool, W, Fut>(
             size_checker: V,
             phrase_snippet: Phrase<T>,
             confidence_interpreter: W,
@@ -740,12 +747,13 @@ pub mod r#async {
             T: Send + Sync + 'async_trait,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send,
         {
             // Leave early if section is empty or just one
             if phrase_snippet.len_sections() < 2 {
-                phrase_snippet.sections.to_vec()
+                phrase_snippet.sections
             }
             // If the permutations within the sections is less than limit, then start crunching through them
             else if size_checker(&phrase_snippet).await {
@@ -753,12 +761,10 @@ pub mod r#async {
                 vec![
                     confidence_interpreter(phrase_snippet)
                         .await
+                        .into_iter()
                         .inspect(|(confidence, line)| {
                             log::debug!("confidence, string: {confidence}, {line:?}")
                         })
-                        .collect::<Vec<(f64, Variation<T>)>>()
-                        .await
-                        .into_iter()
                         // Keeping only square root of permitted permutations to allow rerunning the reduction
                         .k_largest_relaxed_by_key(
                             usize::max(snippet_permutation.sqrt().floor() as usize, 1),
@@ -773,8 +779,9 @@ pub mod r#async {
             }
             // If permutations are still too big, split it again
             else {
-                stream::iter(phrase_snippet.sections.to_vec())
-                    .chunks(phrase_snippet.len_sections() / 2)
+                let phrase_len = phrase_snippet.len_sections();
+                stream::iter(phrase_snippet.sections)
+                    .chunks(phrase_len / 2)
                     .then(async |c| {
                         stream::iter(
                             Self::bulk_reduce_schema_binary(
@@ -792,17 +799,19 @@ pub mod r#async {
             }
         }
 
-        async fn bulk_halves_to_end<V, FutBool, W>(
-            &'a self,
+        async fn bulk_halves_to_end<V, FutBool, W, Fut>(
+            &self,
             recursive_val: Option<usize>,
             size_checker: V,
             confidence_interpreter: W,
         ) -> Self
         where
-            T: Clone + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
+            W: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
             U: Send,
         {
             if let Some(last_size) = recursive_val {

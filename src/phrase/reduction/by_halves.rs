@@ -589,9 +589,9 @@ pub mod r#async {
         where
             Self: Clone,
             T: Send + Sync + 'a,
-            V: Fn(&Snippet<'a, T>) -> FutBool + Send + Sync,
+            V: Fn(&'a Snippet<'a, T>) -> FutBool + Send + Sync + 'a,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
+            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = U> + Send,
             U: Send;
     }
@@ -750,9 +750,9 @@ pub mod r#async {
         where
             Self: Clone,
             T: Send + Sync + 'a,
-            V: Fn(&Snippet<'a, T>) -> FutBool + Send + Sync,
+            V: Fn(&'a Snippet<'a, T>) -> FutBool + Send + Sync + 'a,
             FutBool: Future<Output = bool> + Send,
-            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
+            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = U> + Send,
             U: Send,
         {

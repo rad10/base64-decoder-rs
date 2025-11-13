@@ -61,7 +61,6 @@ pub trait ReducePairs<'a, T> {
     /// closer to your objective than another.
     fn pairs_to_end<'b, U>(
         &'a self,
-        recursive_val: Option<(usize, usize)>,
         confidence_interpreter: &'b U,
     ) -> Self
     where
@@ -129,7 +128,6 @@ impl<'a, T> ReducePairs<'a, T> for Phrase<T> {
 
     fn pairs_to_end<'b, U>(
         &'a self,
-        recursive_val: Option<(usize, usize)>,
         confidence_interpreter: &'b U,
     ) -> Self
     where
@@ -137,10 +135,9 @@ impl<'a, T> ReducePairs<'a, T> for Phrase<T> {
         U: Fn(&Variation<T>) -> f64,
         'a: 'b,
     {
-        self.bulk_pairs_to_end(recursive_val, |snip| {
+        self.bulk_pairs_to_end(None, |snip| {
             Box::new(
                 snip.into_iter_var()
-                    .into_iter()
                     .map(|line| (confidence_interpreter(&line), line)),
             )
         })
@@ -239,7 +236,7 @@ where
             // Currently in recursive loop
             // Collecting section len to determine if ending or not
             if pair_size < self.len_sections() {
-                return self.clone();
+                self.clone()
             } else if last_size <= self.len_sections() {
                 self.bulk_pairs_to_end(Some((pair_size + 1, usize::MAX)), confidence_interpreter)
             } else {
@@ -294,12 +291,11 @@ pub mod rayon {
         /// Runs the reduce function until the it will not reduce anymore
         fn pairs_to_end<'b, U>(
             &'a self,
-            recursive_val: Option<(usize, usize)>,
             confidence_interpreter: &'b U,
         ) -> Self
         where
             T: 'a + Send + Sync,
-            Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
+            Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + Sync + 'b>>,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
             'a: 'b;
     }
@@ -377,16 +373,15 @@ pub mod rayon {
 
         fn pairs_to_end<'b, U>(
             &'a self,
-            recursive_val: Option<(usize, usize)>,
             confidence_interpreter: &'b U,
         ) -> Self
         where
             T: Send + Sync,
-            Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
+            Self: ParReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + Sync + 'b>>,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
             'a: 'b,
         {
-            self.bulk_pairs_to_end(recursive_val, |snip| {
+            self.bulk_pairs_to_end(None, |snip| {
                 Box::new(
                     snip
                         // Get all combinations of the variations
@@ -499,7 +494,7 @@ pub mod rayon {
                 // Currently in recursive loop
                 // Collecting section len to determine if ending or not
                 if pair_size < self.len_sections() {
-                    return self.clone();
+                    self.clone()
                 } else if last_size <= self.len_sections() {
                     self.bulk_pairs_to_end(
                         Some((pair_size + 1, usize::MAX)),

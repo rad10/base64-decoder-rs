@@ -517,9 +517,10 @@ pub mod rayon {
 /// Provides and implements the reduction trait using the rayon library to speed up processes
 #[cfg(feature = "async")]
 pub mod r#async {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, pin::Pin};
 
-    use futures::{StreamExt, future::BoxFuture, stream};
+    use async_trait::async_trait;
+    use futures::{StreamExt, stream};
     use itertools::Itertools;
 
     use crate::phrase::schema::{Permutation, Phrase, Section, Variation};
@@ -528,8 +529,8 @@ pub mod r#async {
     /// validator utilizing pairs
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait AsyncReducePairs<'a, T>
-    {
+    #[async_trait]
+    pub trait AsyncReducePairs<'a, T> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -537,29 +538,24 @@ pub mod r#async {
         /// closer to your objective than another.
         ///
         /// Default is 2
-        fn reduce_pairs<'b, U, Fut>(
+        async fn reduce_pairs<'b, U, Fut>(
             &'a self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &'b U,
-        ) -> impl Future<Output = Self> + Send
+            confidence_interpreter: &'static U,
+        ) -> Self
         where
-            T: 'a + Send + Sync,
-            Self: AsyncReducePairsBulk<T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>, BoxFuture<'b, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>>,
+            T: 'static + Send + Sync,
+            Self: AsyncReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = f64> + Send,
-            'a: 'b;
+            Fut: Future<Output = f64> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
-        fn pairs_to_end<'b, U, Fut>(
-            &'a self,
-            confidence_interpreter: &'b U,
-        ) -> impl Future<Output = Self> + Send
+        async fn pairs_to_end<'b, U, Fut>(&'a self, confidence_interpreter: &'static U) -> Self
         where
-            T: 'a + Send + Sync,
-            Self: AsyncReducePairsBulk<T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>, BoxFuture<'b, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>>,
+            T: 'static + Send + Sync,
+            Self: AsyncReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = f64> + Send,
-            'a: 'b;
+            Fut: Future<Output = f64> + Send;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -569,7 +565,8 @@ pub mod r#async {
     /// take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
-    pub trait AsyncReducePairsBulk<T, U, Fut> {
+    #[async_trait]
+    pub trait AsyncReducePairsBulk<'a, T, U> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -578,80 +575,93 @@ pub mod r#async {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs<V>(
-            &self,
+        async fn bulk_reduce_pairs<V>(
+            &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
-        ) -> impl Future<Output = Self> + Send
+        ) -> Self
         where
             T: Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send;
+            V: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync;
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
         /// each string
-        fn bulk_pairs_to_end<V>(
-            &self,
+        async fn bulk_pairs_to_end<V>(
+            &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
-        ) -> impl Future<Output = Self> + Send
+        ) -> Self
         where
             T: Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send;
+            V: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync;
     }
 
-    // impl<'a, T> AsyncReducePairs<'a, T> for Phrase<T> {
-    //     fn reduce_pairs<'b, U, Fut>(
-    //         &'a self,
-    //         number_of_pairs: Option<usize>,
-    //         confidence_interpreter: &'b U,
-    //     ) -> impl Future<Output = Self> + Send
-    //     where
-    //         T: 'a + Send + Sync,
-    //         Self: AsyncReducePairsBulk<T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>, BoxFuture<'b, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>>,
-    //         U: Fn(&Variation<T>) -> Fut + Send + Sync,
-    //         Fut: Future<Output = f64> + Send,
-    //         'a: 'b,
-    //     {
-    //         async move {
-    //             self.bulk_reduce_pairs(number_of_pairs, async move |snip: Phrase<T>| {
-    //                 Box::new(stream::iter(snip.iter_var()).then(async |line| (confidence_interpreter(&line).await, line)).collect::<Vec<(f64, Variation<T>)>>().await.iter())
-    //             })
-    //         }.boxed()
-    //     }
-    
-    //     fn pairs_to_end<'b, U, Fut>(
-    //         &'a self,
-    //         confidence_interpreter: &'b U,
-    //     ) -> impl Future<Output = Self> + Send
-    //     where
-    //         T: 'a + Send + Sync,
-    //         Self: AsyncReducePairsBulk<T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>, Pin<Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>>,
-    //         U: Fn(&Variation<T>) -> Fut + Send + Sync,
-    //         Fut: Future<Output = f64> + Send,
-    //         'a: 'b {
-    //         todo!()
-    //     }
-    // }
+    #[async_trait]
+    impl<'a, T> AsyncReducePairs<'a, T> for Phrase<T> {
+        async fn reduce_pairs<'b, U, Fut>(
+            &'a self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: &'static U,
+        ) -> Self
+        where
+            T: 'static + Send + Sync,
+            Self: AsyncReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
+            U: Fn(&Variation<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = f64> + Send,
+        {
+            self.bulk_reduce_pairs(number_of_pairs, |snip: Phrase<T>| {
+                Box::pin(async move {
+                    Box::new(
+                        stream::iter(snip.iter_var())
+                            .then(async |line| (confidence_interpreter(&line).await, line))
+                            .collect::<Vec<(f64, Variation<T>)>>()
+                            .await
+                            .into_iter(),
+                    ) as Box<dyn Iterator<Item = (f64, Variation<T>)>>
+                })
+            })
+            .await
+        }
 
-    impl<T, U, Fut> AsyncReducePairsBulk<T, U, Fut> for Phrase<T>
+        async fn pairs_to_end<'b, U, Fut>(&'a self, confidence_interpreter: &'static U) -> Self
+        where
+            T: 'static + Send + Sync,
+            Self: AsyncReducePairsBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
+            U: Fn(&Variation<T>) -> Fut + Send + Sync,
+            Fut: Future<Output = f64> + Send,
+        {
+            self.bulk_pairs_to_end(None, |snip: Phrase<T>| {
+                Box::pin(async move {
+                    Box::new(
+                        stream::iter(snip.iter_var())
+                            .then(async |line| (confidence_interpreter(&line).await, line))
+                            .collect::<Vec<(f64, Variation<T>)>>()
+                            .await
+                            .into_iter(),
+                    ) as Box<dyn Iterator<Item = (f64, Variation<T>)>>
+                })
+            })
+            .await
+        }
+    }
+
+    #[async_trait]
+    impl<'a, T, U> AsyncReducePairsBulk<'a, T, U> for Phrase<T>
     where
         T: Clone + Debug + Send + Sync,
         U: Iterator<Item = (f64, Variation<T>)>,
     {
         async fn bulk_reduce_pairs<V>(
-            &self,
+            &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
         ) -> Self
         where
             T: Clone + Debug + Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send,
+            V: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
@@ -722,36 +732,36 @@ pub mod r#async {
             Self::new(new_sections)
         }
 
-        fn bulk_pairs_to_end<V>(
-            &self,
+        async fn bulk_pairs_to_end<V>(
+            &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
-        ) -> impl Future<Output = Self> + Send
+        ) -> Self
         where
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send,
+            V: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
         {
             if let Some((pair_size, last_size)) = recursive_val {
                 // Currently in recursive loop
                 // Collecting section len to determine if ending or not
                 if pair_size < self.len_sections() {
-                    async move {
-                        self.clone()
-                    }
+                    self.clone()
                 } else if last_size <= self.len_sections() {
                     self.bulk_pairs_to_end(
                         Some((pair_size + 1, usize::MAX)),
                         confidence_interpreter,
                     )
+                    .await
                 } else {
                     self.bulk_pairs_to_end(
                         Some((pair_size, self.len_sections())),
                         confidence_interpreter,
                     )
+                    .await
                 }
             } else {
                 // Setting up initial recursion
                 self.bulk_pairs_to_end(Some((2, usize::MAX)), confidence_interpreter)
+                    .await
             }
         }
     }

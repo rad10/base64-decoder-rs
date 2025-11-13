@@ -24,6 +24,7 @@ bench = true
 doc = true
 
 [dependencies]
+async-trait = { version = "0.1.89", optional = true }
 base64 = "0.22.1"
 byteorder = "1.5.0"
 clap = { version = "4.5.51", optional = true }
@@ -45,4 +46,4 @@ default = ["rayon", "whatlang"]
 bin = ["dep:env_logger", "clap/derive", "clap-verbosity-flag/log", "dep:serde_json", "tokio/rt-multi-thread", "tokio/macros", "dep:tokio-rayon", "patharg/tokio"]
 rayon = ["dep:rayon"]
 whatlang = ["dep:whatlang"]
-async = ["dep:futures"]
+async = ["dep:futures", "dep:async-trait"]

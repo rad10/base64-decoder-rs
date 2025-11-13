@@ -493,7 +493,7 @@ pub mod r#async {
     use futures::{StreamExt, stream};
     use itertools::Itertools;
 
-    use crate::phrase::schema::{Permutation, Phrase, Section, Variation};
+    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
@@ -514,14 +514,15 @@ pub mod r#async {
             confidence_interpreter: &U,
         ) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
         async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: &U) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
     }
@@ -534,7 +535,7 @@ pub mod r#async {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
-    pub trait AsyncReducePairsBulk<T, U: ?Sized> {
+    pub trait AsyncReducePairsBulk<'a, T, U: ?Sized> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -550,13 +551,14 @@ pub mod r#async {
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_pairs<V, Fut>(
-            &self,
+            &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: &V,
         ) -> Self
         where
-            T: Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
+            T: Send + Sync + 'a,
+            Variation<T>: Clone,
+            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
@@ -571,29 +573,34 @@ pub mod r#async {
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_pairs_to_end<V, Fut>(
-            &self,
+            &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
-            T: Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
+            Self: Clone,
+            T: Send + Sync + 'a,
+            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send;
     }
 
     #[async_trait]
-    impl<T> AsyncReducePairs<T> for Phrase<T> {
+    impl<T> AsyncReducePairs<T> for Phrase<T>
+    where
+        T: Debug,
+        Variation<T>: Clone,
+    {
         async fn reduce_pairs<U, Fut>(
             &self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: &U,
         ) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
-            self.bulk_reduce_pairs(number_of_pairs, &async |snip: Phrase<T>| {
+            self.bulk_reduce_pairs(number_of_pairs, &async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
                     .then(async move |line| (confidence_interpreter(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
@@ -604,11 +611,12 @@ pub mod r#async {
 
         async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: &U) -> Self
         where
-            T: Clone + Debug + Send + Sync,
+            Self: Clone,
+            T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
-            self.bulk_pairs_to_end(None, async |snip: Phrase<T>| {
+            self.bulk_pairs_to_end(None, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
                     .then(async move |line| (confidence_interpreter(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
@@ -619,19 +627,20 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<T, U> AsyncReducePairsBulk<T, U> for Phrase<T>
+    impl<'a, T, U> AsyncReducePairsBulk<'a, T, U> for Phrase<T>
     where
-        T: Clone + Debug,
+        T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)>,
     {
         async fn bulk_reduce_pairs<V, Fut>(
-            &self,
+            &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: &V,
         ) -> Self
         where
-            T: Clone + Debug + Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
+            T: Send + Sync + 'a,
+            Variation<T>: Clone,
+            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
         {
             // Check to make sure size is correctly placed or replace with own value
@@ -647,13 +656,12 @@ pub mod r#async {
 
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
-            let new_sections = stream::iter(self.sections.clone())
-                .chunks(pair_size)
+            let new_sections = stream::iter(self.sections.chunks(pair_size))
                 .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
                 .then(async move |pairs| {
                     // If its only 1 pair, we can skip this process
                     if pairs.len() == 1 {
-                        stream::iter(pairs)
+                        stream::iter(pairs.to_vec())
                     }
                     // If there is more than one pair, but each pair only has one
                     // value, then just return a single combined form. It will give
@@ -664,7 +672,7 @@ pub mod r#async {
                         )]])
                     } else {
                         // permuting values and collecting only viable options
-                        let pair_snippet = Phrase::new(pairs.to_owned());
+                        let pair_snippet = Snippet::new(pairs);
                         let pair_permutation = pair_snippet.permutations();
                         let combined: Vec<Section<T>> = vec![
                             confidence_interpreter(pair_snippet)
@@ -693,7 +701,7 @@ pub mod r#async {
                         {
                             stream::iter(combined)
                         } else {
-                            stream::iter(pairs)
+                            stream::iter(pairs.to_vec())
                         }
                     }
                 })
@@ -705,13 +713,14 @@ pub mod r#async {
         }
 
         async fn bulk_pairs_to_end<V, Fut>(
-            &self,
+            &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
+            Self: Clone,
             T: Send + Sync,
-            V: Fn(Phrase<T>) -> Fut + Send + Sync,
+            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
         {
             if let Some((pair_size, last_size)) = recursive_val {

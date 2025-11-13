@@ -570,6 +570,12 @@ pub mod r#async {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
+        /// 
+        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
+        /// ownership of the phrases data instead of borrowing it.
+        /// 
+        /// [`Phrase`]: crate::phrase::schema::Phrase
+        /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_halves<V, FutBool, W>(
             &'a self,
             size_checker: V,
@@ -588,6 +594,12 @@ pub mod r#async {
         /// enough. Otherwise, cut it in half and try again.
         ///
         /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
+        /// 
+        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
+        /// ownership of the phrases data instead of borrowing it.
+        /// 
+        /// [`Phrase`]: crate::phrase::schema::Phrase
+        /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_schema_binary<V, FutBool, W>(
             size_checker: V,
             phrase_snippet: Phrase<T>,
@@ -602,6 +614,12 @@ pub mod r#async {
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
+        /// 
+        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
+        /// ownership of the phrases data instead of borrowing it.
+        /// 
+        /// [`Phrase`]: crate::phrase::schema::Phrase
+        /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_halves_to_end<V, FutBool, W>(
             &'a self,
             recursive_val: Option<usize>,

@@ -522,8 +522,8 @@ pub mod r#async {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
-        /// `confidence_interpreter` is used to determine if a combined string is
-        /// closer to your objective than another.
+        /// `confidence_interpreter` is used to determine if a combined string
+        /// is closer to your objective than another.
         ///
         /// Default is 2
         async fn reduce_pairs<'b, U, Fut>(
@@ -558,11 +558,17 @@ pub mod r#async {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
-        /// `confidence_interpreter` Takes an iterator of all possible permutations
-        /// and produces an iterator of equal size with the confidence values of
-        /// each string
+        /// `confidence_interpreter` Takes an iterator of all possible
+        /// permutations and produces an iterator of equal size with the
+        /// confidence values of each string
+        ///
+        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
+        /// ownership of the phrases data instead of borrowing it.
         ///
         /// Default is 2
+        ///
+        /// [`Phrase`]: crate::phrase::schema::Phrase
+        /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_pairs<V>(
             &'a self,
             number_of_pairs: Option<usize>,
@@ -577,6 +583,12 @@ pub mod r#async {
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
         /// each string
+        ///
+        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
+        /// ownership of the phrases data instead of borrowing it.
+        ///
+        /// [`Phrase`]: crate::phrase::schema::Phrase
+        /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_pairs_to_end<V>(
             &'a self,
             recursive_val: Option<(usize, usize)>,

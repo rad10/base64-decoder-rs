@@ -537,7 +537,7 @@ pub mod r#async {
         async fn bulk_reduce_pairs<V, Fut>(
             &self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: V,
+            confidence_interpreter: &V,
         ) -> Self
         where
             T: Send + Sync,
@@ -578,7 +578,7 @@ pub mod r#async {
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
-            self.bulk_reduce_pairs(number_of_pairs, async |snip: Phrase<T>| {
+            self.bulk_reduce_pairs(number_of_pairs, &async |snip: Phrase<T>| {
                 stream::iter(snip.iter_var())
                     .then(async move |line| (confidence_interpreter(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
@@ -612,7 +612,7 @@ pub mod r#async {
         async fn bulk_reduce_pairs<V, Fut>(
             &self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: V,
+            confidence_interpreter: &V,
         ) -> Self
         where
             T: Clone + Debug + Send + Sync,
@@ -635,7 +635,7 @@ pub mod r#async {
             let new_sections = stream::iter(self.sections.clone())
                 .chunks(pair_size)
                 .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
-                .then(async |pairs| {
+                .then(async move |pairs| {
                     // If its only 1 pair, we can skip this process
                     if pairs.len() == 1 {
                         stream::iter(pairs)

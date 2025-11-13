@@ -169,7 +169,7 @@ where
             .sections
             .chunks(pair_size)
             .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
-            .flat_map(|pairs| {
+            .flat_map(move |pairs| {
                 // If its only 1 pair, we can skip this process
                 if pairs.len() == 1 {
                     pairs.to_vec()

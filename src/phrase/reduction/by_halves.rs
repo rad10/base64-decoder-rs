@@ -529,11 +529,12 @@ pub mod r#async {
         async fn reduce_halves<'b, V, FutBool, W, Fut>(
             &'a self,
             size_checker: &'b V,
-            confidence_interpreter: &'b W,
+            confidence_interpreter: &'static W,
         ) -> Self
         where
-            Self: AsyncReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-            T: 'a + Send + Sync,
+            Self:
+                AsyncReduceHalvesBulk<'a, T, Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + 'b>>>,
+            T: 'static + Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
             W: Fn(&Variation<T>) -> Fut + Send + Sync + 'b,
@@ -545,11 +546,12 @@ pub mod r#async {
         async fn halves_to_end<'b, V, FutBool, W, Fut>(
             &'a self,
             size_checker: &'b V,
-            confidence_interpreter: &'b W,
+            confidence_interpreter: &'static W,
         ) -> Self
         where
-            Self: AsyncReduceHalvesBulk<'a, T, Box<dyn Iterator<Item = (f64, Variation<T>)> + 'b>>,
-            T: 'a + Send + Sync,
+            Self:
+                AsyncReduceHalvesBulk<'a, T, Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + 'b>>>,
+            T: 'static + Send + Sync,
             V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
             W: Fn(&Variation<T>) -> Fut + Send + Sync + 'b,
@@ -612,6 +614,73 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send,
             W: Fn(Phrase<T>) -> Pin<Box<dyn Future<Output = U> + Send>> + Send + Sync,
             U: Send;
+    }
+
+    #[async_trait]
+    impl<'a, T> AsyncReduceHalves<'a, T> for Phrase<T>
+    where
+        T: Clone + Debug,
+    {
+        async fn reduce_halves<'b, V, FutBool, W, Fut>(
+            &'a self,
+            size_checker: &'b V,
+            confidence_interpreter: &'static W,
+        ) -> Self
+        where
+            Self: AsyncReduceHalvesBulk<
+                    'a,
+                    T,
+                    Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + Send + 'b>>,
+                >,
+            T: 'static + Clone + Debug + Send + Sync,
+            V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
+            FutBool: Future<Output = bool> + Send,
+            W: Fn(&Variation<T>) -> Fut + Send + Sync + 'b,
+            Fut: Future<Output = f64> + Send,
+            'a: 'b,
+        {
+            Self::new(
+                Self::bulk_reduce_schema_binary(size_checker, self.clone(), |snip: Phrase<T>| {
+                    Box::pin(async move {
+                        Box::pin(
+                            stream::iter(snip.into_iter_var())
+                                .then(async |line| (confidence_interpreter(&line).await, line)),
+                        )
+                            as Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + Send>>
+                    })
+                })
+                .await,
+            )
+        }
+
+        async fn halves_to_end<'b, V, FutBool, W, Fut>(
+            &'a self,
+            size_checker: &'b V,
+            confidence_interpreter: &'static W,
+        ) -> Self
+        where
+            Self: AsyncReduceHalvesBulk<
+                    'a,
+                    T,
+                    Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + Send + 'b>>,
+                >,
+            T: 'static + Send + Sync,
+            V: Fn(&Phrase<T>) -> FutBool + Send + Sync,
+            FutBool: Future<Output = bool> + Send,
+            W: Fn(&Variation<T>) -> Fut + Send + Sync + 'b,
+            Fut: Future<Output = f64> + Send,
+            'a: 'b,
+        {
+            self.bulk_halves_to_end(None, size_checker, |snip: Phrase<T>| {
+                Box::pin(async move {
+                    Box::pin(
+                        stream::iter(snip.into_iter_var())
+                            .then(async |line| (confidence_interpreter(&line).await, line)),
+                    ) as Pin<Box<dyn Stream<Item = (f64, Variation<T>)> + Send>>
+                })
+            })
+            .await
+        }
     }
 
     #[async_trait]

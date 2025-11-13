@@ -151,7 +151,7 @@ impl<'a, T> ReduceHalves<'a, T> for Phrase<T> {
 impl<'a, T, U> ReduceHalvesBulk<'a, T, U> for Phrase<T>
 where
     T: Clone + Debug,
-    U: Iterator<Item = (f64, Variation<T>)>,
+    U: IntoIterator<Item = (f64, Variation<T>)>,
     Variation<T>: Display,
 {
     fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
@@ -186,6 +186,7 @@ where
             let snippet_permutation = phrase_snippet.permutations();
             vec![
                 confidence_interpreter(phrase_snippet)
+                    .into_iter()
                     .inspect(|(confidence, line)| {
                         log::debug!("confidence, string: {confidence}, {line:?}")
                     })
@@ -405,7 +406,7 @@ pub mod rayon {
     impl<'a, T, U> ParReduceHalvesBulk<'a, T, U> for Phrase<T>
     where
         T: Clone + Debug,
-        U: Iterator<Item = (f64, Variation<T>)>,
+        U: IntoIterator<Item = (f64, Variation<T>)>,
     {
         fn bulk_reduce_halves<V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
         where
@@ -441,6 +442,7 @@ pub mod rayon {
                 let snippet_permutation = phrase_snippet.permutations();
                 vec![
                     confidence_interpreter(phrase_snippet)
+                        .into_iter()
                         .inspect(|(confidence, line)| {
                             log::debug!("confidence, string: {confidence}, {line:?}")
                         })

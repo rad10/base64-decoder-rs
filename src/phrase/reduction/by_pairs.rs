@@ -141,7 +141,7 @@ impl<'a, T> ReducePairs<'a, T> for Phrase<T> {
 impl<'a, T, U> ReducePairsBulk<'a, T, U> for Phrase<T>
 where
     T: Clone + Debug,
-    U: Iterator<Item = (f64, Variation<T>)>,
+    U: IntoIterator<Item = (f64, Variation<T>)>,
 {
     fn bulk_reduce_pairs<V>(
         &'a self,
@@ -187,6 +187,7 @@ where
                         let pair_snippet = Snippet::new(pairs);
                         let snippet_permutations = pair_snippet.permutations();
                         confidence_interpreter(pair_snippet)
+                            .into_iter()
                             .inspect(|(confidence, line)| {
                                 log::debug!("confidence, string: {confidence}, {line:?}")
                             })
@@ -389,7 +390,7 @@ pub mod rayon {
     impl<'a, T, U> ParReducePairsBulk<'a, T, U> for Phrase<T>
     where
         T: 'a + Clone + Debug + Send + Sync,
-        U: Iterator<Item = (f64, Variation<T>)> + Sync,
+        U: IntoIterator<Item = (f64, Variation<T>)> + Sync,
         Variation<T>: Display,
     {
         fn bulk_reduce_pairs<V>(
@@ -436,6 +437,7 @@ pub mod rayon {
                             let pair_snippet = Snippet::new(pairs);
                             let pair_permutation = pair_snippet.permutations();
                             confidence_interpreter(pair_snippet)
+                                .into_iter()
                                 .inspect(|(confidence, line)| {
                                     log::debug!("confidence, string: {confidence}, {line:?}")
                                 })
@@ -652,7 +654,7 @@ pub mod r#async {
     impl<'a, T, U> AsyncReducePairsBulk<'a, T, U> for Phrase<T>
     where
         T: Clone + Debug + Send + Sync,
-        U: Iterator<Item = (f64, Variation<T>)>,
+        U: IntoIterator<Item = (f64, Variation<T>)>,
     {
         async fn bulk_reduce_pairs<V>(
             &'a self,
@@ -698,6 +700,7 @@ pub mod r#async {
                         let combined: Vec<Section<T>> = vec![
                             confidence_interpreter(pair_snippet)
                                 .await
+                                .into_iter()
                                 .inspect(|(confidence, line)| {
                                     log::debug!("confidence, string: {confidence}, {line:?}")
                                 })

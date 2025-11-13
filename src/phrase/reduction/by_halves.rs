@@ -72,7 +72,7 @@ pub trait ReduceHalves<'a, T> {
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalvesBulk<'a, T, U> {
+pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
@@ -307,7 +307,7 @@ pub mod rayon {
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalvesBulk<'a, T, U> {
+    pub trait ParReduceHalvesBulk<'a, T, U: ?Sized> {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
@@ -564,7 +564,7 @@ pub mod r#async {
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
     #[async_trait]
-    pub trait AsyncReduceHalvesBulk<'a, T, U> {
+    pub trait AsyncReduceHalvesBulk<'a, T, U: ?Sized> {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.

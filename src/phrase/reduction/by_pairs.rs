@@ -71,7 +71,7 @@ pub trait ReducePairs<'a, T> {
 ///
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
-pub trait ReducePairsBulk<'a, T, U> {
+pub trait ReducePairsBulk<'a, T, U: ?Sized> {
     /// Takes a given schema and attempts to. Select how many pairs will be
     /// compared at once.
     ///
@@ -298,7 +298,7 @@ pub mod rayon {
     /// take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
-    pub trait ParReducePairsBulk<'a, T, U> {
+    pub trait ParReducePairsBulk<'a, T, U: ?Sized> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -554,7 +554,7 @@ pub mod r#async {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
-    pub trait AsyncReducePairsBulk<'a, T, U> {
+    pub trait AsyncReducePairsBulk<'a, T, U: ?Sized> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///

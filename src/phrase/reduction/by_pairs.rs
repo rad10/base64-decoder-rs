@@ -45,7 +45,7 @@ pub trait ReducePairs<T> {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: &U) -> Self
+    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
     where
         U: Fn(&Variation<T>) -> f64;
 
@@ -53,7 +53,7 @@ pub trait ReducePairs<T> {
     ///
     /// `confidence_interpreter` is used to determine if a combined string is
     /// closer to your objective than another.
-    fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
+    fn pairs_to_end<U>(&self, confidence_interpreter: U) -> Self
     where
         Self: Clone,
         U: Fn(&Variation<T>) -> f64;
@@ -104,26 +104,28 @@ where
     T: Debug,
     Variation<T>: Clone,
 {
-    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: &U) -> Self
+    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
     where
         T: Debug,
         Variation<T>: Clone,
         U: Fn(&Variation<T>) -> f64,
     {
+        let conf_link = &confidence_interpreter;
         self.bulk_reduce_pairs(number_of_pairs, move |snip| {
             snip.into_iter_var()
-                .map(move |line| (confidence_interpreter(&line), line))
+                .map(move |line| (conf_link(&line), line))
         })
     }
 
-    fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
+    fn pairs_to_end<U>(&self, confidence_interpreter: U) -> Self
     where
         Self: Clone,
         U: Fn(&Variation<T>) -> f64,
     {
+        let conf_link = &confidence_interpreter;
         self.bulk_pairs_to_end(None, move |snip| {
             snip.into_iter_var()
-                .map(move |line| (confidence_interpreter(&line), line))
+                .map(move |line| (conf_link(&line), line))
         })
     }
 }
@@ -264,14 +266,14 @@ pub mod rayon {
         fn reduce_pairs<U>(
             &self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &U,
+            confidence_interpreter: U,
         ) -> Self
         where
             T: Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync;
 
         /// Runs the reduce function until the it will not reduce anymore
-        fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
+        fn pairs_to_end<U>(&self, confidence_interpreter: U) -> Self
         where
             Self: Clone,
             T: Send + Sync,
@@ -325,11 +327,7 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_pairs<U>(
-            &self,
-            number_of_pairs: Option<usize>,
-            confidence_interpreter: &U,
-        ) -> Self
+        fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
         where
             T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
@@ -347,7 +345,7 @@ pub mod rayon {
             })
         }
 
-        fn pairs_to_end<U>(&self, confidence_interpreter: &U) -> Self
+        fn pairs_to_end<U>(&self, confidence_interpreter: U) -> Self
         where
             Self: Clone,
             T: Send + Sync,
@@ -511,7 +509,7 @@ pub mod r#async {
         async fn reduce_pairs<U, Fut>(
             &self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &U,
+            confidence_interpreter: U,
         ) -> Self
         where
             T: Send + Sync,
@@ -519,7 +517,7 @@ pub mod r#async {
             Fut: Future<Output = f64> + Send;
 
         /// Runs the reduce function until the it will not reduce anymore
-        async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: &U) -> Self
+        async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: U) -> Self
         where
             Self: Clone,
             T: Send + Sync,
@@ -553,7 +551,7 @@ pub mod r#async {
         async fn bulk_reduce_pairs<V, Fut>(
             &'a self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &V,
+            confidence_interpreter: V,
         ) -> Self
         where
             T: Send + Sync + 'a,
@@ -593,32 +591,34 @@ pub mod r#async {
         async fn reduce_pairs<U, Fut>(
             &self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &U,
+            confidence_interpreter: U,
         ) -> Self
         where
             T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
+            let conf_link = &confidence_interpreter;
             self.bulk_reduce_pairs(number_of_pairs, &async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
-                    .then(async move |line| (confidence_interpreter(&line).await, line))
+                    .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
             })
             .await
         }
 
-        async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: &U) -> Self
+        async fn pairs_to_end<U, Fut>(&self, confidence_interpreter: U) -> Self
         where
             Self: Clone,
             T: Send + Sync,
             U: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
+            let conf_link = &confidence_interpreter;
             self.bulk_pairs_to_end(None, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
-                    .then(async move |line| (confidence_interpreter(&line).await, line))
+                    .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
             })
@@ -635,7 +635,7 @@ pub mod r#async {
         async fn bulk_reduce_pairs<V, Fut>(
             &'a self,
             number_of_pairs: Option<usize>,
-            confidence_interpreter: &V,
+            confidence_interpreter: V,
         ) -> Self
         where
             T: Send + Sync + 'a,
@@ -654,6 +654,7 @@ pub mod r#async {
                                                 // line by line.
             };
 
+            let conf_link = &confidence_interpreter;
             // Take and operate on each pair in the schema. Will either combine a
             // pair into one section or (worst case scenario) leave the pairs as is
             let new_sections = stream::iter(self.sections.chunks(pair_size))
@@ -675,7 +676,7 @@ pub mod r#async {
                         let pair_snippet = Snippet::new(pairs);
                         let pair_permutation = pair_snippet.permutations();
                         let combined: Vec<Section<T>> = vec![
-                            confidence_interpreter(pair_snippet)
+                            conf_link(pair_snippet)
                                 .await
                                 .into_iter()
                                 .inspect(|(confidence, line)| {

@@ -43,7 +43,7 @@ pub trait ReduceHalves<T> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+    fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
     where
         Variation<T>: Clone,
         V: Fn(&Snippet<'_, T>) -> bool,
@@ -51,7 +51,7 @@ pub trait ReduceHalves<T> {
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
-    fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+    fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
     where
         Self: Clone,
         V: Fn(&Snippet<'_, T>) -> bool,
@@ -71,7 +71,7 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
         T: 'a,
         Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U;
+        W: FnMut(Snippet<'a, T>) -> U;
 
     /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
     /// approach by cutting the sections in half and running the validation
@@ -88,7 +88,7 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
         T: 'a,
         Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U;
+        W: FnMut(Snippet<'a, T>) -> U;
 
     /// Reduces the phrase until the reduction function cannot reduce it
     /// anymore.
@@ -102,35 +102,37 @@ pub trait ReduceHalvesBulk<'a, T, U: ?Sized> {
         Self: Clone,
         T: 'a,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U;
+        W: FnMut(Snippet<'a, T>) -> U;
 }
 
 impl<T> ReduceHalves<T> for Phrase<T>
 where
     T: Debug,
 {
-    fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+    fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
     where
         T: Debug,
         Variation<T>: Clone,
         V: Fn(&Snippet<'_, T>) -> bool,
         W: Fn(&Variation<T>) -> f64,
     {
+        let conf_link = &confidence_interpreter;
         self.bulk_reduce_halves(size_checker, move |snip| {
             snip.into_iter_var()
-                .map(move |line| (confidence_interpreter(&line), line))
+                .map(move |line| (conf_link(&line), line))
         })
     }
 
-    fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+    fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
     where
         Self: Clone,
         V: Fn(&Snippet<'_, T>) -> bool,
         W: Fn(&Variation<T>) -> f64,
     {
+        let conf_link = &confidence_interpreter;
         self.bulk_halves_to_end(None, size_checker, move |snip| {
             snip.into_iter_var()
-                .map(move |line| (confidence_interpreter(&line), line))
+                .map(move |line| (conf_link(&line), line))
         })
     }
 }
@@ -145,7 +147,7 @@ where
         T: 'a,
         Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U,
+        W: FnMut(Snippet<'a, T>) -> U,
     {
         Self::new(Self::bulk_reduce_schema_binary(
             size_checker,
@@ -157,13 +159,13 @@ where
     fn bulk_reduce_schema_binary<V, W>(
         size_checker: V,
         phrase_snippet: Snippet<'a, T>,
-        confidence_interpreter: W,
+        mut confidence_interpreter: W,
     ) -> Vec<Section<T>>
     where
         T: Debug,
         Variation<T>: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U,
+        W: FnMut(Snippet<'a, T>) -> U,
     {
         // Leave early if section is empty or just one
         if phrase_snippet.len_sections() < 2 {
@@ -199,7 +201,7 @@ where
                     Self::bulk_reduce_schema_binary(
                         &size_checker,
                         Snippet::new(c),
-                        &confidence_interpreter,
+                        &mut confidence_interpreter,
                     )
                 })
                 .collect()
@@ -215,7 +217,7 @@ where
     where
         Self: Clone,
         V: Fn(&Snippet<'a, T>) -> bool,
-        W: Fn(Snippet<'a, T>) -> U,
+        W: FnMut(Snippet<'a, T>) -> U,
     {
         if let Some(last_size) = recursive_val {
             // Currently in recursive loop
@@ -256,7 +258,7 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `permutation_limit`
         /// to decide the size of the section.
-        fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+        fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
         where
             T: Send + Sync,
             V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
@@ -264,7 +266,7 @@ pub mod rayon {
 
         /// Reduces the phrase until the reduction function cannot reduce it
         /// anymore.
-        fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+        fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
         where
             Self: Clone,
             T: Send + Sync,
@@ -329,28 +331,30 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_halves<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+        fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
         where
             T: Send + Sync,
             V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
             W: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
+            let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, move |snip| {
                 snip.into_iter_var()
-                    .map(move |line| (confidence_interpreter(&line), line))
+                    .map(move |line| (conf_link(&line), line))
             })
         }
 
-        fn halves_to_end<V, W>(&self, size_checker: &V, confidence_interpreter: &W) -> Self
+        fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
         where
             Self: Clone,
             T: Send + Sync,
             V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
             W: Fn(&Variation<T>) -> f64 + Send + Sync,
         {
+            let conf_link = &confidence_interpreter;
             self.bulk_halves_to_end(None, size_checker, move |snip| {
                 snip.into_iter_var()
-                    .map(move |line| (confidence_interpreter(&line), line))
+                    .map(move |line| (conf_link(&line), line))
             })
         }
     }
@@ -419,7 +423,7 @@ pub mod rayon {
                 phrase_snippet
                     .sections
                     .par_chunks(phrase_snippet.len_sections() / 2)
-                    .flat_map(|c| {
+                    .flat_map(move |c| {
                         Self::bulk_reduce_schema_binary(
                             &size_checker,
                             Snippet::new(c),
@@ -487,8 +491,8 @@ pub mod r#async {
         /// to decide the size of the section.
         async fn reduce_halves<V, FutBool, W, Fut>(
             &self,
-            size_checker: &V,
-            confidence_interpreter: &W,
+            size_checker: V,
+            confidence_interpreter: W,
         ) -> Self
         where
             T: Send + Sync,
@@ -502,8 +506,8 @@ pub mod r#async {
         /// anymore.
         async fn halves_to_end<V, FutBool, W, Fut>(
             &self,
-            size_checker: &V,
-            confidence_interpreter: &W,
+            size_checker: V,
+            confidence_interpreter: W,
         ) -> Self
         where
             Self: Clone,
@@ -603,8 +607,8 @@ pub mod r#async {
     {
         async fn reduce_halves<V, FutBool, W, Fut>(
             &self,
-            size_checker: &V,
-            confidence_interpreter: &W,
+            size_checker: V,
+            confidence_interpreter: W,
         ) -> Self
         where
             T: Send + Sync,
@@ -613,13 +617,14 @@ pub mod r#async {
             W: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
+            let conf_link = &confidence_interpreter;
             Self::new(
                 Self::bulk_reduce_schema_binary(
                     size_checker,
                     self.as_snippet(),
-                    &async |snip: Snippet<'_, T>| {
+                    async |snip: Snippet<'_, T>| {
                         stream::iter(snip.iter_var())
-                            .then(async move |line| (confidence_interpreter(&line).await, line))
+                            .then(async move |line| (conf_link(&line).await, line))
                             .collect::<Vec<(f64, Variation<T>)>>()
                             .await
                     },
@@ -630,8 +635,8 @@ pub mod r#async {
 
         async fn halves_to_end<V, FutBool, W, Fut>(
             &self,
-            size_checker: &V,
-            confidence_interpreter: &W,
+            size_checker: V,
+            confidence_interpreter: W,
         ) -> Self
         where
             T: Send + Sync,
@@ -640,9 +645,10 @@ pub mod r#async {
             W: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
+            let conf_link = &confidence_interpreter;
             self.bulk_halves_to_end(None, size_checker, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
-                    .then(async move |line| (confidence_interpreter(&line).await, line))
+                    .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
             })

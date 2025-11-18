@@ -504,7 +504,7 @@ pub mod r#async {
         where
             T: Send + Sync,
             Variation<T>: Clone,
-            V: Fn(&Snippet<'_, T>) -> FutBool + Send + Sync,
+            V: Fn(Snippet<'_, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
             W: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
@@ -549,9 +549,10 @@ pub mod r#async {
         ) -> Self
         where
             Self: Clone,
-            T: 'b + Send + Sync,
+            Snippet<'a, T>: Clone,
+            T: 'a + Send + Sync,
             Variation<T>: Clone,
-            V: Fn(&Snippet<'b, T>) -> FutBool + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
@@ -577,8 +578,10 @@ pub mod r#async {
         ) -> Vec<Section<T>>
         where
             T: 'b + Send + Sync,
+            Snippet<'a, T>: Clone,
             Variation<T>: Clone,
-            V: Fn(&Snippet<'b, T>) -> FutBool + Send + Sync,
+            // TODO: Make V borrow snippet
+            V: Fn(Snippet<'b, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
@@ -621,7 +624,7 @@ pub mod r#async {
         ) -> Self
         where
             T: Send + Sync,
-            V: Fn(&Snippet<'_, T>) -> FutBool + Send + Sync,
+            V: Fn(Snippet<'_, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
             W: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
@@ -678,8 +681,9 @@ pub mod r#async {
         ) -> Self
         where
             T: Send + Sync,
+            Snippet<'a, T>: Clone,
             Variation<T>: Clone,
-            V: Fn(&Snippet<'b, T>) -> FutBool + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
@@ -702,9 +706,10 @@ pub mod r#async {
             confidence_interpreter: W,
         ) -> Vec<Section<T>>
         where
+            Snippet<'a, T>: Clone,
             T: Send + Sync,
             Variation<T>: Clone,
-            V: Fn(&Snippet<'b, T>) -> FutBool + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
@@ -716,7 +721,7 @@ pub mod r#async {
                 phrase_snippet.sections.to_vec()
             }
             // If the permutations within the sections is less than limit, then start crunching through them
-            else if size_checker(&phrase_snippet).await {
+            else if size_checker(phrase_snippet.clone()).await {
                 let snippet_permutation = phrase_snippet.permutations();
                 vec![
                     confidence_interpreter(phrase_snippet)

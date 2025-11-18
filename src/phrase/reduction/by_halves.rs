@@ -81,9 +81,9 @@ pub trait ReduceHalvesBulk<T, U: ?Sized> {
     ///
     /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
     fn bulk_reduce_schema_binary<'a, 'b, V, W>(
-        size_checker: V,
+        size_checker: &V,
         phrase_snippet: Snippet<'a, T>,
-        confidence_interpreter: W,
+        confidence_interpreter: &mut W,
     ) -> Vec<Section<T>>
     where
         Variation<T>: Clone,
@@ -143,7 +143,7 @@ where
     T: Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
 {
-    fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
+    fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, mut confidence_interpreter: W) -> Self
     where
         T: 'b,
         Variation<T>: Clone,
@@ -152,16 +152,16 @@ where
         'a: 'b,
     {
         Self::new(Self::bulk_reduce_schema_binary(
-            size_checker,
+            &size_checker,
             self.as_snippet(),
-            confidence_interpreter,
+            &mut confidence_interpreter,
         ))
     }
 
     fn bulk_reduce_schema_binary<'a, 'b, V, W>(
-        size_checker: V,
+        size_checker: &V,
         phrase_snippet: Snippet<'a, T>,
-        mut confidence_interpreter: W,
+        confidence_interpreter: &mut W,
     ) -> Vec<Section<T>>
     where
         T: Debug,
@@ -202,9 +202,9 @@ where
                 .chunks(phrase_snippet.len_sections() / 2)
                 .flat_map(move |c| {
                     Self::bulk_reduce_schema_binary(
-                        &size_checker,
+                        size_checker,
                         Snippet::new(c),
-                        &mut confidence_interpreter,
+                        confidence_interpreter,
                     )
                 })
                 .collect()
@@ -303,9 +303,9 @@ pub mod rayon {
         ///
         /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
         fn bulk_reduce_schema_binary<'a, 'b, V, W>(
-            size_checker: V,
+            size_checker: &V,
             phrase_snippet: Snippet<'a, T>,
-            confidence_interpreter: W,
+            confidence_interpreter: &W,
         ) -> Vec<Section<T>>
         where
             T: Send + Sync,
@@ -379,16 +379,16 @@ pub mod rayon {
             'a: 'b,
         {
             Self::new(Self::bulk_reduce_schema_binary(
-                size_checker,
+                &size_checker,
                 self.as_snippet(),
-                confidence_interpreter,
+                &confidence_interpreter,
             ))
         }
 
         fn bulk_reduce_schema_binary<'a, 'b, V, W>(
-            size_checker: V,
+            size_checker: &V,
             phrase_snippet: Snippet<'a, T>,
-            confidence_interpreter: W,
+            confidence_interpreter: &W,
         ) -> Vec<Section<T>>
         where
             T: 'b + Send + Sync,
@@ -432,9 +432,9 @@ pub mod rayon {
                     .par_chunks(phrase_snippet.len_sections() / 2)
                     .flat_map(move |c| {
                         Self::bulk_reduce_schema_binary(
-                            &size_checker,
+                            size_checker,
                             Snippet::new(c),
-                            &confidence_interpreter,
+                            confidence_interpreter,
                         )
                     })
                     .collect()
@@ -572,9 +572,9 @@ pub mod r#async {
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_schema_binary<'a, 'b, V, FutBool, W, Fut>(
-            size_checker: V,
+            size_checker: &V,
             phrase_snippet: Snippet<'a, T>,
-            confidence_interpreter: W,
+            confidence_interpreter: &W,
         ) -> Vec<Section<T>>
         where
             T: 'b + Send + Sync,
@@ -630,19 +630,12 @@ pub mod r#async {
             Fut: Future<Output = f64> + Send,
         {
             let conf_link = &confidence_interpreter;
-            Self::new(
-                Self::bulk_reduce_schema_binary(
-                    size_checker,
-                    self.as_snippet(),
-                    async |snip: Snippet<'_, T>| {
+            self.bulk_reduce_halves(size_checker, async |snip: Snippet<'_, T>| {
                         stream::iter(snip.iter_var())
                             .then(async move |line| (conf_link(&line).await, line))
                             .collect::<Vec<(f64, Variation<T>)>>()
                             .await
-                    },
-                )
-                .await,
-            )
+                    }).await
         }
 
         async fn halves_to_end<V, FutBool, W, Fut>(
@@ -692,18 +685,18 @@ pub mod r#async {
         {
             Self::new(
                 Self::bulk_reduce_schema_binary(
-                    size_checker,
+                    &size_checker,
                     self.as_snippet(),
-                    confidence_interpreter,
+                    &confidence_interpreter,
                 )
                 .await,
             )
         }
 
         async fn bulk_reduce_schema_binary<'a, 'b, V, FutBool, W, Fut>(
-            size_checker: V,
+            size_checker: &V,
             phrase_snippet: Snippet<'a, T>,
-            confidence_interpreter: W,
+            confidence_interpreter: &W,
         ) -> Vec<Section<T>>
         where
             Snippet<'a, T>: Clone,
@@ -749,9 +742,9 @@ pub mod r#async {
                     .then(async |c| {
                         stream::iter(
                             Self::bulk_reduce_schema_binary(
-                                &size_checker,
+                                size_checker,
                                 Snippet::new(c),
-                                &confidence_interpreter,
+                                confidence_interpreter,
                             )
                             .await,
                         )

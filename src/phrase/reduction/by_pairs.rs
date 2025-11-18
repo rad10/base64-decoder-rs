@@ -64,7 +64,7 @@ pub trait ReducePairs<T> {
 ///
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
-pub trait ReducePairsBulk<'a, T, U: ?Sized> {
+pub trait ReducePairsBulk<T, U: ?Sized> {
     /// Takes a given schema and attempts to. Select how many pairs will be
     /// compared at once.
     ///
@@ -73,30 +73,32 @@ pub trait ReducePairsBulk<'a, T, U: ?Sized> {
     /// each string
     ///
     /// Default is 2
-    fn bulk_reduce_pairs<V>(
+    fn bulk_reduce_pairs<'a, 'b, V>(
         &'a self,
         number_of_pairs: Option<usize>,
         confidence_interpreter: V,
     ) -> Self
     where
-        T: 'a,
+        T: 'b,
         Variation<T>: Clone,
-        V: FnMut(Snippet<'a, T>) -> U;
+        V: FnMut(Snippet<'b, T>) -> U,
+        'a: 'b;
 
     /// Runs the reduce function until the it will not reduce anymore
     ///
     /// `confidence_interpreter` Takes an iterator of all possible permutations
     /// and produces an iterator of equal size with the confidence values of
     /// each string
-    fn bulk_pairs_to_end<V>(
+    fn bulk_pairs_to_end<'a, 'b, V>(
         &'a self,
         recursive_val: Option<(usize, usize)>,
         confidence_interpreter: V,
     ) -> Self
     where
         Self: Clone,
-        T: 'a,
-        V: FnMut(Snippet<'a, T>) -> U;
+        T: 'b,
+        V: FnMut(Snippet<'b, T>) -> U,
+        'a: 'b;
 }
 
 impl<T> ReducePairs<T> for Phrase<T>
@@ -130,19 +132,21 @@ where
     }
 }
 
-impl<'a, T, U> ReducePairsBulk<'a, T, U> for Phrase<T>
+impl<T, U> ReducePairsBulk<T, U> for Phrase<T>
 where
     T: Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
 {
-    fn bulk_reduce_pairs<V>(
+    fn bulk_reduce_pairs<'a, 'b, V>(
         &'a self,
         number_of_pairs: Option<usize>,
         mut confidence_interpreter: V,
     ) -> Self
     where
+        T: 'b,
         Variation<T>: Clone,
-        V: FnMut(Snippet<'a, T>) -> U,
+        V: FnMut(Snippet<'b, T>) -> U,
+        'a: 'b,
     {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs {
@@ -209,14 +213,15 @@ where
         Self::new(new_sections)
     }
 
-    fn bulk_pairs_to_end<V>(
+    fn bulk_pairs_to_end<'a, 'b, V>(
         &'a self,
         recursive_val: Option<(usize, usize)>,
-        confidence_interpreter: V,
+        mut confidence_interpreter: V,
     ) -> Self
     where
         Self: Clone,
-        V: FnMut(Snippet<'a, T>) -> U,
+        V: FnMut(Snippet<'b, T>) -> U,
+        'a: 'b,
     {
         if let Some((pair_size, last_size)) = recursive_val {
             // Currently in recursive loop
@@ -224,11 +229,11 @@ where
             if pair_size < self.len_sections() {
                 self.clone()
             } else if last_size <= self.len_sections() {
-                self.bulk_pairs_to_end(Some((pair_size + 1, usize::MAX)), confidence_interpreter)
+                self.bulk_pairs_to_end(Some((pair_size + 1, usize::MAX)), &mut confidence_interpreter)
             } else {
                 self.bulk_pairs_to_end(
                     Some((pair_size, self.len_sections())),
-                    confidence_interpreter,
+                    &mut confidence_interpreter,
                 )
             }
         } else {
@@ -287,7 +292,7 @@ pub mod rayon {
     /// take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
-    pub trait ParReducePairsBulk<'a, T, U: ?Sized> {
+    pub trait ParReducePairsBulk<T, U: ?Sized> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -296,30 +301,32 @@ pub mod rayon {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs<V>(
+        fn bulk_reduce_pairs<'a, 'b, V>(
             &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
         ) -> Self
         where
             Variation<T>: Clone,
-            T: 'a + Send + Sync,
-            V: Fn(Snippet<'a, T>) -> U + Send + Sync;
+            T: 'b + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> U + Send + Sync,
+            'a: 'b;
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
         /// each string
-        fn bulk_pairs_to_end<V>(
+        fn bulk_pairs_to_end<'a, 'b, V>(
             &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
             Self: Clone,
-            T: 'a + Send + Sync,
-            V: Fn(Snippet<'a, T>) -> U + Send + Sync;
+            T: 'b + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> U + Send + Sync,
+            'a: 'b;
     }
 
     impl<T> ParReducePairs<T> for Phrase<T>
@@ -327,7 +334,11 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
+        fn reduce_pairs<U>(
+            &self,
+            number_of_pairs: Option<usize>,
+            confidence_interpreter: U,
+        ) -> Self
         where
             T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
@@ -365,20 +376,21 @@ pub mod rayon {
         }
     }
 
-    impl<'a, T, U> ParReducePairsBulk<'a, T, U> for Phrase<T>
+    impl<T, U> ParReducePairsBulk<T, U> for Phrase<T>
     where
         T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)> + Sync,
     {
-        fn bulk_reduce_pairs<V>(
+        fn bulk_reduce_pairs<'a, 'b, V>(
             &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
         ) -> Self
         where
-            T: Send + Sync,
+            T: 'b + Send + Sync,
             Variation<T>: Clone,
-            V: Fn(Snippet<'a, T>) -> U + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> U + Send + Sync,
+            'a: 'b,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
@@ -448,15 +460,16 @@ pub mod rayon {
             Self::new(new_sections)
         }
 
-        fn bulk_pairs_to_end<V>(
+        fn bulk_pairs_to_end<'a, 'b, V>(
             &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
             Self: Clone,
-            T: Send + Sync,
-            V: Fn(Snippet<'a, T>) -> U + Send + Sync,
+            T: 'b + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> U + Send + Sync,
+            'a: 'b,
         {
             if let Some((pair_size, last_size)) = recursive_val {
                 // Currently in recursive loop
@@ -533,7 +546,7 @@ pub mod r#async {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
-    pub trait AsyncReducePairsBulk<'a, T, U: ?Sized> {
+    pub trait AsyncReducePairsBulk<T, U: ?Sized> {
         /// Takes a given schema and attempts to. Select how many pairs will be
         /// compared at once.
         ///
@@ -548,16 +561,17 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_pairs<V, Fut>(
+        async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
             &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
         ) -> Self
         where
-            T: Send + Sync + 'a,
+            T: 'b + Send + Sync,
             Variation<T>: Clone,
-            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send;
+            V: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
+            'a: 'b;
 
         /// Runs the reduce function until the it will not reduce anymore
         ///
@@ -570,16 +584,17 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_pairs_to_end<V, Fut>(
+        async fn bulk_pairs_to_end<'a, 'b, V, Fut>(
             &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
             Self: Clone,
-            T: Send + Sync + 'a,
-            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send;
+            T: 'b + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
+            Fut: Future<Output = U> + Send,
+            'a: 'b;
     }
 
     #[async_trait]
@@ -627,21 +642,22 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<'a, T, U> AsyncReducePairsBulk<'a, T, U> for Phrase<T>
+    impl<T, U> AsyncReducePairsBulk<T, U> for Phrase<T>
     where
         T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)>,
     {
-        async fn bulk_reduce_pairs<V, Fut>(
+        async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
             &'a self,
             number_of_pairs: Option<usize>,
             confidence_interpreter: V,
         ) -> Self
         where
-            T: Send + Sync + 'a,
+            T: 'b + Send + Sync,
             Variation<T>: Clone,
-            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
+            'a: 'b,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs {
@@ -713,16 +729,17 @@ pub mod r#async {
             Self::new(new_sections)
         }
 
-        async fn bulk_pairs_to_end<V, Fut>(
+        async fn bulk_pairs_to_end<'a, 'b, V, Fut>(
             &'a self,
             recursive_val: Option<(usize, usize)>,
             confidence_interpreter: V,
         ) -> Self
         where
             Self: Clone,
-            T: Send + Sync,
-            V: Fn(Snippet<'a, T>) -> Fut + Send + Sync,
+            T: 'b + Send + Sync,
+            V: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
+            'a: 'b,
         {
             if let Some((pair_size, last_size)) = recursive_val {
                 // Currently in recursive loop

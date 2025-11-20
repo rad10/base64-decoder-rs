@@ -185,7 +185,7 @@ where
                         confidence_interpreter(pair_snippet)
                             .into_iter()
                             .inspect(|(confidence, line)| {
-                                log::debug!("confidence, string: {confidence}, {line:?}")
+                                log::trace!("confidence, string: {confidence}, {line:?}")
                             })
                             // Keeping only half the values to make actual leeway
                             .k_largest_relaxed_by_key(
@@ -193,7 +193,7 @@ where
                                 |(confidence, _)| (confidence * 100_000_f64) as usize,
                             )
                             .inspect(|(confidence, line)| {
-                                log::debug!("Accepted: confidence, string: {confidence}, {line:?}")
+                                log::trace!("Accepted: confidence, string: {confidence}, {line:?}")
                             })
                             .map(|(_, line)| line)
                             .collect()
@@ -428,7 +428,7 @@ pub mod rayon {
                             confidence_interpreter(pair_snippet)
                                 .into_iter()
                                 .inspect(|(confidence, line)| {
-                                    log::debug!("confidence, string: {confidence}, {line:?}")
+                                    log::trace!("confidence, string: {confidence}, {line:?}")
                                 })
                                 // Keeping only half the values to make actual leeway
                                 .k_largest_relaxed_by_key(
@@ -436,7 +436,7 @@ pub mod rayon {
                                     |(confidence, _)| (confidence * 100_000_f64) as usize,
                                 )
                                 .inspect(|(confidence, line)| {
-                                    log::debug!(
+                                    log::trace!(
                                         "Accepted: confidence, string: {confidence}, {line:?}"
                                     )
                                 })
@@ -695,7 +695,7 @@ pub mod r#async {
                                 .await
                                 .into_iter()
                                 .inspect(|(confidence, line)| {
-                                    log::debug!("confidence, string: {confidence}, {line:?}")
+                                    log::trace!("confidence, string: {confidence}, {line:?}")
                                 })
                                 // Keeping only half the values to make actual leeway
                                 .k_largest_relaxed_by_key(
@@ -703,7 +703,7 @@ pub mod r#async {
                                     |(confidence, _)| (confidence * 100_000_f64) as usize,
                                 )
                                 .inspect(|(confidence, line)| {
-                                    log::debug!(
+                                    log::trace!(
                                         "Accepted: confidence, string: {confidence}, {line:?}"
                                     )
                                 })

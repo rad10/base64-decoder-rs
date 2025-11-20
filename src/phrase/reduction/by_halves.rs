@@ -66,7 +66,11 @@ pub trait ReduceHalvesBulk<T, U: ?Sized> {
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `permutation_limit`
     /// to decide the size of the section.
-    fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
+    fn bulk_reduce_halves<'a, 'b, V, W>(
+        &'a self,
+        size_checker: V,
+        confidence_interpreter: W,
+    ) -> Self
     where
         T: 'b,
         Variation<T>: Clone,
@@ -143,7 +147,11 @@ where
     T: Debug,
     U: IntoIterator<Item = (f64, Variation<T>)>,
 {
-    fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, mut confidence_interpreter: W) -> Self
+    fn bulk_reduce_halves<'a, 'b, V, W>(
+        &'a self,
+        size_checker: V,
+        mut confidence_interpreter: W,
+    ) -> Self
     where
         T: 'b,
         Variation<T>: Clone,
@@ -287,7 +295,11 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
-        fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
+        fn bulk_reduce_halves<'a, 'b, V, W>(
+            &'a self,
+            size_checker: V,
+            confidence_interpreter: W,
+        ) -> Self
         where
             T: 'b + Send + Sync,
             Variation<T>: Clone,
@@ -369,7 +381,11 @@ pub mod rayon {
         T: Debug,
         U: IntoIterator<Item = (f64, Variation<T>)>,
     {
-        fn bulk_reduce_halves<'a, 'b, V, W>(&'a self, size_checker: V, confidence_interpreter: W) -> Self
+        fn bulk_reduce_halves<'a, 'b, V, W>(
+            &'a self,
+            size_checker: V,
+            confidence_interpreter: W,
+        ) -> Self
         where
             T: 'b + Send + Sync,
             Variation<T>: Clone,
@@ -631,11 +647,12 @@ pub mod r#async {
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, async |snip: Snippet<'_, T>| {
-                        stream::iter(snip.iter_var())
-                            .then(async move |line| (conf_link(&line).await, line))
-                            .collect::<Vec<(f64, Variation<T>)>>()
-                            .await
-                    }).await
+                stream::iter(snip.iter_var())
+                    .then(async move |line| (conf_link(&line).await, line))
+                    .collect::<Vec<(f64, Variation<T>)>>()
+                    .await
+            })
+            .await
         }
 
         async fn halves_to_end<V, FutBool, W, Fut>(

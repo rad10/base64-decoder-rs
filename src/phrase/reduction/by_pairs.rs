@@ -229,7 +229,10 @@ where
             if pair_size < self.len_sections() {
                 self.clone()
             } else if last_size <= self.len_sections() {
-                self.bulk_pairs_to_end(Some((pair_size + 1, usize::MAX)), &mut confidence_interpreter)
+                self.bulk_pairs_to_end(
+                    Some((pair_size + 1, usize::MAX)),
+                    &mut confidence_interpreter,
+                )
             } else {
                 self.bulk_pairs_to_end(
                     Some((pair_size, self.len_sections())),
@@ -334,11 +337,7 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_pairs<U>(
-            &self,
-            number_of_pairs: Option<usize>,
-            confidence_interpreter: U,
-        ) -> Self
+        fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
         where
             T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,

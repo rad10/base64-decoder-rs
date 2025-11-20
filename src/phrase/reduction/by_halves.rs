@@ -255,7 +255,10 @@ pub mod rayon {
     use std::fmt::Debug;
 
     use itertools::Itertools;
-    use rayon::{iter::ParallelIterator, slice::ParallelSlice};
+    use rayon::{
+        iter::{ParallelBridge, ParallelIterator},
+        slice::ParallelSlice,
+    };
 
     use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
 
@@ -357,7 +360,9 @@ pub mod rayon {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, move |snip| {
                 snip.into_iter_var()
+                    .par_bridge()
                     .map(move |line| (conf_link(&line), line))
+                    .collect::<Vec<(f64, Variation<T>)>>()
             })
         }
 

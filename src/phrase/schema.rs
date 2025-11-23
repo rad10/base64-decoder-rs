@@ -486,8 +486,7 @@ where
     Variation<T>: Clone + VariationValue<Item = T>,
 {
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter(self) -> impl Iterator<Item = T>
-    {
+    pub fn into_iter(self) -> impl Iterator<Item = T> {
         self.sections
             .into_iter()
             .multi_cartesian_product()
@@ -500,19 +499,17 @@ where
     /// Same as [`into_iter`]
     ///
     /// [`into_iter`]: Self::into_iter
-    pub fn into_iter_val(self) -> impl Iterator<Item = T>
-    {
+    pub fn into_iter_val(self) -> impl Iterator<Item = T> {
         self.into_iter()
     }
 }
 
 impl<T> Snippet<'_, T>
-    where
-        Variation<T>: VariationValue<Item = T>,
+where
+    Variation<T>: VariationValue<Item = T>,
 {
     /// Permutate through all variations that the phrase can take
-    pub fn iter(&self) -> impl Iterator<Item = T>
-    {
+    pub fn iter(&self) -> impl Iterator<Item = T> {
         self.sections
             .iter()
             .multi_cartesian_product()
@@ -521,8 +518,7 @@ impl<T> Snippet<'_, T>
     }
 
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter(self) -> impl Iterator<Item = T>
-    {
+    pub fn into_iter(self) -> impl Iterator<Item = T> {
         self.sections
             .iter()
             .multi_cartesian_product()
@@ -535,8 +531,7 @@ impl<T> Snippet<'_, T>
     /// Same as [`iter`]
     ///
     /// [`iter`]: Self::iter
-    pub fn iter_val(&self) -> impl Iterator<Item = T>
-    {
+    pub fn iter_val(&self) -> impl Iterator<Item = T> {
         self.iter()
     }
 
@@ -545,8 +540,7 @@ impl<T> Snippet<'_, T>
     /// Same as [`into_iter`]
     ///
     /// [`into_iter`]: Self::into_iter
-    pub fn into_iter_val(self) -> impl Iterator<Item = T>
-    {
+    pub fn into_iter_val(self) -> impl Iterator<Item = T> {
         self.into_iter()
     }
 }
@@ -600,69 +594,24 @@ where
     }
 }
 
-impl<T> From<Vec<Vec<T>>> for Phrase<T>
+impl<T> From<T> for Variation<T> {
+    fn from(value: T) -> Self {
+        Variation::new(value)
+    }
+}
+
+impl<T, U, V, W> From<U> for Phrase<T>
 where
-    T: Clone,
+    U: IntoIterator<Item = V>,
+    V: IntoIterator<Item = W>,
+    W: Into<Variation<T>>,
 {
-    fn from(value: Vec<Vec<T>>) -> Self {
+    fn from(value: U) -> Self {
         Self {
             sections: value
                 .into_iter()
-                .map(|section| {
-                    section
-                        .into_iter()
-                        .map(Variation::new)
-                        .collect::<Vec<Variation<T>>>()
-                })
-                .collect::<Vec<Section<T>>>(),
-        }
-    }
-}
-
-impl<T> From<&[Vec<T>]> for Phrase<T>
-where
-    T: Clone,
-{
-    fn from(value: &[Vec<T>]) -> Self {
-        Self {
-            sections: value
-                .iter()
-                .map(|section| {
-                    section
-                        .iter()
-                        .map(|variation| Variation::new(variation.to_owned()))
-                        .collect::<Vec<Variation<T>>>()
-                })
-                .collect::<Vec<Section<T>>>(),
-        }
-    }
-}
-
-impl<T> From<Vec<Section<T>>> for Phrase<T> {
-    fn from(value: Vec<Section<T>>) -> Self {
-        Self::new(value)
-    }
-}
-
-impl<T> From<[Section<T>]> for Phrase<T>
-where
-    [Section<T>]: Sized,
-    Variation<T>: Clone,
-{
-    fn from(value: [Section<T>]) -> Self {
-        Self {
-            sections: value.to_vec(),
-        }
-    }
-}
-
-impl<T> From<&[Section<T>]> for Phrase<T>
-where
-    T: Clone,
-{
-    fn from(value: &[Section<T>]) -> Self {
-        Self {
-            sections: value.to_vec(),
+                .map(|s| s.into_iter().map_into().collect())
+                .collect(),
         }
     }
 }

@@ -173,9 +173,9 @@ where
                 // If there is more than one pair, but each pair only has one
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
-                else if pairs.iter().all(|v| v.len() == 1) {
-                    vec![vec![Variation::join_var_vec(
-                        pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
+                else if pairs.iter().all(|s| s.len() == 1) {
+                    vec![vec![Variation::join(
+                        pairs.iter().flatten(),
                     )]]
                 } else {
                     // permuting values and collecting only viable options
@@ -416,9 +416,9 @@ pub mod rayon {
                     // If there is more than one pair, but each pair only has one
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
-                    else if pairs.iter().all(|v| v.len() == 1) {
-                        vec![vec![Variation::join_var_vec(
-                            pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
+                    else if pairs.iter().all(|s| s.len() == 1) {
+                        vec![vec![Variation::join(
+                            pairs.iter().flatten(),
                         )]]
                     } else {
                         // permuting values and collecting only viable options
@@ -682,9 +682,9 @@ pub mod r#async {
                     // If there is more than one pair, but each pair only has one
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
-                    else if pairs.iter().all(|v| v.len() == 1) {
-                        stream::iter(vec![vec![Variation::join_var_vec(
-                            pairs.iter().map(|s| &s[0]).collect::<Vec<&Variation<T>>>(),
+                    else if pairs.iter().all(|s| s.len() == 1) {
+                        stream::iter(vec![vec![Variation::join(
+                            pairs.iter().flatten(),
                         )]])
                     } else {
                         // permuting values and collecting only viable options

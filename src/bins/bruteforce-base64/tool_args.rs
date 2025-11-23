@@ -1,6 +1,10 @@
 use base64_bruteforcer_rs::phrase::schema::Phrase;
-use clap::{Parser, ValueEnum};
+#[cfg(feature = "ollama")]
+use clap::Args;
+use clap::{Parser, Subcommand, ValueEnum};
 use patharg::InputArg;
+#[cfg(feature = "ollama")]
+use url::Url;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -28,7 +32,7 @@ pub(crate) struct ToolArgs {
     pub(crate) reduction_method: ReductionMethod,
 
     /// Sets which validator is used on the strings
-    #[arg(short = 'a', long, value_enum, default_value_t = StringValidator::WhatLang)]
+    #[command(subcommand)]
     pub(crate) validation_method: StringValidator,
 
     #[command(flatten)]
@@ -52,7 +56,7 @@ pub(crate) enum ReductionMethod {
 }
 
 /// Determines what function to use when validating part of a phrase
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Clone, PartialEq, Subcommand)]
 pub(crate) enum StringValidator {
     /// Sets no validation method and skips reduction before printing
     /// possibilities
@@ -60,4 +64,17 @@ pub(crate) enum StringValidator {
     /// Uses the whatlang library to validate strings during reduction
     #[cfg(feature = "whatlang")]
     WhatLang,
+    /// Use Ollama to give a confidence value on each string
+    #[cfg(feature = "ollama")]
+    OllamaGroup(OllamaArgs),
+}
+
+/// Contains the arguments used to configure and access ollama
+#[cfg(feature = "ollama")]
+#[derive(Args, Clone, PartialEq)]
+pub(crate) struct OllamaArgs {
+    /// The address of the ollama instance to connect to
+    pub(crate) address: Url,
+    /// The model to use when doing validation checks
+    pub(crate) model: String,
 }

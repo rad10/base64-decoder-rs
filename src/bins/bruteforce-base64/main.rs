@@ -1,7 +1,11 @@
+#[cfg(feature = "ollama")]
+use base64_bruteforcer_rs::phrase::schema::Variation;
+#[cfg(feature = "ollama")]
+use base64_bruteforcer_rs::phrase::validation::ollama::OllamaHandler;
 use base64_bruteforcer_rs::{
     base64_parser::{Base64Bruteforcer, BruteforcerTraits},
     phrase::{
-        schema::{ConvertString, Permutation, Phrase},
+        schema::{ConvertString, Permutation, Phrase, Snippet},
         validation::validate_with_whatlang,
     },
 };
@@ -9,13 +13,6 @@ use clap::Parser;
 use tool_args::ToolArgs;
 
 mod tool_args;
-
-#[cfg(not(feature = "rayon"))]
-use base64_bruteforcer_rs::phrase::reduction::{by_halves::ReduceHalves, by_pairs::ReducePairs};
-#[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::phrase::reduction::{
-    by_halves::rayon::ParReduceHalves, by_pairs::rayon::ParReducePairs,
-};
 
 use crate::tool_args::{ReductionMethod, StringValidator, parse_json_to_schema};
 
@@ -59,47 +56,158 @@ async fn main() -> () {
     if parser.validation_method != StringValidator::None {
         if parser.info {
             println!(
-                "schema: {:?}\n# of permutations: {}",
+                "schema: {:?}\n# of permutations: {:e}",
                 string_permutation.convert_to_string(),
                 string_permutation.permutations(),
             );
         }
 
-        log::info!("Reducing permutations to logical choices");
-        string_permutation = match (parser.reduction_method, parser.validation_method) {
-            (_, StringValidator::None) => unreachable!(),
-            (ReductionMethod::Pairs, StringValidator::WhatLang) => {
-                #[cfg(not(feature = "rayon"))]
-                {
-                    string_permutation.pairs_to_end(validate_with_whatlang)
-                }
-                #[cfg(feature = "rayon")]
-                tokio_rayon::spawn(move || string_permutation.pairs_to_end(validate_with_whatlang))
-                    .await
-            }
-            (ReductionMethod::Halves, StringValidator::WhatLang) => {
-                #[cfg(not(feature = "rayon"))]
-                {
-                    string_permutation.halves_to_end(
-                        |snip| snip.permutations() <= 100_000_f64,
-                        validate_with_whatlang,
-                    )
-                }
-                #[cfg(feature = "rayon")]
-                tokio_rayon::spawn(move || {
-                    string_permutation.halves_to_end(
-                        |snip| snip.permutations() <= 100_000_f64,
-                        validate_with_whatlang,
-                    )
-                })
-                .await
-            }
+        log::info!("Flattening single choice variations");
+        string_permutation = string_permutation.flatten_sections();
+
+        if parser.info {
+            println!(
+                "schema: {:?}\n# of permutations: {:e}",
+                string_permutation.convert_to_string(),
+                string_permutation.permutations(),
+            );
+        }
+
+        // Preparing ollama engine
+        #[cfg(feature = "ollama")]
+        let mut ollama_engine = if let StringValidator::OllamaGroup(c) = &parser.validation_method {
+            Some(OllamaHandler::new(c.address.clone(), c.model.clone()))
+        } else {
+            None
         };
+
+        // Setting a temp flag if pairs is selected
+        log::info!("Reducing permutations to logical choices");
+        let mut pair_size = 2;
+        'pair_loop: loop {
+            let mut last_size = usize::MAX;
+            while last_size > string_permutation.len_sections() {
+                last_size = string_permutation.len_sections();
+                match log::max_level() {
+                    log::LevelFilter::Info => {
+                        log::info!(
+                            "Schema: {:?}\n# of permutations: {:e}",
+                            string_permutation.convert_to_string(),
+                            string_permutation.permutations()
+                        );
+                    }
+                    x if x >= log::LevelFilter::Debug => {
+                        log::debug!(
+                            "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
+                            string_permutation.convert_to_string(),
+                            string_permutation.len_sections(),
+                            string_permutation.num_of_references(),
+                            string_permutation.permutations()
+                        );
+                    }
+                    _ => (),
+                };
+
+                // Update permutation depending on which loop
+                string_permutation = match (parser.reduction_method, &parser.validation_method) {
+                    (_, StringValidator::None) => unreachable!(),
+                    (ReductionMethod::Pairs, StringValidator::WhatLang) => {
+                        #[cfg(not(feature = "rayon"))]
+                        {
+                            use base64_bruteforcer_rs::phrase::reduction::by_pairs::ReducePairs;
+                            string_permutation.reduce_pairs(Some(pair_size), validate_with_whatlang)
+                        }
+                        #[cfg(feature = "rayon")]
+                        {
+                            use base64_bruteforcer_rs::phrase::reduction::by_pairs::rayon::ParReducePairs;
+
+                            tokio_rayon::spawn(move || {
+                                string_permutation
+                                    .reduce_pairs(Some(pair_size), validate_with_whatlang)
+                            })
+                            .await
+                        }
+                    }
+                    (ReductionMethod::Halves, StringValidator::WhatLang) => {
+                        #[cfg(not(feature = "rayon"))]
+                        {
+                            use base64_bruteforcer_rs::phrase::reduction::by_halves::ReduceHalves;
+
+                            string_permutation.reduce_halves(
+                                |snip| snip.permutations() <= 100_000_f64,
+                                validate_with_whatlang,
+                            )
+                        }
+                        #[cfg(feature = "rayon")]
+                        {
+                            use base64_bruteforcer_rs::phrase::reduction::by_halves::rayon::ParReduceHalves;
+
+                            tokio_rayon::spawn(move || {
+                                string_permutation.reduce_halves(
+                                    |snip: &Snippet<'_, String>| snip.permutations() <= 100_000_f64,
+                                    validate_with_whatlang,
+                                )
+                            })
+                            .await
+                        }
+                    }
+                    #[cfg(feature = "ollama")]
+                    (ReductionMethod::Pairs, StringValidator::OllamaGroup(c)) => {
+                        use base64_bruteforcer_rs::phrase::reduction::by_pairs::r#async::AsyncReducePairsBulk;
+                        use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
+                        use futures::stream::StreamExt;
+
+                        let tmp_ollama_engine = ollama_engine
+                            .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
+
+                        string_permutation
+                            .bulk_reduce_pairs(Some(pair_size), async |phr| {
+                                tmp_ollama_engine
+                                    .validate_group_str(phr)
+                                    .await
+                                    .collect::<Vec<(f64, Variation<String>)>>()
+                                    .await
+                            })
+                            .await
+                    }
+                    #[cfg(feature = "ollama")]
+                    (ReductionMethod::Halves, StringValidator::OllamaGroup(c)) => {
+                        use base64_bruteforcer_rs::phrase::reduction::by_halves::r#async::AsyncReduceHalvesBulk;
+                        use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
+                        use futures::stream::StreamExt;
+
+                        let tmp_ollama_engine = ollama_engine
+                            .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
+                        string_permutation
+                            .bulk_reduce_halves(
+                                async |snip| snip.permutations() <= 100_000_f64,
+                                async |phr| {
+                                    tmp_ollama_engine
+                                        .validate_group_str(phr)
+                                        .await
+                                        .collect::<Vec<(f64, Variation<String>)>>()
+                                        .await
+                                },
+                            )
+                            .await
+                    }
+                };
+            }
+            pair_size += 1;
+
+            // Leaving early if not pairs or pair is now bigger than size
+            if parser.reduction_method != ReductionMethod::Pairs
+                || pair_size > string_permutation.len_sections()
+            {
+                break 'pair_loop;
+            }
+            log::debug!("Increasing pair size to {pair_size}");
+        }
     }
 
     if parser.info {
         println!(
-            "schema: {:?}\n# of permutations: {}",
+            "schema: {:?}\n# of permutations: {:e}",
             string_permutation.convert_to_string(),
             string_permutation.permutations(),
         );

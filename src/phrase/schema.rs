@@ -714,7 +714,7 @@ where
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(|v| v.into_iter().map(|s| s.to_string()).join(""))
+            .map(|v| v.into_iter().join(""))
     }
 }
 

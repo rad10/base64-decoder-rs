@@ -224,47 +224,41 @@ impl<T> Phrase<T> {
     /// number of sections to begin with.
     pub fn flatten_sections(&self) -> Self
     where
-        Section<T>: Clone,
+        Variation<T>: Clone,
     {
-        // Creating a copy of sections here because we cant have double mutability
-        let mut old_sections = self.sections.clone();
+        // Keeping an empty buffer to place all single variant sections into
+        let mut singles_buffer: Vec<Variation<T>> = Vec::new();
+
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
-        // Cant do this in a chain method due to the strategy taken here.
-        // Because were using pop, we are doing this in reverse. This means
-        // variation needs to be handled with care, and we need to remember to
-        // reverse the array after were all done.
-        while let Some(mut item) = old_sections.pop() {
-            // If theres more than one variation, add it to the collection and
-            // move on to the next one
-            if item.len() > 1 {
-                new_sections.push(item);
-            } else {
-                // Reverse items string in preparation
-                item[0].links.reverse();
-                // Since we know that this item is only one value, we feed values
-                // to the current item until we meet a section with multiple
-                // variations
-                while let Some(mut second_item) = old_sections.pop() {
-                    // Escape and place items if this new item has multiple variations
-                    if second_item.len() > 1 {
-                        // Our loop ends. Clean up item and place it and this
-                        // new item into the vector
-                        item[0].links.reverse();
-                        new_sections.push(item);
-                        new_sections.push(second_item);
-                        break;
-                    }
-                    // Since the new item has only one value, reverse the inner
-                    // links of the new item and combine it with the old one
-                    second_item[0].links.reverse();
-                    item[0] = item[0].combine(&second_item[0]);
-                }
+        let mut old_sections = self.sections.iter();
+
+        while let Some(section) = old_sections.next() {
+            // If theres more than one variation and our singles buffer is empty,
+            // add it to the collection and move on to the next one
+            if section.len() > 1 && !singles_buffer.is_empty() {
+                // Combine our new single and push to the stack
+                new_sections.push(vec![Variation::join(singles_buffer.iter())]);
+                // Empty the buffer for the next set of single variations
+                singles_buffer.clear();
+                // push the new value
+                new_sections.push(section.to_vec());
+            }
+            // If theres more than one variation and our singles buffer is empty,
+            // add it to the collection and move on to the next one
+            else if section.len() > 1 {
+                new_sections.push(section.to_vec());
+            }
+            // Otherwise, push it to the singles stack
+            else {
+                singles_buffer.push(section[0].clone());
             }
         }
-        // At the end of the loop, we reverse the vec and replace sections
-        new_sections.reverse();
 
+        // Empty the singles buffer in case the last few lines ended on a single
+        if !singles_buffer.is_empty() {
+            new_sections.push(vec![Variation::into_join(singles_buffer)]);
+        }
         Self::new(new_sections)
     }
 
@@ -272,49 +266,40 @@ impl<T> Phrase<T> {
     /// have one variation within itself into each other. While this will not
     /// reduce permutation, it can make further reduction easier by reducing the
     /// number of sections to begin with.
-    pub fn into_flatten_sections(self) -> Self
-    where
-        Section<T>: Clone,
-    {
-        // Creating a copy of sections here because we cant have double mutability
-        let mut old_sections = self.sections.clone();
+    pub fn into_flatten_sections(self) -> Self {
+        // Keeping an empty buffer to place all single variant sections into
+        let mut singles_buffer: Vec<Section<T>> = Vec::new();
+
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
-        // Cant do this in a chain method due to the strategy taken here.
-        // Because were using pop, we are doing this in reverse. This means
-        // variation needs to be handled with care, and we need to remember to
-        // reverse the array after were all done.
-        while let Some(mut item) = old_sections.pop() {
-            // If theres more than one variation, add it to the collection and
-            // move on to the next one
-            if item.len() > 1 {
-                new_sections.push(item);
-            } else {
-                // Reverse items string in preparation
-                item[0].links.reverse();
-                // Since we know that this item is only one value, we feed values
-                // to the current item until we meet a section with multiple
-                // variations
-                while let Some(mut second_item) = old_sections.pop() {
-                    // Escape and place items if this new item has multiple variations
-                    if second_item.len() > 1 {
-                        // Our loop ends. Clean up item and place it and this
-                        // new item into the vector
-                        item[0].links.reverse();
-                        new_sections.push(item);
-                        new_sections.push(second_item);
-                        break;
-                    }
-                    // Since the new item has only one value, reverse the inner
-                    // links of the new item and combine it with the old one
-                    second_item[0].links.reverse();
-                    item[0] = item[0].combine(&second_item[0]);
-                }
+        let mut old_sections = self.sections.into_iter();
+
+        while let Some(section) = old_sections.next() {
+            // If theres more than one variation and our singles buffer is empty,
+            // add it to the collection and move on to the next one
+            if section.len() > 1 && !singles_buffer.is_empty() {
+                // Combine our new single and push to the stack
+                new_sections.push(vec![Variation::join(singles_buffer.iter().flatten())]);
+                // Empty the buffer for the next set of single variations
+                singles_buffer.clear();
+                // push the new value
+                new_sections.push(section);
+            }
+            // If theres more than one variation and our singles buffer is empty,
+            // add it to the collection and move on to the next one
+            else if section.len() > 1 {
+                new_sections.push(section);
+            }
+            // Otherwise, push it to the singles stack
+            else {
+                singles_buffer.push(section);
             }
         }
-        // At the end of the loop, we reverse the vec and replace sections
-        new_sections.reverse();
 
+        // Empty the singles buffer in case the last few lines ended on a single
+        if !singles_buffer.is_empty() {
+            new_sections.push(vec![Variation::join(singles_buffer.iter().flatten())]);
+        }
         Self::new(new_sections)
     }
 

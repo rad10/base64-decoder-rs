@@ -208,12 +208,9 @@ where
             phrase_snippet
                 .sections
                 .chunks(phrase_snippet.len_sections() / 2)
-                .flat_map(move |c| {
-                    Self::bulk_reduce_schema_binary(
-                        size_checker,
-                        Snippet::new(c),
-                        confidence_interpreter,
-                    )
+                .map(Snippet::new)
+                .flat_map(move |s| {
+                    Self::bulk_reduce_schema_binary(size_checker, s, confidence_interpreter)
                 })
                 .collect()
         }
@@ -451,12 +448,9 @@ pub mod rayon {
                 phrase_snippet
                     .sections
                     .par_chunks(phrase_snippet.len_sections() / 2)
-                    .flat_map(move |c| {
-                        Self::bulk_reduce_schema_binary(
-                            size_checker,
-                            Snippet::new(c),
-                            confidence_interpreter,
-                        )
+                    .map(Snippet::new)
+                    .flat_map(move |s| {
+                        Self::bulk_reduce_schema_binary(size_checker, s, confidence_interpreter)
                     })
                     .collect()
             }
@@ -761,11 +755,12 @@ pub mod r#async {
             else {
                 let phrase_len = phrase_snippet.len_sections();
                 stream::iter(phrase_snippet.sections.chunks(phrase_len / 2))
-                    .then(async |c| {
+                    .map(Snippet::new)
+                    .then(async |s| {
                         stream::iter(
                             Self::bulk_reduce_schema_binary(
                                 size_checker,
-                                Snippet::new(c),
+                                s,
                                 confidence_interpreter,
                             )
                             .await,

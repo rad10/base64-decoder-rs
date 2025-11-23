@@ -174,9 +174,7 @@ where
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 else if pairs.iter().all(|s| s.len() == 1) {
-                    vec![vec![Variation::join(
-                        pairs.iter().flatten(),
-                    )]]
+                    vec![vec![Variation::join(pairs.iter().flatten())]]
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
@@ -417,9 +415,7 @@ pub mod rayon {
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
                     else if pairs.iter().all(|s| s.len() == 1) {
-                        vec![vec![Variation::join(
-                            pairs.iter().flatten(),
-                        )]]
+                        vec![vec![Variation::join(pairs.iter().flatten())]]
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
@@ -683,9 +679,7 @@ pub mod r#async {
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
                     else if pairs.iter().all(|s| s.len() == 1) {
-                        stream::iter(vec![vec![Variation::join(
-                            pairs.iter().flatten(),
-                        )]])
+                        stream::iter(vec![vec![Variation::join(pairs.iter().flatten())]])
                     } else {
                         // permuting values and collecting only viable options
                         let pair_snippet = Snippet::new(pairs);

@@ -216,6 +216,6 @@ async fn main() -> () {
 
     // Creating distinct lines to see results
     string_permutation
-        .iter()
+        .into_iter()
         .for_each(|line| println!("{line}"));
 }

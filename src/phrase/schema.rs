@@ -200,7 +200,8 @@ where
     fn value(&self) -> Self::Item {
         self.links
             .iter()
-            .flat_map(|v| Arc::unwrap_or_clone(v.to_owned()))
+            .cloned()
+            .flat_map(Arc::unwrap_or_clone)
             .collect()
     }
 
@@ -363,6 +364,9 @@ impl<T> Phrase<T> {
 impl<T> Phrase<Vec<T>> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
+        // Used len at index 0 because all variations in that section should be
+        // the same length. If that is not the case, something has gone terribly
+        // wrong.
         self.sections.iter().map(|s| s[0].len()).sum()
     }
 
@@ -479,12 +483,10 @@ where
 
 impl<T> Phrase<T>
 where
-    Variation<T>: Clone + VariationValue,
+    Variation<T>: Clone + VariationValue<Item = T>,
 {
     /// Permutate through all variations that the phrase can take
     pub fn into_iter(self) -> impl Iterator<Item = T>
-    where
-        Variation<T>: VariationValue<Item = T>,
     {
         self.sections
             .into_iter()
@@ -499,18 +501,17 @@ where
     ///
     /// [`into_iter`]: Self::into_iter
     pub fn into_iter_val(self) -> impl Iterator<Item = T>
-    where
-        Variation<T>: VariationValue<Item = T>,
     {
         self.into_iter()
     }
 }
 
-impl<T> Snippet<'_, T> {
-    /// Permutate through all variations that the phrase can take
-    pub fn iter(&self) -> impl Iterator<Item = T>
+impl<T> Snippet<'_, T>
     where
         Variation<T>: VariationValue<Item = T>,
+{
+    /// Permutate through all variations that the phrase can take
+    pub fn iter(&self) -> impl Iterator<Item = T>
     {
         self.sections
             .iter()
@@ -521,8 +522,6 @@ impl<T> Snippet<'_, T> {
 
     /// Permutate through all variations that the phrase can take
     pub fn into_iter(self) -> impl Iterator<Item = T>
-    where
-        Variation<T>: VariationValue<Item = T>,
     {
         self.sections
             .iter()
@@ -537,8 +536,6 @@ impl<T> Snippet<'_, T> {
     ///
     /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
-    where
-        Variation<T>: VariationValue<Item = T>,
     {
         self.iter()
     }
@@ -549,8 +546,6 @@ impl<T> Snippet<'_, T> {
     ///
     /// [`into_iter`]: Self::into_iter
     pub fn into_iter_val(self) -> impl Iterator<Item = T>
-    where
-        Variation<T>: VariationValue<Item = T>,
     {
         self.into_iter()
     }
@@ -612,11 +607,11 @@ where
     fn from(value: Vec<Vec<T>>) -> Self {
         Self {
             sections: value
-                .iter()
+                .into_iter()
                 .map(|section| {
                     section
-                        .iter()
-                        .map(|variation| Variation::new(variation.to_owned()))
+                        .into_iter()
+                        .map(Variation::new)
                         .collect::<Vec<Variation<T>>>()
                 })
                 .collect::<Vec<Section<T>>>(),

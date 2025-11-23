@@ -3,9 +3,13 @@
 
 use std::fmt::Display;
 
+#[cfg(feature = "ollama")]
+pub mod ollama;
+
 use crate::phrase::schema::Variation;
 
 /// Provides a confidence on a given string using the whatlang library
+#[cfg(feature = "whatlang")]
 pub fn validate_with_whatlang<T>(text: &Variation<T>) -> f64
 where
     Variation<T>: Display,

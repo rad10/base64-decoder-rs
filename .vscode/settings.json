@@ -6,7 +6,6 @@
     "rust-analyzer.check.features": "all",
     "rust-analyzer.check.targets": [
         "x86_64-unknown-linux-gnu",
-        "x86_64-unknown-linux-musl",
         "x86_64-pc-windows-gnu"
     ],
     "rust-analyzer.completion.autoIter.enable": true,
@@ -35,4 +34,7 @@
     "rust-analyzer.procMacro.enable": true,
     "rust-analyzer.procMacro.attributes.enable": true,
     "rust-analyzer.document.symbol.search.excludeLocals": true,
+    "cSpell.words": [
+        "ollama"
+    ],
 }

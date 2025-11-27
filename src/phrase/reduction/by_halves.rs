@@ -41,19 +41,11 @@ pub trait ReduceHalves<T> {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
-    /// This largest available permutation will depend on `permutation_limit`
+    /// This largest available permutation will depend on `size_checker`
     /// to decide the size of the section.
     fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
     where
         Variation<T>: Clone,
-        V: Fn(&Snippet<'_, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64;
-
-    /// Reduces the phrase until the reduction function cannot reduce it
-    /// anymore.
-    fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
-    where
-        Self: Clone,
         V: Fn(&Snippet<'_, T>) -> bool,
         W: Fn(&Variation<T>) -> f64;
 }
@@ -64,7 +56,7 @@ pub trait ReduceHalvesBulk<T, U: ?Sized> {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
-    /// This largest available permutation will depend on `permutation_limit`
+    /// This largest available permutation will depend on `size_checker`
     /// to decide the size of the section.
     fn bulk_reduce_halves<'a, 'b, V, W>(
         &'a self,
@@ -94,20 +86,6 @@ pub trait ReduceHalvesBulk<T, U: ?Sized> {
         V: Fn(&Snippet<'b, T>) -> bool,
         W: FnMut(Snippet<'b, T>) -> U,
         'a: 'b;
-
-    /// Reduces the phrase until the reduction function cannot reduce it
-    /// anymore.
-    fn bulk_halves_to_end<'a, V, W>(
-        &'a self,
-        recursive_val: Option<usize>,
-        size_checker: V,
-        confidence_interpreter: W,
-    ) -> Self
-    where
-        Self: Clone,
-        T: 'a,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: FnMut(Snippet<'a, T>) -> U;
 }
 
 impl<T> ReduceHalves<T> for Phrase<T>
@@ -123,19 +101,6 @@ where
     {
         let conf_link = &confidence_interpreter;
         self.bulk_reduce_halves(size_checker, move |snip| {
-            snip.into_iter_var()
-                .map(move |line| (conf_link(&line), line))
-        })
-    }
-
-    fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
-    where
-        Self: Clone,
-        V: Fn(&Snippet<'_, T>) -> bool,
-        W: Fn(&Variation<T>) -> f64,
-    {
-        let conf_link = &confidence_interpreter;
-        self.bulk_halves_to_end(None, size_checker, move |snip| {
             snip.into_iter_var()
                 .map(move |line| (conf_link(&line), line))
         })
@@ -215,35 +180,6 @@ where
                 .collect()
         }
     }
-
-    fn bulk_halves_to_end<'a, V, W>(
-        &'a self,
-        recursive_val: Option<usize>,
-        size_checker: V,
-        confidence_interpreter: W,
-    ) -> Self
-    where
-        Self: Clone,
-        V: Fn(&Snippet<'a, T>) -> bool,
-        W: FnMut(Snippet<'a, T>) -> U,
-    {
-        if let Some(last_size) = recursive_val {
-            // Currently in recursive loop
-            // Collecting section len to determine if ending or not
-            if last_size <= self.len_sections() {
-                self.clone()
-            } else {
-                self.bulk_halves_to_end(
-                    Some(self.len_sections()),
-                    size_checker,
-                    confidence_interpreter,
-                )
-            }
-        } else {
-            // Setting up initial recursion
-            self.bulk_halves_to_end(Some(usize::MAX), size_checker, confidence_interpreter)
-        }
-    }
 }
 
 /// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
@@ -267,19 +203,10 @@ pub mod rayon {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
-        /// This largest available permutation will depend on `permutation_limit`
+        /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
         fn reduce_halves<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
         where
-            T: Send + Sync,
-            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + Send + Sync;
-
-        /// Reduces the phrase until the reduction function cannot reduce it
-        /// anymore.
-        fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
-        where
-            Self: Clone,
             T: Send + Sync,
             V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
             W: Fn(&Variation<T>) -> f64 + Send + Sync;
@@ -326,21 +253,6 @@ pub mod rayon {
             W: Fn(Snippet<'b, T>) -> U + Send + Sync,
             U: Send + Sync,
             'a: 'b;
-
-        /// Reduces the phrase until the reduction function cannot reduce it
-        /// anymore.
-        fn bulk_halves_to_end<'a, V, W>(
-            &'a self,
-            recursive_val: Option<usize>,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            Self: Clone,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(Snippet<'a, T>) -> U + Send + Sync,
-            U: Send + Sync;
     }
 
     impl<T> ParReduceHalves<T> for Phrase<T>
@@ -360,20 +272,6 @@ pub mod rayon {
                     .par_bridge()
                     .map(move |line| (conf_link(&line), line))
                     .collect::<Vec<(f64, Variation<T>)>>()
-            })
-        }
-
-        fn halves_to_end<V, W>(&self, size_checker: V, confidence_interpreter: W) -> Self
-        where
-            Self: Clone,
-            T: Send + Sync,
-            V: Fn(&Snippet<'_, T>) -> bool + Send + Sync,
-            W: Fn(&Variation<T>) -> f64 + Send + Sync,
-        {
-            let conf_link = &confidence_interpreter;
-            self.bulk_halves_to_end(None, size_checker, move |snip| {
-                snip.into_iter_var()
-                    .map(move |line| (conf_link(&line), line))
             })
         }
     }
@@ -455,37 +353,6 @@ pub mod rayon {
                     .collect()
             }
         }
-
-        fn bulk_halves_to_end<'a, V, W>(
-            &'a self,
-            recursive_val: Option<usize>,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            Self: Clone,
-            T: 'a + Send + Sync,
-            V: Fn(&Snippet<'a, T>) -> bool + Send + Sync,
-            W: Fn(Snippet<'a, T>) -> U + Send + Sync,
-            U: Send + Sync,
-        {
-            if let Some(last_size) = recursive_val {
-                // Currently in recursive loop
-                // Collecting section len to determine if ending or not
-                if last_size <= self.len_sections() {
-                    self.clone()
-                } else {
-                    self.bulk_halves_to_end(
-                        Some(self.len_sections()),
-                        size_checker,
-                        confidence_interpreter,
-                    )
-                }
-            } else {
-                // Setting up initial recursion
-                self.bulk_halves_to_end(Some(usize::MAX), size_checker, confidence_interpreter)
-            }
-        }
     }
 }
 
@@ -523,21 +390,6 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send,
             W: Fn(&Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
-
-        /// Reduces the phrase until the reduction function cannot reduce it
-        /// anymore.
-        async fn halves_to_end<V, FutBool, W, Fut>(
-            &self,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            Self: Clone,
-            T: Send + Sync,
-            V: Fn(&Snippet<'_, T>) -> FutBool + Send + Sync,
-            FutBool: Future<Output = bool> + Send,
-            W: Fn(&Variation<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = f64> + Send;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -549,7 +401,7 @@ pub mod r#async {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
         /// backwards and reduce using the largest valid permutation available.
-        /// This largest available permutation will depend on `permutation_limit`
+        /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
         ///
         /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
@@ -602,29 +454,6 @@ pub mod r#async {
             Fut: Future<Output = U> + Send,
             U: Send,
             'a: 'b;
-
-        /// Reduces the phrase until the reduction function cannot reduce it
-        /// anymore.
-        ///
-        /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
-        /// ownership of the phrases data instead of borrowing it.
-        ///
-        /// [`Phrase`]: crate::phrase::schema::Phrase
-        /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_halves_to_end<'a, V, FutBool, W, Fut>(
-            &self,
-            recursive_val: Option<usize>,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            Self: Clone,
-            T: Send + Sync + 'a,
-            V: Fn(&'a Snippet<'a, T>) -> FutBool + Send + Sync + 'a,
-            FutBool: Future<Output = bool> + Send,
-            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = U> + Send,
-            U: Send;
     }
 
     #[async_trait]
@@ -646,28 +475,6 @@ pub mod r#async {
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, async |snip: Snippet<'_, T>| {
-                stream::iter(snip.iter_var())
-                    .then(async move |line| (conf_link(&line).await, line))
-                    .collect::<Vec<(f64, Variation<T>)>>()
-                    .await
-            })
-            .await
-        }
-
-        async fn halves_to_end<V, FutBool, W, Fut>(
-            &self,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            T: Send + Sync,
-            V: Fn(&Snippet<'_, T>) -> FutBool + Send + Sync,
-            FutBool: Future<Output = bool> + Send,
-            W: Fn(&Variation<T>) -> Fut + Send + Sync,
-            Fut: Future<Output = f64> + Send,
-        {
-            let conf_link = &confidence_interpreter;
-            self.bulk_halves_to_end(None, size_checker, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
                     .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
@@ -769,41 +576,6 @@ pub mod r#async {
                     .boxed()
                     .flatten()
                     .collect()
-                    .await
-            }
-        }
-
-        async fn bulk_halves_to_end<'a, V, FutBool, W, Fut>(
-            &self,
-            recursive_val: Option<usize>,
-            size_checker: V,
-            confidence_interpreter: W,
-        ) -> Self
-        where
-            Self: Clone,
-            T: Send + Sync + 'a,
-            V: Fn(&'a Snippet<'a, T>) -> FutBool + Send + Sync + 'a,
-            FutBool: Future<Output = bool> + Send,
-            W: Fn(Snippet<'a, T>) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = U> + Send,
-            U: Send,
-        {
-            if let Some(last_size) = recursive_val {
-                // Currently in recursive loop
-                // Collecting section len to determine if ending or not
-                if last_size <= self.len_sections() {
-                    self.clone()
-                } else {
-                    self.bulk_halves_to_end(
-                        Some(self.len_sections()),
-                        size_checker,
-                        confidence_interpreter,
-                    )
-                    .await
-                }
-            } else {
-                // Setting up initial recursion
-                self.bulk_halves_to_end(Some(usize::MAX), size_checker, confidence_interpreter)
                     .await
             }
         }

@@ -609,10 +609,66 @@ where
         Self::from(
             value
                 .sections
-                .iter()
-                .map(|s| s.iter().map(|v| v.to_string()).collect::<Vec<String>>())
-                .collect::<Vec<Vec<String>>>(),
+                .into_iter()
+                .map(|s| s.into_iter().map(|v| v.to_string())),
         )
+    }
+}
+
+impl From<Phrase<Vec<char>>> for Phrase<String> {
+    fn from(value: Phrase<Vec<char>>) -> Self {
+        Self::from(value.sections.into_iter().map(|s| {
+            s.into_iter()
+                .map(|v| v.value().into_iter().collect::<String>())
+        }))
+    }
+}
+
+impl From<Phrase<Vec<char>>> for Phrase<Vec<u32>> {
+    fn from(value: Phrase<Vec<char>>) -> Self {
+        Self::from(value.sections.into_iter().map(|s| {
+            s.into_iter().map(|v| {
+                v.value()
+                    .into_iter()
+                    .map(|c| c as u32)
+                    .collect::<Vec<u32>>()
+            })
+        }))
+    }
+}
+
+impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
+    type Error = String;
+
+    fn try_from(value: Phrase<Vec<u32>>) -> Result<Self, Self::Error> {
+        Ok(Self::from(
+            value
+                .sections
+                .into_iter()
+                .map(|s| {
+                    s.into_iter()
+                        .map(|v| {
+                            v.into_value()
+                                .into_iter()
+                                .map(|c| {
+                                    char::from_u32(c).ok_or(format!(
+                            "Failed to convert to Vec<char>. value {c} is not valid unicode",
+                        ))
+                                }) // Because of how char can error out, this ended up being very dirty
+                                .collect::<Result<Vec<char>, String>>()
+                        })
+                        .collect::<Result<Vec<Vec<char>>, String>>()
+                })
+                .collect::<Result<Vec<Vec<Vec<char>>>, String>>()?,
+        ))
+    }
+}
+
+impl TryFrom<Phrase<Vec<u32>>> for Phrase<String> {
+    type Error = String;
+
+    fn try_from(value: Phrase<Vec<u32>>) -> Result<Self, Self::Error> {
+        Ok(Phrase::<Vec<char>>::try_from(value)?.into())
     }
 }
 

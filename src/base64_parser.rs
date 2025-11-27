@@ -125,3 +125,32 @@ impl FromBase64 for Phrase<Vec<u16>> {
         })
     }
 }
+
+impl FromBase64 for Phrase<Vec<u32>> {
+    type Type = u32;
+
+    fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
+        // Ensure that the length fits the given size
+        // This should only have a chance to trigger if someone is manually
+        // using it
+        assert!(
+            bytes.len().is_multiple_of(size_of::<Self::Type>()),
+            "Bytes given cannot fit into given type"
+        );
+
+        // Since bytes guarantees to fit, start packing it in
+        let mut output = vec![0_u32; bytes.len() / size_of::<Self::Type>()];
+        LittleEndian::read_u32_into(bytes.as_slice(), &mut output);
+        output
+    }
+
+    fn default_validation(piece: &Vec<Self::Type>) -> bool {
+        // Check to see if this can be converted into a string
+        piece.iter().all(|u| {
+            // Fail if any of the u32 are invalid unicode
+            char::from_u32(*u)
+                .is_some_and(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+        })
+    }
+}
+

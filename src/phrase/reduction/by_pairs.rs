@@ -244,7 +244,7 @@ where
     }
 }
 
-/// Provides and implements the reduction trait using the rayon library to speed up processes
+/// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
     use std::fmt::Debug;
@@ -490,7 +490,7 @@ pub mod rayon {
     }
 }
 
-/// Provides and implements the reduction trait using the rayon library to speed up processes
+/// Provides and implements the reduction trait using the [`futures`] library to speed up processes
 #[cfg(feature = "async")]
 pub mod r#async {
     use std::fmt::Debug;

@@ -8,136 +8,120 @@ use itertools::Itertools;
 
 use crate::phrase::schema::Phrase;
 
-/// Bruteforces all lowercased base64 combinations to determine the correct
-/// base64 string
-#[derive(Debug, Clone, Default)]
-pub struct Base64Bruteforcer<T> {
-    /// Contains the permutation schema generated from collecting combinations
-    /// from the bruteforcer
-    pub schema: Phrase<Vec<T>>,
-}
+/// Bruteforces all combinations of a lowercase base64 string and converts it
+/// into the given struct. Provides [`parse_base64`] to create a new version of
+/// [`Self`]
+///
+/// [`parse_base64`]: Self::parse_base64
+pub trait FromBase64 {
+    type Type: Sized + Clone + From<u8>;
 
-/// Contains the functions used to turn base64 into a valid schema
-pub trait BruteforcerTraits {
-    /// Takes in a base64 string and fills the objects schema
-    fn collect_combinations(&mut self, b64_string: &[u8]);
-}
+    /// Denotes the number of base64 characters to process to get 3 standard characters
+    ///
+    /// This is easily calculated by dividing the number of bits in [`Type`] by 2, or by multiplying the number of bytes in [`Type`] by 4
+    ///
+    /// [`Type`]: Self::Type
+    const CHARS: usize = size_of::<Self::Type>() * 4;
 
-impl Base64Bruteforcer<u8> {
-    /// Takes a base64 slice (4 characters) and creates a vector containing the valid
-    /// combinations of 3 characters. This can be useful if multiple valid sets
-    /// appear and you need to compare sets to get the correct values
-    fn get_valid_combinations(b64_slice: &[u8]) -> impl Iterator<Item = Vec<u8>> {
-        let set_list = b64_slice.iter().map(|c| {
-            if c.is_ascii_lowercase() {
-                vec![*c, c.to_ascii_uppercase()]
-            } else {
-                vec![*c]
-            }
-        });
+    /// A helper function used to convert resulting bytes into the desired type.
+    /// This should panic if the given buffer does not evenly fit the types size
+    fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type>;
 
-        set_list
-            .multi_cartesian_product()
-            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
-    }
-}
+    /// This function will be used to filter valid characters in a decoded
+    /// base64 snippet if a custom function isn't provided by the user
+    fn default_validation(piece: &Vec<Self::Type>) -> bool;
 
-impl BruteforcerTraits for Base64Bruteforcer<u8> {
-    /// Collects a vec of every possible valid combinations turning every 4
-    /// base64 characters into multiple combinations of 3 characters. It will
-    /// automatically filter out combinations that are not ascii readable, so
-    /// any converted binaries will not be able to be deciphered with this
-    /// function.
-    fn collect_combinations(&mut self, b64_string: &[u8]) {
-        self.schema = Phrase::from(
+    /// Parses a collection of [`Self::Type`] and produces [`Self`] from the
+    /// combinations
+    ///
+    /// [`Self::Type`]: Self::Type
+    /// [`Self`]: Self
+    fn parse_base64(
+        b64_string: impl IntoIterator<Item = u8>,
+        validator: Option<fn(&Vec<Self::Type>) -> bool>,
+    ) -> Self
+    where
+        Self: From<Vec<Vec<Vec<Self::Type>>>>,
+    {
+        Self::from(
             b64_string
-                .chunks(4)
+                .into_iter()
+                // Splitting iterator into chunks of the types size
+                .chunks(Self::CHARS)
+                .into_iter()
+                // Converting chunks into variations
                 .map(|piece| {
-                    Self::get_valid_combinations(piece)
-                        .filter(|check_utf8| String::from_utf8(check_utf8.to_owned()).is_ok())
-                        .filter(|check_ascii| check_ascii.is_ascii())
-                        // Checking that variations do not have control characters in them
-                        .filter(|check_control_char| {
-                            check_control_char
-                                .iter()
-                                .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || *c == 0)
+                    piece
+                        .map(|c| {
+                            if c.is_ascii_lowercase() {
+                                vec![c.to_ascii_uppercase(), c]
+                            } else {
+                                vec![c]
+                            }
                         })
-                        .collect_vec()
+                        .multi_cartesian_product()
+                        .inspect(|option| log::debug!("Testing value: {}", option.escape_ascii()))
+                        // Filtering our all scrings that do not produce a value
+                        .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
+                        // Converting bytes into type
+                        .map(Self::convert_bytes_to_type)
+                        // Running either the custom filter or the default filter
+                        .filter(validator.unwrap_or(Self::default_validation))
                 })
-                .map(|replace_empty| {
-                    if replace_empty.is_empty() {
-                        vec![b"???".to_vec()]
+                // Setting default value for each segment if they're empty
+                .map(|final_collect| {
+                    let check_empty = final_collect.collect::<Vec<Vec<Self::Type>>>();
+                    if check_empty.is_empty() {
+                        vec![vec![Self::Type::from(b'?'); 3]]
                     } else {
-                        replace_empty
+                        check_empty
                     }
                 })
-                .collect::<Vec<Vec<Vec<u8>>>>(),
+                .collect(),
+        )
+    }
+}
+
+impl FromBase64 for Phrase<Vec<u8>> {
+    type Type = u8;
+
+    fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
+        // Skipping assertion since the types are the same
+        bytes
+    }
+
+    fn default_validation(piece: &Vec<Self::Type>) -> bool {
+        piece
+            .iter()
+            // Checking each character to ensure they're readable characters
+            .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || *c == b'\0')
+    }
+}
+
+impl FromBase64 for Phrase<Vec<u16>> {
+    type Type = u16;
+
+    fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
+        // Ensure that the length fits the given size
+        // This should only have a chance to trigger if someone is manually
+        // using it
+        assert!(
+            bytes.len().is_multiple_of(size_of::<Self::Type>()),
+            "Bytes given cannot fit into given type"
         );
-    }
-}
 
-impl Base64Bruteforcer<u16> {
-    /// Takes a base64 slice (8 characters) and creates a vector containing the valid
-    /// combinations of 3 characters. This can be useful if multiple valid sets
-    /// appear and you need to compare sets to get the correct values
-    fn get_valid_combinations(b64_slice: &[u8]) -> impl Iterator<Item = Vec<u16>> {
-        Base64Bruteforcer::<u8>::get_valid_combinations(b64_slice)
-            // Checking that output given is actual utf16. Array will always be
-            // divisible by 2
-            .filter(|correct_length| correct_length.len() % 2 == 0)
-            // Print value when debugging
-            .inspect(|content| {
-                log::debug!("convert.content: {:?}", content.escape_ascii().to_string())
-            })
-            // Convert to UTF16
-            .map(|convert_utf16le| {
-                let mut output: Vec<u16> = [0].repeat(convert_utf16le.len() / 2);
-                // https://stackoverflow.com/a/50244328
-                LittleEndian::read_u16_into(convert_utf16le.as_slice(), output.as_mut_slice());
-                output
-            })
+        // Since bytes guarantees to fit, start packing it in
+        let mut output = vec![0_u16; bytes.len() / size_of::<Self::Type>()];
+        LittleEndian::read_u16_into(bytes.as_slice(), &mut output);
+        output
     }
-}
 
-impl BruteforcerTraits for Base64Bruteforcer<u16> {
-    /// Collects a vec of every possible valid combinations turning every 8
-    /// base64 characters into multiple combinations of 3 characters. It will
-    /// automatically filter out combinations that are not ascii readable, so
-    /// any converted binaries will not be able to be deciphered with this
-    /// function.
-    fn collect_combinations(&mut self, b64_string: &[u8]) {
-        self.schema = Phrase::from(
-            b64_string
-                .chunks(8)
-                .map(|piece| {
-                    Self::get_valid_combinations(piece)
-                        // Checking that variation is valid UTF-16
-                        .filter(|check_ascii| {
-                            String::from_utf16(check_ascii.as_slice()).is_ok_and(|s| s.is_ascii())
-                        })
-                        // Checking that variations do not have control characters in them
-                        .filter(|check_control| {
-                            String::from_utf16(check_control.as_slice()).is_ok_and(|s| {
-                                s.chars()
-                                    .all(|c| c.is_ascii_graphic() || c.is_whitespace() || c == '\0')
-                            })
-                        })
-                        .collect_vec()
-                })
-                .map(|replace_empty| {
-                    if replace_empty.is_empty() {
-                        vec![[b'?' as u16].repeat(3)]
-                    } else {
-                        replace_empty
-                    }
-                })
-                .collect::<Vec<Vec<Vec<u16>>>>(),
-        );
-    }
-}
-
-impl<T> From<Base64Bruteforcer<T>> for Phrase<Vec<T>> {
-    fn from(value: Base64Bruteforcer<T>) -> Self {
-        value.schema
+    fn default_validation(piece: &Vec<Self::Type>) -> bool {
+        // Need to check if it can convert into a string
+        String::from_utf16(piece).is_ok_and(|s| {
+            s.chars()
+                // Checking each character to ensure they're readable characters
+                .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+        })
     }
 }

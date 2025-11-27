@@ -3,7 +3,7 @@ use base64_bruteforcer_rs::phrase::schema::Variation;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::validation::ollama::OllamaHandler;
 use base64_bruteforcer_rs::{
-    base64_parser::{Base64Bruteforcer, BruteforcerTraits},
+    base64_parser::FromBase64,
     phrase::{
         schema::{ConvertString, Permutation, Phrase, Snippet},
         validation::validate_with_whatlang,
@@ -44,13 +44,9 @@ async fn main() -> () {
             return;
         }
     } else if parser.use_utf16 {
-        let mut bruteforcer = Base64Bruteforcer::<u16>::default();
-        bruteforcer.collect_combinations(b64_string.as_bytes());
-        Phrase::from(bruteforcer).into()
+        Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
     } else {
-        let mut bruteforcer = Base64Bruteforcer::<u8>::default();
-        bruteforcer.collect_combinations(b64_string.as_bytes());
-        Phrase::from(bruteforcer).into()
+        Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
     };
 
     if parser.validation_method != StringValidator::None {

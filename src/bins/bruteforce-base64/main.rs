@@ -1,15 +1,18 @@
+#[cfg(not(feature = "rayon"))]
+use base64_bruteforcer_rs::base64_parser::FromBase64;
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::schema::Variation;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::validation::ollama::OllamaHandler;
-use base64_bruteforcer_rs::{
-    base64_parser::FromBase64,
-    phrase::{
-        schema::{ConvertString, Permutation, Phrase, Snippet},
-        validation::validate_with_whatlang,
-    },
+use base64_bruteforcer_rs::phrase::{
+    schema::{ConvertString, Permutation, Phrase, Snippet},
+    validation::validate_with_whatlang,
 };
 use clap::Parser;
+#[cfg(feature = "rayon")]
+use rayon::iter::IntoParallelIterator;
 use tool_args::ToolArgs;
 
 mod tool_args;
@@ -44,9 +47,27 @@ async fn main() -> () {
             return;
         }
     } else if parser.use_utf16 {
-        Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
+        #[cfg(not(feature = "rayon"))]
+        {
+            Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
+        }
+        #[cfg(feature = "rayon")]
+        tokio_rayon::spawn(move || {
+            Phrase::<Vec<u16>>::par_parse_base64(b64_string.into_bytes().into_par_iter(), None)
+        })
+        .await
+        .into()
     } else {
-        Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
+        #[cfg(not(feature = "rayon"))]
+        {
+            Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
+        }
+        #[cfg(feature = "rayon")]
+        tokio_rayon::spawn(move || {
+            Phrase::<Vec<u8>>::par_parse_base64(b64_string.into_bytes().into_par_iter(), None)
+        })
+        .await
+        .into()
     };
 
     if parser.validation_method != StringValidator::None {

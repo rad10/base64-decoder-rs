@@ -231,9 +231,9 @@ impl<T> Phrase<T> {
 
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
-        let mut old_sections = self.sections.iter();
+        let old_sections = self.sections.iter();
 
-        while let Some(section) = old_sections.next() {
+        for section in old_sections {
             // If theres more than one variation and our singles buffer is empty,
             // add it to the collection and move on to the next one
             if section.len() > 1 && !singles_buffer.is_empty() {
@@ -272,9 +272,9 @@ impl<T> Phrase<T> {
 
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
-        let mut old_sections = self.sections.into_iter();
+        let old_sections = self.sections.into_iter();
 
-        while let Some(section) = old_sections.next() {
+        for section in old_sections {
             // If theres more than one variation and our singles buffer is empty,
             // add it to the collection and move on to the next one
             if section.len() > 1 && !singles_buffer.is_empty() {

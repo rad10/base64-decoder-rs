@@ -211,7 +211,7 @@ impl AsyncOllama for OllamaHandler {
         T: Send + Sync,
         Variation<T>: Display,
     {
-        let message_data = format!("1. `{}`", line.to_string().escape_default().to_string());
+        let message_data = format!("1. `{}`", line.to_string().escape_default());
 
         match self
             .ollama

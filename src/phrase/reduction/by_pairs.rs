@@ -38,8 +38,8 @@ use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing pairs
 pub trait ReducePairs<T> {
-    /// Takes a given schema and attempts to. Select how many pairs will be
-    /// compared at once.
+    /// Takes a given schema and attempts to reduce valid choices by
+    /// matching pairs. Select how many pairs will be compared at once.
     ///
     /// `confidence_interpreter` is used to determine if a combined string is
     /// closer to your objective than another.
@@ -56,8 +56,8 @@ pub trait ReducePairs<T> {
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
 pub trait ReducePairsBulk<T, U: ?Sized> {
-    /// Takes a given schema and attempts to. Select how many pairs will be
-    /// compared at once.
+    /// Takes a given schema and attempts to reduce valid choices by
+    /// matching pairs. Select how many pairs will be compared at once.
     ///
     /// `confidence_interpreter` Takes an iterator of all possible permutations
     /// and produces an iterator of equal size with the confidence values of
@@ -193,8 +193,8 @@ pub mod rayon {
     ///
     /// Utilizes the rayon library to validate pairs in parallel
     pub trait ParReducePairs<T> {
-        /// Takes a given schema and attempts to. Select how many pairs will be
-        /// compared at once.
+        /// Takes a given schema and attempts to reduce valid choices by
+        /// matching pairs. Select how many pairs will be compared at once.
         ///
         /// `confidence_interpreter` is used to determine if a combined string is
         /// closer to your objective than another.
@@ -218,8 +218,8 @@ pub mod rayon {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     pub trait ParReducePairsBulk<T, U: ?Sized> {
-        /// Takes a given schema and attempts to. Select how many pairs will be
-        /// compared at once.
+        /// Takes a given schema and attempts to reduce valid choices by
+        /// matching pairs. Select how many pairs will be compared at once.
         ///
         /// `confidence_interpreter` Takes an iterator of all possible permutations
         /// and produces an iterator of equal size with the confidence values of
@@ -363,8 +363,8 @@ pub mod r#async {
     /// Utilizes the rayon library to validate pairs in parallel
     #[async_trait]
     pub trait AsyncReducePairs<T> {
-        /// Takes a given schema and attempts to. Select how many pairs will be
-        /// compared at once.
+        /// Takes a given schema and attempts to reduce valid choices by
+        /// matching pairs. Select how many pairs will be compared at once.
         ///
         /// `confidence_interpreter` is used to determine if a combined string
         /// is closer to your objective than another.
@@ -390,8 +390,8 @@ pub mod r#async {
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
     pub trait AsyncReducePairsBulk<T, U: ?Sized> {
-        /// Takes a given schema and attempts to. Select how many pairs will be
-        /// compared at once.
+        /// Takes a given schema and attempts to reduce valid choices by
+        /// matching pairs. Select how many pairs will be compared at once.
         ///
         /// `confidence_interpreter` Takes an iterator of all possible
         /// permutations and produces an iterator of equal size with the

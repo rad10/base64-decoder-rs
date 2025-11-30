@@ -423,7 +423,6 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
-            U: Send,
             'a: 'b;
 
         /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
@@ -452,7 +451,6 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
-            U: Send,
             'a: 'b;
     }
 
@@ -503,7 +501,6 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
-            U: Send,
             'a: 'b,
         {
             Self::new(
@@ -529,7 +526,6 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send + 'b,
             W: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
             Fut: Future<Output = U> + Send,
-            U: Send,
             'a: 'b,
         {
             // Leave early if section is empty or just one

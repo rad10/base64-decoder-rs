@@ -692,6 +692,15 @@ where
     }
 }
 
+impl<'a, T> From<Snippet<'a, T>> for Phrase<T>
+where
+    Variation<T>: Clone,
+{
+    fn from(value: Snippet<'a, T>) -> Self {
+        Self::new(value.sections.to_vec())
+    }
+}
+
 impl<T> DisplayLines<String> for Phrase<T>
 where
     T: Clone,

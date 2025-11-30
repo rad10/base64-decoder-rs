@@ -45,7 +45,7 @@ pub trait ReducePairs<T> {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
+    fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
     where
         U: Fn(&Variation<T>) -> f64;
 }
@@ -66,7 +66,7 @@ pub trait ReducePairsBulk<T, U: ?Sized> {
     /// Default is 2
     fn bulk_reduce_pairs<'a, 'b, V>(
         &'a self,
-        number_of_pairs: Option<usize>,
+        number_of_pairs: impl Into<Option<usize>>,
         confidence_interpreter: V,
     ) -> Self
     where
@@ -81,7 +81,7 @@ where
     T: Debug,
     Variation<T>: Clone,
 {
-    fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
+    fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
     where
         T: Debug,
         Variation<T>: Clone,
@@ -102,7 +102,7 @@ where
 {
     fn bulk_reduce_pairs<'a, 'b, V>(
         &'a self,
-        number_of_pairs: Option<usize>,
+        number_of_pairs: impl Into<Option<usize>>,
         mut confidence_interpreter: V,
     ) -> Self
     where
@@ -112,7 +112,7 @@ where
         'a: 'b,
     {
         // Check to make sure size is correctly placed or replace with own value
-        let pair_size = match number_of_pairs {
+        let pair_size = match number_of_pairs.into() {
             Some(0..2) | None => 2, // Overwrite any stupid options with the
             // default
             Some(n) if n < self.len_sections() => n,
@@ -202,7 +202,7 @@ pub mod rayon {
         /// Default is 2
         fn reduce_pairs<U>(
             &self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>>,
             confidence_interpreter: U,
         ) -> Self
         where
@@ -228,7 +228,7 @@ pub mod rayon {
         /// Default is 2
         fn bulk_reduce_pairs<'a, 'b, V>(
             &'a self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>>,
             confidence_interpreter: V,
         ) -> Self
         where
@@ -243,7 +243,7 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_pairs<U>(&self, number_of_pairs: Option<usize>, confidence_interpreter: U) -> Self
+        fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
         where
             T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
@@ -269,7 +269,7 @@ pub mod rayon {
     {
         fn bulk_reduce_pairs<'a, 'b, V>(
             &'a self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>>,
             confidence_interpreter: V,
         ) -> Self
         where
@@ -279,7 +279,7 @@ pub mod rayon {
             'a: 'b,
         {
             // Check to make sure size is correctly placed or replace with own value
-            let pair_size = match number_of_pairs {
+            let pair_size = match number_of_pairs.into() {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
                 Some(n) if n < self.len_sections() => n,
@@ -372,7 +372,7 @@ pub mod r#async {
         /// Default is 2
         async fn reduce_pairs<U, Fut>(
             &self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: U,
         ) -> Self
         where
@@ -406,7 +406,7 @@ pub mod r#async {
         /// [`Snippet`]: crate::phrase::schema::Snippet
         async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
             &'a self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: V,
         ) -> Self
         where
@@ -425,7 +425,7 @@ pub mod r#async {
     {
         async fn reduce_pairs<U, Fut>(
             &self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: U,
         ) -> Self
         where
@@ -452,7 +452,7 @@ pub mod r#async {
     {
         async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
             &'a self,
-            number_of_pairs: Option<usize>,
+            number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: V,
         ) -> Self
         where
@@ -463,7 +463,7 @@ pub mod r#async {
             'a: 'b,
         {
             // Check to make sure size is correctly placed or replace with own value
-            let pair_size = match number_of_pairs {
+            let pair_size = match number_of_pairs.into() {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
                 Some(n) if n < self.len_sections() => n,

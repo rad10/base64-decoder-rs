@@ -156,7 +156,7 @@ impl Display for Variation<Vec<u8>> {
         let combo = self
             .links
             .iter()
-            .map(|tostr| str::from_utf8(tostr.as_slice()).unwrap())
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).unwrap())
             .join("");
         write!(f, "{}", combo)
     }
@@ -167,7 +167,7 @@ impl Display for Variation<Vec<u16>> {
         let combo = self
             .links
             .iter()
-            .map(|tostr| String::from_utf16_lossy(tostr.as_slice()))
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
             .join("");
         write!(f, "{}", combo)
     }

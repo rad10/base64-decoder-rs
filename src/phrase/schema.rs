@@ -46,12 +46,6 @@ pub trait VariationValue {
     fn into_value(self) -> Self::Item;
 }
 
-/// Provides an iterator to print all schema permutations
-pub trait DisplayLines<T> {
-    /// Produces an iterator of the every permutable line from the schema
-    fn produce_lines(&self) -> impl Iterator<Item = T>;
-}
-
 /// Converts a schema of a non string type into a string type
 pub trait ConvertString {
     /// Produces a copy of the schema with variations converted to strings
@@ -666,21 +660,6 @@ where
 {
     fn from(value: Snippet<'a, T>) -> Self {
         Self::new(value.sections.to_vec())
-    }
-}
-
-impl<T> DisplayLines<String> for Phrase<T>
-where
-    Variation<T>: Display + Clone,
-{
-    fn produce_lines(&self) -> impl Iterator<Item = String>
-    where
-        Variation<T>: Display,
-    {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(|v| v.into_iter().join(""))
     }
 }
 

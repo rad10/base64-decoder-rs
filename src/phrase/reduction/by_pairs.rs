@@ -164,7 +164,7 @@ where
                             .inspect(|(confidence, line)| {
                                 log::trace!("Accepted: confidence, string: {confidence}, {line:?}")
                             })
-                            .map(|(_, line)| line)
+                            .map(move |(_, line)| line)
                             .collect()
                     }];
 
@@ -307,7 +307,7 @@ pub mod rayon {
                 .sections
                 .par_chunks(pair_size)
                 .inspect(|pairs| log::debug!("Visible pair: {pairs:?}"))
-                .flat_map(|pairs| {
+                .flat_map(move |pairs| {
                     // If its only 1 pair, we can skip this process
                     if pairs.len() == 1 {
                         pairs.to_vec()
@@ -337,7 +337,7 @@ pub mod rayon {
                                         "Accepted: confidence, string: {confidence}, {line:?}"
                                     )
                                 })
-                                .map(|(_, line)| line)
+                                .map(move |(_, line)| line)
                                 .collect()
                         }];
 
@@ -446,7 +446,7 @@ pub mod r#async {
             Fut: Future<Output = f64> + Send,
         {
             let conf_link = &confidence_interpreter;
-            self.bulk_reduce_pairs(number_of_pairs, &async |snip: Snippet<'_, T>| {
+            self.bulk_reduce_pairs(number_of_pairs, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
                     .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
@@ -521,7 +521,7 @@ pub mod r#async {
                                         "Accepted: confidence, string: {confidence}, {line:?}"
                                     )
                                 })
-                                .map(|(_, line)| line)
+                                .map(move |(_, line)| line)
                                 .collect(),
                         ];
 

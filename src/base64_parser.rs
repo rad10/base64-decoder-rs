@@ -53,7 +53,7 @@ pub trait FromBase64 {
                 // Converting chunks into variations
                 .map(move |piece| {
                     piece
-                        .map(|c| {
+                        .map(move |c| {
                             if c.is_ascii_lowercase() {
                                 vec![c.to_ascii_uppercase(), c]
                             } else {
@@ -119,10 +119,10 @@ impl FromBase64 for Phrase<Vec<u16>> {
 
     fn default_validation(piece: &Vec<Self::Type>) -> bool {
         // Need to check if it can convert into a string
-        String::from_utf16(piece).is_ok_and(|s| {
+        String::from_utf16(piece).is_ok_and(move |s| {
             s.chars()
                 // Checking each character to ensure they're readable characters
-                .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                .all(move |c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
         })
     }
 }
@@ -150,7 +150,7 @@ impl FromBase64 for Phrase<Vec<u32>> {
         piece.iter().all(|u| {
             // Fail if any of the u32 are invalid unicode
             char::from_u32(*u)
-                .is_some_and(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                .is_some_and(move |c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
         })
     }
 }
@@ -216,7 +216,7 @@ pub mod rayon {
                     .map(move |piece| {
                         piece
                             .into_iter()
-                            .map(|c| {
+                            .map(move |c| {
                                 if c.is_ascii_lowercase() {
                                     vec![c.to_ascii_uppercase(), c]
                                 } else {
@@ -228,14 +228,14 @@ pub mod rayon {
                                 log::debug!("Testing value: {}", option.escape_ascii())
                             })
                             // Filtering our all scrings that do not produce a value
-                            .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
+                            .filter_map(move |combo| BASE64_STANDARD.decode(combo).ok())
                             // Converting bytes into type
                             .map(Self::convert_bytes_to_type)
                             // Running either the custom filter or the default filter
                             .filter(validator.unwrap_or(Self::default_validation))
                     })
                     // Setting default value for each segment if they're empty
-                    .map(|final_collect| {
+                    .map(move |final_collect| {
                         let check_empty = final_collect.collect::<Vec<Vec<Self::Type>>>();
                         if check_empty.is_empty() {
                             vec![vec![Self::Type::from(b'?'); 3]]
@@ -284,10 +284,10 @@ pub mod rayon {
 
         fn default_validation(piece: &Vec<Self::Type>) -> bool {
             // Need to check if it can convert into a string
-            String::from_utf16(piece).is_ok_and(|s| {
+            String::from_utf16(piece).is_ok_and(move |s| {
                 s.par_chars()
                     // Checking each character to ensure they're readable characters
-                    .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                    .all(move |c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
             })
         }
     }
@@ -314,8 +314,9 @@ pub mod rayon {
             // Check to see if this can be converted into a string
             piece.par_iter().all(|u| {
                 // Fail if any of the u32 are invalid unicode
-                char::from_u32(*u)
-                    .is_some_and(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                char::from_u32(*u).is_some_and(move |c| {
+                    c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                })
             })
         }
     }
@@ -377,10 +378,10 @@ pub mod r#async {
                         // Splitting iterator into chunks of the types size
                         .chunks(Self::CHARS)
                         // Converting chunks into variations
-                        .map(|piece| {
+                        .map(move |piece| {
                             piece
                                 .into_iter()
-                                .map(|c| {
+                                .map(move |c| {
                                     if c.is_ascii_lowercase() {
                                         vec![c.to_ascii_uppercase(), c]
                                     } else {
@@ -392,14 +393,14 @@ pub mod r#async {
                                     log::debug!("Testing value: {}", option.escape_ascii())
                                 })
                                 // Filtering our all scrings that do not produce a value
-                                .filter_map(|combo| BASE64_STANDARD.decode(combo).ok())
+                                .filter_map(move |combo| BASE64_STANDARD.decode(combo).ok())
                                 // Converting bytes into type
                                 .map(Self::convert_bytes_to_type)
                                 // Running either the custom filter or the default filter
                                 .filter(validator.unwrap_or(Self::default_validation))
                         })
                         // Setting default value for each segment if they're empty
-                        .map(|final_collect| {
+                        .map(move |final_collect| {
                             let check_empty = final_collect.collect::<Vec<Vec<Self::Type>>>();
                             if check_empty.is_empty() {
                                 vec![vec![Self::Type::from(b'?'); 3]]
@@ -450,10 +451,10 @@ pub mod r#async {
 
         fn default_validation(piece: &Vec<Self::Type>) -> bool {
             // Need to check if it can convert into a string
-            String::from_utf16(piece).is_ok_and(|s| {
+            String::from_utf16(piece).is_ok_and(move |s| {
                 s.chars()
                     // Checking each character to ensure they're readable characters
-                    .all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                    .all(move |c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
             })
         }
     }
@@ -480,8 +481,9 @@ pub mod r#async {
             // Check to see if this can be converted into a string
             piece.iter().all(|u| {
                 // Fail if any of the u32 are invalid unicode
-                char::from_u32(*u)
-                    .is_some_and(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0')
+                char::from_u32(*u).is_some_and(move |c| {
+                    c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                })
             })
         }
     }

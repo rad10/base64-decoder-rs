@@ -319,7 +319,7 @@ impl<T> Phrase<T> {
     pub fn num_of_references(&self) -> usize {
         self.sections
             .iter()
-            .flat_map(|s| s.iter().map(|v| v.num_of_refs()))
+            .flat_map(move |s| s.iter().map(move |v| v.num_of_refs()))
             .sum()
     }
 
@@ -336,7 +336,7 @@ impl<T> Phrase<Vec<T>> {
         // Used len at index 0 because all variations in that section should be
         // the same length. If that is not the case, something has gone terribly
         // wrong.
-        self.sections.iter().map(|s| s[0].len()).sum()
+        self.sections.iter().map(move |s| s[0].len()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -347,7 +347,7 @@ impl<T> Phrase<Vec<T>> {
 impl Phrase<String> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
-        self.sections.iter().map(|s| s[0].len()).sum()
+        self.sections.iter().map(move |s| s[0].len()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -400,7 +400,7 @@ impl<T> Snippet<'_, T> {
     pub fn num_of_references(&self) -> usize {
         self.sections
             .iter()
-            .flat_map(|s| s.iter().map(|v| v.num_of_refs()))
+            .flat_map(move |s| s.iter().map(move |v| v.num_of_refs()))
             .sum()
     }
 }
@@ -408,7 +408,7 @@ impl<T> Snippet<'_, T> {
 impl<T> Snippet<'_, Vec<T>> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
-        self.sections.iter().map(|s| s[0].len()).sum()
+        self.sections.iter().map(move |s| s[0].len()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -419,7 +419,7 @@ impl<T> Snippet<'_, Vec<T>> {
 impl Snippet<'_, String> {
     /// Gets the length of the phrase
     pub fn len(&self) -> usize {
-        self.sections.iter().map(|s| s[0].len()).sum()
+        self.sections.iter().map(move |s| s[0].len()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -508,36 +508,39 @@ where
     }
 }
 
-impl<T> Phrase<T>
-where
-    Variation<T>: Display + Clone,
-{
+impl<T> Phrase<T> {
     /// Permutate through all variations that the phrase can take
-    pub fn iter_str(&self) -> impl Iterator<Item = String> {
-        self.iter_var().map(|v| v.to_string())
+    pub fn iter_str(&self) -> impl Iterator<Item = String>
+    where
+        Variation<T>: Clone + Display,
+    {
+        self.iter_var().map(move |v| v.to_string())
     }
 
     /// Permutate through all variations that the phrase can take
     pub fn into_iter_str(self) -> impl Iterator<Item = String>
     where
-        Variation<T>: Clone,
+        Variation<T>: Clone + Display,
     {
-        self.into_iter_var().map(|v| v.to_string())
+        self.into_iter_var().map(move |v| v.to_string())
     }
 }
 
-impl<T> Snippet<'_, T>
-where
-    Variation<T>: Display + Clone,
-{
+impl<T> Snippet<'_, T> {
     /// Permutate through all variations that the phrase can take
-    pub fn iter_str(&self) -> impl Iterator<Item = String> {
-        self.iter_var().map(|v| v.to_string())
+    pub fn iter_str(&self) -> impl Iterator<Item = String>
+    where
+        Variation<T>: Clone + Display,
+    {
+        self.iter_var().map(move |v| v.to_string())
     }
 
     /// Permutate through all variations that the phrase can take
-    pub fn into_iter_str(self) -> impl Iterator<Item = String> {
-        self.into_iter_var().map(|v| v.to_string())
+    pub fn into_iter_str(self) -> impl Iterator<Item = String>
+    where
+        Variation<T>: Clone + Display,
+    {
+        self.into_iter_var().map(move |v| v.to_string())
     }
 }
 
@@ -557,7 +560,7 @@ where
         Self {
             sections: value
                 .into_iter()
-                .map(|s| s.into_iter().map_into().collect())
+                .map(move |s| s.into_iter().map_into().collect())
                 .collect(),
         }
     }
@@ -572,29 +575,25 @@ where
             value
                 .sections
                 .into_iter()
-                .map(|s| s.into_iter().map(|v| v.to_string())),
+                .map(move |s| s.into_iter().map(move |v| v.to_string())),
         )
     }
 }
 
 impl From<Phrase<Vec<char>>> for Phrase<String> {
     fn from(value: Phrase<Vec<char>>) -> Self {
-        Self::from(value.sections.into_iter().map(|s| {
+        Self::from(value.sections.into_iter().map(move |s| {
             s.into_iter()
-                .map(|v| v.value().into_iter().collect::<String>())
+                .map(move |v| v.value().into_iter().collect::<String>())
         }))
     }
 }
 
 impl From<Phrase<Vec<char>>> for Phrase<Vec<u32>> {
     fn from(value: Phrase<Vec<char>>) -> Self {
-        Self::from(value.sections.into_iter().map(|s| {
-            s.into_iter().map(|v| {
-                v.value()
-                    .into_iter()
-                    .map(|c| c as u32)
-                    .collect::<Vec<u32>>()
-            })
+        Self::from(value.sections.into_iter().map(move |s| {
+            s.into_iter()
+                .map(move |v| v.value().into_iter().map_into().collect::<Vec<u32>>())
         }))
     }
 }
@@ -607,12 +606,12 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
             value
                 .sections
                 .into_iter()
-                .map(|s| {
+                .map(move |s| {
                     s.into_iter()
-                        .map(|v| {
+                        .map(move |v| {
                             v.into_value()
                                 .into_iter()
-                                .map(|c| {
+                                .map(move |c| {
                                     char::from_u32(c).ok_or(format!(
                             "Failed to convert to Vec<char>. value {c} is not valid unicode",
                         ))
@@ -670,10 +669,10 @@ where
     fn convert_to_string(&self) -> Vec<Vec<String>> {
         self.sections
             .iter()
-            .map(|section| {
+            .map(move |section| {
                 section
                     .iter()
-                    .map(|variation| variation.to_string())
+                    .map(move |variation| variation.to_string())
                     .collect()
             })
             .collect()
@@ -684,7 +683,9 @@ where
 // calculating the cartesian product
 impl<T> Permutation for [Vec<T>] {
     fn permutations(&self) -> f64 {
-        self.iter().map(|section| section.len() as f64).product()
+        self.iter()
+            .map(move |section| section.len() as f64)
+            .product()
     }
 }
 

@@ -164,7 +164,7 @@ where
                     .inspect(|(confidence, line)| {
                         log::trace!("Accepted: confidence, string: {confidence}, {line:?}")
                     })
-                    .map(|(_, line)| line)
+                    .map(move |(_, line)| line)
                     .collect::<Section<T>>(),
             ]
         }
@@ -337,7 +337,7 @@ pub mod rayon {
                         .inspect(|(confidence, line)| {
                             log::trace!("Accepted: confidence, string: {confidence}, {line:?}")
                         })
-                        .map(|(_, line)| line)
+                        .map(move |(_, line)| line)
                         .collect::<Section<T>>(),
                 ]
             }
@@ -550,7 +550,7 @@ pub mod r#async {
                         .inspect(|(confidence, line)| {
                             log::trace!("Accepted: confidence, string: {confidence}, {line:?}")
                         })
-                        .map(|(_, line)| line)
+                        .map(move |(_, line)| line)
                         .collect::<Section<T>>(),
                 ]
             }
@@ -559,7 +559,7 @@ pub mod r#async {
                 let phrase_len = phrase_snippet.len_sections();
                 stream::iter(phrase_snippet.sections.chunks(phrase_len / 2))
                     .map(Snippet::new)
-                    .then(async |s| {
+                    .then(async move |s| {
                         stream::iter(
                             Self::bulk_reduce_schema_binary(
                                 size_checker,

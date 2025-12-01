@@ -268,7 +268,7 @@ impl<T> Phrase<T> {
     /// number of sections to begin with.
     pub fn into_flatten_sections(self) -> Self {
         // Keeping an empty buffer to place all single variant sections into
-        let mut singles_buffer: Vec<Section<T>> = Vec::new();
+        let mut singles_buffer: Vec<Variation<T>> = Vec::new();
 
         let mut new_sections: Vec<Section<T>> = Vec::new();
 
@@ -279,9 +279,9 @@ impl<T> Phrase<T> {
             // add it to the collection and move on to the next one
             if section.len() > 1 && !singles_buffer.is_empty() {
                 // Combine our new single and push to the stack
-                new_sections.push(vec![Variation::join(singles_buffer.iter().flatten())]);
+                new_sections.push(vec![Variation::into_join(singles_buffer)]);
                 // Empty the buffer for the next set of single variations
-                singles_buffer.clear();
+                singles_buffer = Vec::new();
                 // push the new value
                 new_sections.push(section);
             }
@@ -292,13 +292,13 @@ impl<T> Phrase<T> {
             }
             // Otherwise, push it to the singles stack
             else {
-                singles_buffer.push(section);
+                singles_buffer.push(section.into_iter().next().unwrap());
             }
         }
 
         // Empty the singles buffer in case the last few lines ended on a single
         if !singles_buffer.is_empty() {
-            new_sections.push(vec![Variation::join(singles_buffer.iter().flatten())]);
+            new_sections.push(vec![Variation::into_join(singles_buffer)]);
         }
         Self::new(new_sections)
     }

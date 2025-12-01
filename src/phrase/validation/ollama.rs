@@ -50,7 +50,7 @@ pub trait AsyncOllama {
     ) -> impl Stream<Item = (f64, Variation<Vec<T>>)>
     where
         T: Send + Sync,
-        Variation<Vec<T>>: Display;
+        Variation<Vec<T>>: Clone + Display;
 
     /// Takes a phrase and returns the confidence for each line provided by ollama
     async fn validate_group_str(
@@ -84,7 +84,7 @@ impl AsyncOllama for OllamaHandler {
     ) -> impl Stream<Item = (f64, Variation<Vec<T>>)>
     where
         T: Send + Sync,
-        Variation<Vec<T>>: Display,
+        Variation<Vec<T>>: Clone + Display,
     {
         let snippet_len = snippet.len();
         futures::stream::iter(snippet.into_iter_var())

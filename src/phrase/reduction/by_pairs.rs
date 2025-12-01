@@ -45,7 +45,11 @@ pub trait ReducePairs<T> {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
+    fn reduce_pairs<U>(
+        &self,
+        number_of_pairs: impl Into<Option<usize>>,
+        confidence_interpreter: U,
+    ) -> Self
     where
         U: Fn(&Variation<T>) -> f64;
 }
@@ -81,7 +85,11 @@ where
     T: Debug,
     Variation<T>: Clone,
 {
-    fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
+    fn reduce_pairs<U>(
+        &self,
+        number_of_pairs: impl Into<Option<usize>>,
+        confidence_interpreter: U,
+    ) -> Self
     where
         T: Debug,
         Variation<T>: Clone,
@@ -137,7 +145,7 @@ where
                 // value, then just return a single combined form. It will give
                 // future runs more information and clarity
                 else if pairs.iter().all(|s| s.len() == 1) {
-                    vec![vec![Variation::join(pairs.iter().flatten())]]
+                    vec![vec![Variation::from_iter(pairs.iter().flatten())]]
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
@@ -243,7 +251,11 @@ pub mod rayon {
         T: Debug,
         Variation<T>: Clone,
     {
-        fn reduce_pairs<U>(&self, number_of_pairs: impl Into<Option<usize>>, confidence_interpreter: U) -> Self
+        fn reduce_pairs<U>(
+            &self,
+            number_of_pairs: impl Into<Option<usize>>,
+            confidence_interpreter: U,
+        ) -> Self
         where
             T: Debug + Send + Sync,
             U: Fn(&Variation<T>) -> f64 + Send + Sync,
@@ -304,7 +316,7 @@ pub mod rayon {
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
                     else if pairs.iter().all(|s| s.len() == 1) {
-                        vec![vec![Variation::join(pairs.iter().flatten())]]
+                        vec![vec![Variation::from_iter(pairs.iter().flatten())]]
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
@@ -487,7 +499,7 @@ pub mod r#async {
                     // value, then just return a single combined form. It will give
                     // future runs more information and clarity
                     else if pairs.iter().all(|s| s.len() == 1) {
-                        stream::iter(vec![vec![Variation::join(pairs.iter().flatten())]])
+                        stream::iter(vec![vec![Variation::from_iter(pairs.iter().flatten())]])
                     } else {
                         // permuting values and collecting only viable options
                         let pair_snippet = Snippet::new(pairs);

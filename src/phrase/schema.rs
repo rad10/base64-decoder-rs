@@ -77,48 +77,35 @@ impl<T> Variation<T> {
         self.links.iter()
     }
 
-    /// Takes two links and creates a new link containing each value in concatenation
-    pub fn combine(&self, other: &Variation<T>) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            links: [self.links.clone(), other.links.clone()].concat(),
-        }
-    }
-
-    /// Takes a borrowed collection of variations and combines them in order
-    /// into a single variation
-    pub fn join<'a>(container: impl IntoIterator<Item = &'a Variation<T>>) -> Variation<T>
-    where
-        T: 'a,
-    {
-        Self {
-            links: container
-                .into_iter()
-                .flat_map(|v| v.links.iter())
-                .cloned()
-                .collect(),
-        }
-    }
-
-    /// Takes a collection of variations and combines them in order into a
-    /// single variation
-    pub fn into_join(container: impl IntoIterator<Item = Variation<T>>) -> Variation<T> {
-        Self {
-            links: container
-                .into_iter()
-                .flat_map(|v| v.links.into_iter())
-                .collect(),
-        }
-    }
-
     /// Provides the number of segments that make up this variation
     ///
     /// Another way to describe this is to print the number of references used
     /// to create this variation
     pub fn num_of_refs(&self) -> usize {
         self.links.len()
+    }
+}
+
+impl<'a, V> FromIterator<&'a Variation<V>> for Variation<V> {
+    fn from_iter<T: IntoIterator<Item = &'a Variation<V>>>(iter: T) -> Self {
+        Self {
+            links: iter
+                .into_iter()
+                .flat_map(move |v| v.links.iter())
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
+impl<V, U: Into<Variation<V>>> FromIterator<U> for Variation<V> {
+    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
+        Self {
+            links: iter
+                .into_iter()
+                .flat_map(move |v| v.into().links.into_iter())
+                .collect(),
+        }
     }
 }
 
@@ -238,7 +225,7 @@ impl<T> Phrase<T> {
             // add it to the collection and move on to the next one
             if section.len() > 1 && !singles_buffer.is_empty() {
                 // Combine our new single and push to the stack
-                new_sections.push(vec![Variation::join(singles_buffer.iter())]);
+                new_sections.push(vec![Variation::from_iter(singles_buffer.iter())]);
                 // Empty the buffer for the next set of single variations
                 singles_buffer.clear();
                 // push the new value
@@ -257,7 +244,7 @@ impl<T> Phrase<T> {
 
         // Empty the singles buffer in case the last few lines ended on a single
         if !singles_buffer.is_empty() {
-            new_sections.push(vec![Variation::into_join(singles_buffer)]);
+            new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
         Self::new(new_sections)
     }
@@ -279,7 +266,7 @@ impl<T> Phrase<T> {
             // add it to the collection and move on to the next one
             if section.len() > 1 && !singles_buffer.is_empty() {
                 // Combine our new single and push to the stack
-                new_sections.push(vec![Variation::into_join(singles_buffer)]);
+                new_sections.push(vec![Variation::from_iter(singles_buffer)]);
                 // Empty the buffer for the next set of single variations
                 singles_buffer = Vec::new();
                 // push the new value
@@ -298,18 +285,21 @@ impl<T> Phrase<T> {
 
         // Empty the singles buffer in case the last few lines ended on a single
         if !singles_buffer.is_empty() {
-            new_sections.push(vec![Variation::into_join(singles_buffer)]);
+            new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
         Self::new(new_sections)
     }
 
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>> {
+    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>>
+    where
+        Variation<T>: Clone,
+    {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(Variation::join)
+            .map(Variation::from_iter)
     }
 
     /// Creates an iterator of all possible combinations based on the memory
@@ -321,7 +311,7 @@ impl<T> Phrase<T> {
         self.sections
             .into_iter()
             .multi_cartesian_product()
-            .map(Variation::into_join)
+            .map(Variation::from_iter)
     }
 
     /// Gives the number of sections that make up this phrase
@@ -383,20 +373,26 @@ where
 impl<T> Snippet<'_, T> {
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>> {
+    pub fn iter_var(&self) -> impl Iterator<Item = Variation<T>>
+    where
+        Variation<T>: Clone,
+    {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(Variation::join)
+            .map(Variation::from_iter)
     }
 
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    pub fn into_iter_var(self) -> impl Iterator<Item = Variation<T>> {
+    pub fn into_iter_var(self) -> impl Iterator<Item = Variation<T>>
+    where
+        Variation<T>: Clone,
+    {
         self.sections
             .iter()
             .multi_cartesian_product()
-            .map(Variation::join)
+            .map(Variation::from_iter)
     }
 
     /// Gives the number of sections that make up this phrase
@@ -444,12 +440,9 @@ where
     /// Permutate through all variations that the phrase can take
     pub fn iter(&self) -> impl Iterator<Item = T>
     where
-        Variation<T>: VariationValue<Item = T>,
+        Variation<T>: VariationValue<Item = T> + Clone,
     {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
+        self.iter_var()
             .map(<Variation<T> as VariationValue>::into_value)
     }
 
@@ -460,7 +453,7 @@ where
     /// [`iter`]: Self::iter
     pub fn iter_val(&self) -> impl Iterator<Item = T>
     where
-        Variation<T>: VariationValue<Item = T>,
+        Variation<T>: VariationValue<Item = T> + Clone,
     {
         self.iter()
     }
@@ -472,10 +465,7 @@ where
 {
     /// Permutate through all variations that the phrase can take
     pub fn into_iter(self) -> impl Iterator<Item = T> {
-        self.sections
-            .into_iter()
-            .multi_cartesian_product()
-            .map(Variation::into_join)
+        self.into_iter_var()
             .map(<Variation<T> as VariationValue>::into_value)
     }
 
@@ -491,23 +481,17 @@ where
 
 impl<T> Snippet<'_, T>
 where
-    Variation<T>: VariationValue<Item = T>,
+    Variation<T>: VariationValue<Item = T> + Clone,
 {
     /// Permutate through all variations that the phrase can take
     pub fn iter(&self) -> impl Iterator<Item = T> {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
+        self.iter_var()
             .map(<Variation<T> as VariationValue>::into_value)
     }
 
     /// Permutate through all variations that the phrase can take
     pub fn into_iter(self) -> impl Iterator<Item = T> {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
+        self.into_iter_var()
             .map(<Variation<T> as VariationValue>::into_value)
     }
 
@@ -532,15 +516,11 @@ where
 
 impl<T> Phrase<T>
 where
-    Variation<T>: Display,
+    Variation<T>: Display + Clone,
 {
     /// Permutate through all variations that the phrase can take
     pub fn iter_str(&self) -> impl Iterator<Item = String> {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
-            .map(|v| v.to_string())
+        self.iter_var().map(|v| v.to_string())
     }
 
     /// Permutate through all variations that the phrase can take
@@ -548,34 +528,22 @@ where
     where
         Variation<T>: Clone,
     {
-        self.sections
-            .into_iter()
-            .multi_cartesian_product()
-            .map(Variation::into_join)
-            .map(|v| v.to_string())
+        self.into_iter_var().map(|v| v.to_string())
     }
 }
 
 impl<T> Snippet<'_, T>
 where
-    Variation<T>: Display,
+    Variation<T>: Display + Clone,
 {
     /// Permutate through all variations that the phrase can take
     pub fn iter_str(&self) -> impl Iterator<Item = String> {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
-            .map(|v| v.to_string())
+        self.iter_var().map(|v| v.to_string())
     }
 
     /// Permutate through all variations that the phrase can take
     pub fn into_iter_str(self) -> impl Iterator<Item = String> {
-        self.sections
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::join)
-            .map(|v| v.to_string())
+        self.into_iter_var().map(|v| v.to_string())
     }
 }
 
@@ -703,8 +671,7 @@ where
 
 impl<T> DisplayLines<String> for Phrase<T>
 where
-    T: Clone,
-    Variation<T>: Display,
+    Variation<T>: Display + Clone,
 {
     fn produce_lines(&self) -> impl Iterator<Item = String>
     where

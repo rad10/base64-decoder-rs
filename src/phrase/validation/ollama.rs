@@ -10,7 +10,7 @@ use ollama_rs::{Ollama, generation::completion::request::GenerationRequest};
 #[cfg(feature = "ollama")]
 use url::Url;
 
-use crate::phrase::schema::{Snippet, Variation};
+use crate::phrase::schema::{Snippet, SnippetExt, Variation, VariationLen};
 
 /// Contains all the data necessary for string validation with ollama
 pub struct OllamaHandler {
@@ -46,17 +46,11 @@ pub trait AsyncOllama {
     /// Takes a phrase and returns the confidence for each line provided by ollama
     async fn validate_group<T>(
         &self,
-        snippet: Snippet<'_, Vec<T>>,
-    ) -> impl Stream<Item = (f64, Variation<Vec<T>>)>
+        snippet: Snippet<'_, T>,
+    ) -> impl Stream<Item = (f64, Variation<T>)>
     where
         T: Send + Sync,
-        Variation<Vec<T>>: Clone + Display;
-
-    /// Takes a phrase and returns the confidence for each line provided by ollama
-    async fn validate_group_str(
-        &self,
-        snippet: Snippet<'_, String>,
-    ) -> impl Stream<Item = (f64, Variation<String>)>;
+        Variation<T>: Clone + Display + VariationLen;
 
     /// Takes a single line and has ollama give a confidence value on the given
     /// line
@@ -80,13 +74,13 @@ impl AsyncOllama for OllamaHandler {
     /// Takes a phrase and returns the confidence for each line provided by ollama
     async fn validate_group<T>(
         &self,
-        snippet: Snippet<'_, Vec<T>>,
-    ) -> impl Stream<Item = (f64, Variation<Vec<T>>)>
+        snippet: Snippet<'_, T>,
+    ) -> impl Stream<Item = (f64, Variation<T>)>
     where
         T: Send + Sync,
-        Variation<Vec<T>>: Clone + Display,
+        Variation<T>: Clone + Display + VariationLen,
     {
-        let snippet_len = snippet.len();
+        let snippet_len = snippet.len_phrase();
         futures::stream::iter(snippet.into_iter_var())
             // Separate permutations into groups that will fit into a reasonably sized message
             // max size = x
@@ -114,7 +108,7 @@ impl AsyncOllama for OllamaHandler {
                         // Attempt to collect values from response
                         match serde_json::from_str::<Vec<f64>>(response.response.as_str()) {
                             Ok(values) => {
-                                let final_result: Vec<(f64, Variation<Vec<T>>)> =
+                                let final_result: Vec<(f64, Variation<T>)> =
                                     values.into_iter().zip(package).collect();
                                 futures::stream::iter(final_result)
                             }
@@ -127,77 +121,14 @@ impl AsyncOllama for OllamaHandler {
                                     "Received value from ollama: {}",
                                     response.response.as_str()
                                 );
-                                futures::stream::iter(Vec::<(f64, Variation<Vec<T>>)>::new())
+                                futures::stream::iter(Vec::<(f64, Variation<T>)>::new())
                             }
                         }
                     }
                     Err(e) => {
                         log::error!("Failed to get a response from ollama. Dropping all values");
                         log::debug!("Received ollama error: {e}");
-                        futures::stream::iter(Vec::<(f64, Variation<Vec<T>>)>::new())
-                    }
-                }
-            })
-            .flatten()
-    }
-
-    /// Takes a phrase and returns the confidence for each line provided by ollama
-    async fn validate_group_str(
-        &self,
-        snippet: Snippet<'_, String>,
-    ) -> impl Stream<Item = (f64, Variation<String>)> {
-        let snippet_len = snippet.len();
-        futures::stream::iter(snippet.into_iter_var())
-            // Separate permutations into groups that will fit into a reasonably sized message
-            // max size = x
-            // `{y}`\n`{y}`\n... = x
-            // z(3 + y) = x
-            // z = x/(3 + y)
-            .chunks(MAX_MESSAGE_SIZE / (snippet_len + 4) - 3)
-            .then(async move |package| {
-                let message_data = package
-                    .iter()
-                    .enumerate()
-                    .map(|(num, phrase)| (num + 1, phrase.to_string().escape_default().to_string()))
-                    .map(|(num, phrase)| format!("{num}: `{phrase}`"))
-                    .join("\n");
-
-                log::debug!("Sending data to LLM: {message_data}");
-                match self
-                    .ollama
-                    .generate(
-                        GenerationRequest::new(self.model.to_owned(), message_data)
-                            .template(OLLAMA_PROMPT),
-                    )
-                    .await
-                {
-                    Ok(response) => {
-                        log::debug!("LLM response: {}", response.response);
-                        log::debug!("LLM thinking: {:?}", response.thinking);
-                        // Attempt to collect values from response
-                        match serde_json::from_str::<Vec<f64>>(&response.response) {
-                            Ok(values) => {
-                                let final_result: Vec<(f64, Variation<String>)> =
-                                    values.into_iter().zip(package).collect();
-                                futures::stream::iter(final_result)
-                            }
-                            Err(e) => {
-                                log::error!(
-                                    "Failed to parse response from ollama. Dropping all values"
-                                );
-                                log::debug!("Received ollama error: {e}");
-                                log::debug!(
-                                    "Received value from ollama: {}",
-                                    response.response.as_str()
-                                );
-                                futures::stream::iter(Vec::<(f64, Variation<String>)>::new())
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to get a response from ollama. Dropping all values");
-                        log::debug!("Received ollama error: {e}");
-                        futures::stream::iter(Vec::<(f64, Variation<String>)>::new())
+                        futures::stream::iter(Vec::<(f64, Variation<T>)>::new())
                     }
                 }
             })

@@ -7,7 +7,7 @@ use base64_bruteforcer_rs::phrase::schema::Variation;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::validation::ollama::OllamaHandler;
 use base64_bruteforcer_rs::phrase::{
-    schema::{ConvertString, Permutation, Phrase, Snippet},
+    schema::{ConvertString, Permutation, Phrase, Snippet, SnippetExt},
     validation::validate_with_whatlang,
 };
 use clap::Parser;
@@ -180,7 +180,7 @@ async fn main() -> () {
                         string_permutation
                             .bulk_reduce_pairs(Some(pair_size), async |phr| {
                                 tmp_ollama_engine
-                                    .validate_group_str(phr)
+                                    .validate_group(phr)
                                     .await
                                     .collect::<Vec<(f64, Variation<String>)>>()
                                     .await
@@ -200,7 +200,7 @@ async fn main() -> () {
                                 async |snip| snip.permutations() <= 100_000_f64,
                                 async |phr| {
                                     tmp_ollama_engine
-                                        .validate_group_str(phr)
+                                        .validate_group(phr)
                                         .await
                                         .collect::<Vec<(f64, Variation<String>)>>()
                                         .await
@@ -233,6 +233,6 @@ async fn main() -> () {
 
     // Creating distinct lines to see results
     string_permutation
-        .into_iter()
+        .into_iter_str()
         .for_each(|line| println!("{line}"));
 }

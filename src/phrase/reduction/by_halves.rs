@@ -33,7 +33,7 @@ use std::fmt::Debug;
 
 use itertools::Itertools;
 
-use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
+use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, Variation};
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
@@ -193,7 +193,7 @@ pub mod rayon {
         slice::ParallelSlice,
     };
 
-    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
+    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, Variation};
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
@@ -365,7 +365,7 @@ pub mod r#async {
     use futures::{StreamExt, stream};
     use itertools::Itertools;
 
-    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, Variation};
+    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, Variation};
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process

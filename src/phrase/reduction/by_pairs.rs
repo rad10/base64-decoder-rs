@@ -45,13 +45,11 @@ pub trait ReducePairs: SnippetExt {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs<U>(
+    fn reduce_pairs(
         &self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: U,
-    ) -> Self
-    where
-        U: Fn(&Variation<Self::Item>) -> f64;
+        confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64,
+    ) -> Self;
 }
 
 /// Provides an interface to reduce an array like structure to through a
@@ -59,7 +57,7 @@ pub trait ReducePairs: SnippetExt {
 ///
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
-pub trait ReducePairsBulk<U: ?Sized>: SnippetExt {
+pub trait ReducePairsBulk<'a, U: SnippetExt<Item = Self::Item>, V: ?Sized>: SnippetExt {
     /// Takes a given schema and attempts to reduce valid choices by
     /// matching pairs. Select how many pairs will be compared at once.
     ///
@@ -68,16 +66,13 @@ pub trait ReducePairsBulk<U: ?Sized>: SnippetExt {
     /// each string
     ///
     /// Default is 2
-    fn bulk_reduce_pairs<'a, 'b, V>(
+    fn bulk_reduce_pairs(
         &'a self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: V,
+        confidence_interpreter: impl FnMut(U) -> V,
     ) -> Self
     where
-        Self::Item: 'b,
-        Variation<Self::Item>: Clone,
-        V: FnMut(Snippet<'b, Self::Item>) -> U,
-        'a: 'b;
+        Variation<Self::Item>: Clone;
 }
 
 impl<T> ReducePairs for Phrase<T>
@@ -85,39 +80,37 @@ where
     T: Debug,
     Variation<T>: Clone,
 {
-    fn reduce_pairs<U>(
+    fn reduce_pairs(
         &self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: U,
+        confidence_interpreter: impl Fn(&Variation<T>) -> f64,
     ) -> Self
     where
         T: Debug,
         Variation<T>: Clone,
-        U: Fn(&Variation<T>) -> f64,
     {
         let conf_link = &confidence_interpreter;
-        self.bulk_reduce_pairs(number_of_pairs, move |snip| {
+        self.bulk_reduce_pairs(number_of_pairs, move |snip: Snippet<'_, T>| {
             snip.into_iter_var()
                 .map(move |line| (conf_link(&line), line))
         })
     }
 }
 
-impl<T, U> ReducePairsBulk<U> for Phrase<T>
+impl<'a, 'b, T, U, V> ReducePairsBulk<'a, U, V> for Phrase<T>
 where
-    T: Debug,
-    U: IntoIterator<Item = (f64, Variation<T>)>,
+    T: Debug + 'b,
+    U: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+    V: IntoIterator<Item = (f64, Variation<T>)>,
+    'a: 'b,
 {
-    fn bulk_reduce_pairs<'a, 'b, V>(
+    fn bulk_reduce_pairs(
         &'a self,
         number_of_pairs: impl Into<Option<usize>>,
-        mut confidence_interpreter: V,
+        mut confidence_interpreter: impl FnMut(U) -> V,
     ) -> Self
     where
-        T: 'b,
-        Variation<T>: Clone,
-        V: FnMut(Snippet<'b, T>) -> U,
-        'a: 'b,
+        Variation<Self::Item>: Clone,
     {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs.into() {
@@ -149,9 +142,8 @@ where
                 } else {
                     // permuting values and collecting only viable options
                     let combined: Vec<Section<T>> = vec![{
-                        let pair_snippet = Snippet::new(pairs);
-                        let snippet_permutations = pair_snippet.permutations();
-                        confidence_interpreter(pair_snippet)
+                        let snippet_permutations = pairs.permutations();
+                        confidence_interpreter(pairs.into())
                             .into_iter()
                             .inspect(|(confidence, line)| {
                                 log::trace!("confidence, string: {confidence}, {line:?}")
@@ -179,14 +171,14 @@ where
                 }
             })
             .collect::<Vec<Section<T>>>();
-        Self::new(new_sections)
+        Self::from(new_sections)
     }
 }
 
 /// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, sync::Arc};
 
     use itertools::Itertools;
     use rayon::{
@@ -208,14 +200,14 @@ pub mod rayon {
         /// closer to your objective than another.
         ///
         /// Default is 2
-        fn reduce_pairs<U>(
+        fn reduce_pairs(
             &self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: U,
+            confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
         ) -> Self
         where
-            Self::Item: Send + Sync,
-            U: Fn(&Variation<Self::Item>) -> f64 + Send + Sync;
+            Arc<Self::Item>: Sync,
+            Variation<Self::Item>: Send;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -225,7 +217,9 @@ pub mod rayon {
     /// take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
-    pub trait ParReducePairsBulk<U: ?Sized>: SnippetExt {
+    pub trait ParReducePairsBulk<'a, U: SnippetExt<Item = Self::Item>, V: ?Sized>:
+        SnippetExt
+    {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
@@ -234,37 +228,35 @@ pub mod rayon {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs<'a, 'b, V>(
+        fn bulk_reduce_pairs(
             &'a self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: V,
+            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
         ) -> Self
         where
-            Variation<Self::Item>: Clone,
-            Self::Item: 'b + Send + Sync,
-            V: Fn(Snippet<'b, Self::Item>) -> U + Send + Sync,
-            'a: 'b;
+            Arc<Self::Item>: Sync,
+            Variation<Self::Item>: Clone + Send;
     }
 
     impl<T> ParReducePairs for Phrase<T>
     where
         T: Debug,
-        Variation<T>: Clone,
+        Arc<T>: Sync,
+        Variation<T>: Clone + Send,
     {
-        fn reduce_pairs<U>(
+        fn reduce_pairs(
             &self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: U,
+            confidence_interpreter: impl Fn(&Variation<T>) -> f64 + Send + Sync,
         ) -> Self
         where
-            T: Debug + Send + Sync,
-            U: Fn(&Variation<T>) -> f64 + Send + Sync,
+            T: Debug,
         {
-            self.bulk_reduce_pairs(number_of_pairs, move |snip| {
+            self.bulk_reduce_pairs(number_of_pairs, move |snip: Snippet<'_, T>| {
                 snip
                     // Get all combinations of the variations
                     // Join them together to get the string to test against
-                    .into_iter_var()
+                    .par_iter_var()
                     .par_bridge()
                     // Use detector to gain a confidence on each line
                     .map(|line| (confidence_interpreter(&line), line))
@@ -274,21 +266,21 @@ pub mod rayon {
         }
     }
 
-    impl<T, U> ParReducePairsBulk<U> for Phrase<T>
+    impl<'a, 'b, T, U, V> ParReducePairsBulk<'a, U, V> for Phrase<T>
     where
-        T: Debug,
-        U: IntoIterator<Item = (f64, Variation<T>)> + Sync,
+        T: Debug + 'b,
+        U: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+        V: IntoIterator<Item = (f64, Variation<T>)> + Sync,
+        'a: 'b,
     {
-        fn bulk_reduce_pairs<'a, 'b, V>(
+        fn bulk_reduce_pairs(
             &'a self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: V,
+            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
         ) -> Self
         where
-            T: 'b + Send + Sync,
-            Variation<T>: Clone,
-            V: Fn(Snippet<'b, T>) -> U + Send + Sync,
-            'a: 'b,
+            Arc<T>: Sync,
+            Variation<T>: Clone + Send,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs.into() {
@@ -320,9 +312,8 @@ pub mod rayon {
                     } else {
                         // permuting values and collecting only viable options
                         let combined: Vec<Section<T>> = vec![{
-                            let pair_snippet = Snippet::new(pairs);
-                            let pair_permutation = pair_snippet.permutations();
-                            confidence_interpreter(pair_snippet)
+                            let pair_permutation = pairs.permutations();
+                            confidence_interpreter(pairs.into())
                                 .into_iter()
                                 .inspect(|(confidence, line)| {
                                     log::trace!("confidence, string: {confidence}, {line:?}")
@@ -353,7 +344,7 @@ pub mod rayon {
                     }
                 })
                 .collect::<Vec<Section<T>>>();
-            Self::new(new_sections)
+            Self::from(new_sections)
         }
     }
 }
@@ -361,7 +352,7 @@ pub mod rayon {
 /// Provides and implements the reduction trait using the [`futures`] library to speed up processes
 #[cfg(feature = "async")]
 pub mod r#async {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, sync::Arc};
 
     use async_trait::async_trait;
     use futures::{StreamExt, stream};
@@ -382,14 +373,13 @@ pub mod r#async {
         /// is closer to your objective than another.
         ///
         /// Default is 2
-        async fn reduce_pairs<U, Fut>(
+        async fn reduce_pairs<Fut>(
             &self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: U,
+            confidence_interpreter: impl for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
         ) -> Self
         where
-            Self::Item: Send + Sync,
-            U: Fn(&Variation<Self::Item>) -> Fut + Send + Sync,
+            Arc<Self::Item>: Sync,
             Fut: Future<Output = f64> + Send;
     }
 
@@ -401,7 +391,9 @@ pub mod r#async {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
-    pub trait AsyncReducePairsBulk<U: ?Sized>: SnippetExt {
+    pub trait AsyncReducePairsBulk<'a, U: SnippetExt<Item = Self::Item>, V: ?Sized>:
+        SnippetExt
+    {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
@@ -416,33 +408,30 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
+        async fn bulk_reduce_pairs<Fut>(
             &'a self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: V,
+            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
         ) -> Self
         where
-            Self::Item: 'b + Send + Sync,
-            Variation<Self::Item>: Clone,
-            V: Fn(Snippet<'b, Self::Item>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send,
-            'a: 'b;
+            Arc<Self::Item>: Sync,
+            Variation<Self::Item>: Clone + Send,
+            Fut: Future<Output = V> + Send;
     }
 
     #[async_trait]
     impl<T> AsyncReducePairs for Phrase<T>
     where
         T: Debug,
-        Variation<T>: Clone,
+        Variation<T>: Clone + Send,
     {
-        async fn reduce_pairs<U, Fut>(
+        async fn reduce_pairs<Fut>(
             &self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: U,
+            confidence_interpreter: impl for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
         ) -> Self
         where
-            T: Send + Sync,
-            U: Fn(&Variation<T>) -> Fut + Send + Sync,
+            Arc<T>: Sync,
             Fut: Future<Output = f64> + Send,
         {
             let conf_link = &confidence_interpreter;
@@ -457,22 +446,22 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<T, U> AsyncReducePairsBulk<U> for Phrase<T>
+    impl<'a, 'b, T, U, V> AsyncReducePairsBulk<'a, U, V> for Phrase<T>
     where
-        T: Debug,
-        U: IntoIterator<Item = (f64, Variation<T>)>,
+        T: Debug + 'b,
+        U: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+        V: IntoIterator<Item = (f64, Variation<T>)>,
+        'a: 'b,
     {
-        async fn bulk_reduce_pairs<'a, 'b, V, Fut>(
+        async fn bulk_reduce_pairs<Fut>(
             &'a self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: V,
+            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
         ) -> Self
         where
-            T: 'b + Send + Sync,
-            Variation<T>: Clone,
-            V: Fn(Snippet<'b, T>) -> Fut + Send + Sync,
-            Fut: Future<Output = U> + Send,
-            'a: 'b,
+            Arc<T>: Sync,
+            Variation<T>: Clone + Send,
+            Fut: Future<Output = V> + Send,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs.into() {
@@ -502,10 +491,9 @@ pub mod r#async {
                         stream::iter(vec![vec![Variation::from_iter(pairs.iter().flatten())]])
                     } else {
                         // permuting values and collecting only viable options
-                        let pair_snippet = Snippet::new(pairs);
-                        let pair_permutation = pair_snippet.permutations();
+                        let pair_permutation = pairs.permutations();
                         let combined: Vec<Section<T>> = vec![
-                            conf_link(pair_snippet)
+                            conf_link(pairs.into())
                                 .await
                                 .into_iter()
                                 .inspect(|(confidence, line)| {
@@ -539,7 +527,7 @@ pub mod r#async {
                 .flatten()
                 .collect::<Vec<Section<T>>>()
                 .await;
-            Self::new(new_sections)
+            Self::from(new_sections)
         }
     }
 }

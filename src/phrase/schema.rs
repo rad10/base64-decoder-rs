@@ -227,19 +227,26 @@ pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
             .sum()
     }
 
-    /// Permutate through all [`Variation`]s that the phrase can take
-    fn iter_val(&self) -> impl Iterator<Item = Self::Item>
-    where
-        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
-    {
-        self.iter_var()
-            .map(<Variation<Self::Item> as VariationValue>::into_value)
-    }
-
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
     fn iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>>
     where
+        Variation<Self::Item>: Clone,
+    {
+        self.as_ref()
+            .iter()
+            .multi_cartesian_product()
+            .map(Variation::from_iter)
+    }
+
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    ///
+    /// This provides the same object as [`SnippetExt::iter_var`] but in a form
+    /// that is thread safe
+    fn par_iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone,
     {
         self.as_ref()
@@ -255,6 +262,39 @@ pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
         Self: Sized,
         Variation<Self::Item>: Clone;
 
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    ///
+    /// This provides the same object as [`SnippetExt::into_iter_var`] but in a form
+    /// that is thread safe
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Send + Sync,
+        Variation<Self::Item>: Clone;
+
+    /// Permutate through all [`Variation`]s that the phrase can take
+    fn iter_val(&self) -> impl Iterator<Item = Self::Item>
+    where
+        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
+    {
+        self.iter_var()
+            .map(<Variation<Self::Item> as VariationValue>::into_value)
+    }
+
+    /// Permutate through all [`Variation`]s that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::iter_val`] but in a form
+    /// that is thread safe
+    fn par_iter_val(&self) -> impl Iterator<Item = Self::Item> + Send
+    where
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
+    {
+        self.par_iter_var()
+            .map(<Variation<Self::Item> as VariationValue>::into_value)
+    }
+
     /// Permutate through all [`Variation`]s that the phrase can take
     fn into_iter_val(self) -> impl Iterator<Item = Self::Item>
     where
@@ -262,6 +302,20 @@ pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
         Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
     {
         self.into_iter_var()
+            .map(<Variation<Self::Item> as VariationValue>::into_value)
+    }
+
+    /// Permutate through all [`Variation`]s that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::into_iter_val`] but in a form
+    /// that is thread safe
+    fn par_into_iter_val(self) -> impl Iterator<Item = Self::Item> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Send + Sync,
+        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
+    {
+        self.par_into_iter_var()
             .map(<Variation<Self::Item> as VariationValue>::into_value)
     }
 
@@ -274,12 +328,33 @@ pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
     }
 
     /// Permutate through all variations that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::iter_str`] but in a form
+    /// that is thread safe
+    fn par_iter_str(&self) -> impl Iterator<Item = String> + Send
+    where
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone + Display,
+    {
+        self.par_iter_var().map(move |v| v.to_string())
+    }
+
+    /// Permutate through all variations that the phrase can take
     fn into_iter_str(self) -> impl Iterator<Item = String>
     where
         Self: Sized,
         Variation<Self::Item>: Clone + Display,
     {
         self.into_iter_var().map(move |v| v.to_string())
+    }
+
+    fn par_into_iter_str(self) -> impl Iterator<Item = String> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Send + Sync,
+        Variation<Self::Item>: Clone + Display,
+    {
+        self.par_into_iter_var().map(move |s| s.to_string())
     }
 }
 
@@ -295,6 +370,17 @@ impl<T> SnippetExt for &[Vec<Variation<T>>] {
             .multi_cartesian_product()
             .map(Variation::from_iter)
     }
+
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone,
+    {
+        self.iter()
+            .multi_cartesian_product()
+            .map(Variation::from_iter)
+    }
 }
 
 impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
@@ -303,6 +389,17 @@ impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
     where
         Self: Sized,
+        Variation<Self::Item>: Clone,
+    {
+        self.into_iter()
+            .multi_cartesian_product()
+            .map(Variation::from_iter)
+    }
+
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Send + Sync,
         Variation<Self::Item>: Clone,
     {
         self.into_iter()
@@ -327,9 +424,17 @@ impl<T> SnippetExt for Phrase<T> {
     {
         self.sections.into_iter_var()
     }
+
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Send + Sync,
+        Variation<Self::Item>: Clone,
+    {
+        self.sections.into_iter_var()
+    }
 }
 
-impl<T> AsRef<[Vec<Variation<T>>]> for Snippet<'_, T> {
     fn as_ref(&self) -> &[Vec<Variation<T>>] {
         self.sections
     }
@@ -341,6 +446,15 @@ impl<T> SnippetExt for Snippet<'_, T> {
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
     where
         Self: Sized,
+        Variation<Self::Item>: Clone,
+    {
+        self.sections.into_iter_var()
+    }
+
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone,
     {
         self.sections.into_iter_var()
@@ -476,6 +590,17 @@ where
     }
 }
 
+impl<U, V> FromIterator<U> for Phrase<V>
+where
+    Vec<Vec<Variation<V>>>: FromIterator<U>,
+{
+    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
+        Self {
+            sections: iter.into_iter().collect(),
+        }
+    }
+}
+
 impl<T> From<Phrase<Vec<T>>> for Phrase<String>
 where
     Variation<Vec<T>>: Display,
@@ -522,13 +647,10 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
                             v.into_value()
                                 .into_iter()
                                 .map(move |c| {
-                                    char::from_u32(c).ok_or(format!(
-                            "Failed to convert to Vec<char>. value {c} is not valid unicode",
-                        ))
+                                    char::from_u32(c).ok_or(format!("Failed to convert to Vec<char>. value {c} is not valid unicode"))
                                 }) // Because of how char can error out, this ended up being very dirty
-                                .collect::<Result<Vec<char>, String>>()
-                        })
-                        .collect::<Result<Vec<Vec<char>>, String>>()
+                                .try_collect()
+                        }).try_collect()
                 })
                 .collect::<Result<Vec<Vec<Vec<char>>>, String>>()?,
         ))
@@ -599,14 +721,8 @@ impl<T> Permutation for [Vec<T>] {
     }
 }
 
-impl<T> Permutation for Phrase<T> {
+impl<U: SnippetExt> Permutation for U {
     fn permutations(&self) -> f64 {
-        self.sections.permutations()
-    }
-}
-
-impl<T> Permutation for Snippet<'_, T> {
-    fn permutations(&self) -> f64 {
-        self.sections.permutations()
+        self.as_ref().permutations()
     }
 }

@@ -22,6 +22,9 @@ pub struct Snippet<'a, T> {
 /// one to use.
 pub type Section<T> = Vec<Variation<T>>;
 
+/// This represents a generic phrase that is borrowed.
+pub type BorrowedSnippet<T> = [Section<T>];
+
 /// A smart method of containing links to snippets. This helps reduce memory
 /// usage when links get combined together
 ///
@@ -197,7 +200,7 @@ where
 
 /// Provides the functions that provide are utilized by [`Phrase`] and
 /// [`Snippet`]
-pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
+pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
     /// Describes the item that is implemented here
     type Item;
 
@@ -358,7 +361,7 @@ pub trait SnippetExt: AsRef<[Vec<Variation<Self::Item>>]> {
     }
 }
 
-impl<T> SnippetExt for &[Vec<Variation<T>>] {
+impl<T> SnippetExt for &BorrowedSnippet<T> {
     type Item = T;
 
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
@@ -408,7 +411,7 @@ impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
     }
 }
 
-impl<T> AsRef<[Vec<Variation<T>>]> for Phrase<T> {
+impl<T> AsRef<BorrowedSnippet<T>> for Phrase<T> {
     fn as_ref(&self) -> &[Vec<Variation<T>>] {
         self.sections.as_slice()
     }
@@ -435,6 +438,7 @@ impl<T> SnippetExt for Phrase<T> {
     }
 }
 
+impl<T> AsRef<BorrowedSnippet<T>> for Snippet<'_, T> {
     fn as_ref(&self) -> &[Vec<Variation<T>>] {
         self.sections
     }
@@ -462,7 +466,7 @@ impl<T> SnippetExt for Snippet<'_, T> {
 }
 
 impl<T> Phrase<T> {
-    pub fn new(schema: impl AsRef<[Section<T>]>) -> Self
+    pub fn new(schema: impl AsRef<BorrowedSnippet<T>>) -> Self
     where
         Section<T>: Clone,
     {
@@ -685,12 +689,12 @@ where
     }
 }
 
-impl<'a, T> From<Snippet<'a, T>> for Phrase<T>
+impl<T> From<Snippet<'_, T>> for Phrase<T>
 where
     Variation<T>: Clone,
 {
-    fn from(value: Snippet<'a, T>) -> Self {
-        Self::new(value.sections)
+    fn from(value: Snippet<'_, T>) -> Self {
+        Self::new(value)
     }
 }
 

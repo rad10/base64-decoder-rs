@@ -137,7 +137,8 @@ impl Display for Variation<String> {
 
 impl Display for Variation<Vec<u8>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.links.iter()
+        self.links
+            .iter()
             .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
             .try_for_each(move |r| r.and_then(|l| write!(f, "{l}")))
     }
@@ -145,7 +146,8 @@ impl Display for Variation<Vec<u8>> {
 
 impl Display for Variation<Vec<u16>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.links.iter()
+        self.links
+            .iter()
             .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
             .try_for_each(move |l| write!(f, "{l}"))
     }
@@ -266,8 +268,8 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Send + Sync,
-        Variation<Self::Item>: Clone;
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone + Send;
 
     /// Permutate through all [`Variation`]s that the phrase can take
     fn iter_val(&self) -> impl Iterator<Item = Self::Item>
@@ -373,9 +375,11 @@ impl<T> SnippetExt for &BorrowedSnippet<T> {
         Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone,
     {
-        self.iter()
-            .multi_cartesian_product()
-            .map(Variation::from_iter)
+        // The values produces are the exact same as [`Self::into_iter_var`],
+        // so why not just use it?
+        self.into_iter_var()
+    }
+}
     }
 }
 
@@ -395,12 +399,10 @@ impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Send + Sync,
-        Variation<Self::Item>: Clone,
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone + Send,
     {
-        self.into_iter()
-            .multi_cartesian_product()
-            .map(Variation::from_iter)
+        self.into_iter_var()
     }
 }
 
@@ -424,10 +426,10 @@ impl<T> SnippetExt for Phrase<T> {
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Send + Sync,
-        Variation<Self::Item>: Clone,
+        Arc<Self::Item>: Sync,
+        Variation<Self::Item>: Clone + Send,
     {
-        self.sections.into_iter_var()
+        self.into_iter_var()
     }
 }
 
@@ -454,7 +456,7 @@ impl<T> SnippetExt for Snippet<'_, T> {
         Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone,
     {
-        self.sections.into_iter_var()
+        self.into_iter_var()
     }
 }
 

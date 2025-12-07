@@ -195,6 +195,11 @@ where
 
 /// Provides the functions that provide are utilized by [`Phrase`] and
 /// [`Snippet`]
+///
+/// This implements generic functions that should work for all snippet like
+/// objects. This trait is not guaranteed to be thread safe. If you require
+/// thread safety, It is recommended to use [`ThreadedSnippetExt`] instead as
+/// it reimplements all functions within [`SnippetExt`] in a thread safe manner.
 pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
     /// Describes the item that is implemented here
     type Item;
@@ -239,37 +244,10 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
 
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
-    ///
-    /// This provides the same object as [`SnippetExt::iter_var`] but in a form
-    /// that is thread safe
-    fn par_iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>> + Send
-    where
-        Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone,
-    {
-        self.as_ref()
-            .iter()
-            .multi_cartesian_product()
-            .map(Variation::from_iter)
-    }
-
-    /// Creates an iterator of all possible combinations based on the memory
-    /// efficient variation structure
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
     where
         Self: Sized,
         Variation<Self::Item>: Clone;
-
-    /// Creates an iterator of all possible combinations based on the memory
-    /// efficient variation structure
-    ///
-    /// This provides the same object as [`SnippetExt::into_iter_var`] but in a form
-    /// that is thread safe
-    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
-    where
-        Self: Sized,
-        Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone + Send;
 
     /// Permutate through all [`Variation`]s that the phrase can take
     fn iter_val(&self) -> impl Iterator<Item = Self::Item>
@@ -277,19 +255,6 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
         Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
     {
         self.iter_var()
-            .map(<Variation<Self::Item> as VariationValue>::into_value)
-    }
-
-    /// Permutate through all [`Variation`]s that the phrase can take
-    ///
-    /// This provides the same object as [`SnippetExt::iter_val`] but in a form
-    /// that is thread safe
-    fn par_iter_val(&self) -> impl Iterator<Item = Self::Item> + Send
-    where
-        Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
-    {
-        self.par_iter_var()
             .map(<Variation<Self::Item> as VariationValue>::into_value)
     }
 
@@ -303,21 +268,7 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
             .map(<Variation<Self::Item> as VariationValue>::into_value)
     }
 
-    /// Permutate through all [`Variation`]s that the phrase can take
-    ///
-    /// This provides the same object as [`SnippetExt::into_iter_val`] but in a form
-    /// that is thread safe
-    fn par_into_iter_val(self) -> impl Iterator<Item = Self::Item> + Send
-    where
-        Self: Sized,
-        Arc<Self::Item>: Send + Sync,
-        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
-    {
-        self.par_into_iter_var()
-            .map(<Variation<Self::Item> as VariationValue>::into_value)
-    }
-
-    /// Permutate through all variations that the phrase can take
+    /// Permutate through all displayable variations that the phrase can take
     fn iter_str(&self) -> impl Iterator<Item = String>
     where
         Variation<Self::Item>: Clone + Display,
@@ -325,19 +276,7 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
         self.iter_var().map(move |v| v.to_string())
     }
 
-    /// Permutate through all variations that the phrase can take
-    ///
-    /// This provides the same object as [`SnippetExt::iter_str`] but in a form
-    /// that is thread safe
-    fn par_iter_str(&self) -> impl Iterator<Item = String> + Send
-    where
-        Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone + Display,
-    {
-        self.par_iter_var().map(move |v| v.to_string())
-    }
-
-    /// Permutate through all variations that the phrase can take
+    /// Permutate through all displayable variations that the phrase can take
     fn into_iter_str(self) -> impl Iterator<Item = String>
     where
         Self: Sized,
@@ -345,12 +284,89 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
     {
         self.into_iter_var().map(move |v| v.to_string())
     }
+}
 
-    fn par_into_iter_str(self) -> impl Iterator<Item = String> + Send
+// To explain [`ThreadedSnippetExt`]. The reason why all functions start with
+// `par_` is because reimplementing all functions in [`SnippetExt`] is not very
+// SemVer compliant as it introduces a requirement to reimplement a function
+// for every change to the Ext rather than just only when threading comes into
+// question
+
+/// Provides the functions that provide are utilized by [`Phrase`] and
+/// [`Snippet`] within a thread safe environment
+pub trait ThreadedSnippetExt: SnippetExt
+where
+    Arc<Self::Item>: Sync,
+{
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    ///
+    /// This provides the same object as [`SnippetExt::iter_var`] but in a form
+    /// that is thread safe
+    fn par_iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Variation<Self::Item>: Clone,
+    {
+        self.as_ref()
+            .iter()
+            .multi_cartesian_product()
+            .map(Variation::from_iter)
+    }
+
+    /// Creates an iterator of all possible combinations based on the memory
+    /// efficient variation structure
+    ///
+    /// This provides the same object as [`SnippetExt::into_iter_var`] but in a form
+    /// that is thread safe
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Send + Sync,
+        Variation<Self::Item>: Clone + Send;
+
+    /// Permutate through all [`Variation`]s that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::iter_val`] but in a form
+    /// that is thread safe
+    fn par_iter_val(&self) -> impl Iterator<Item = Self::Item> + Send
+    where
+        Variation<Self::Item>: Clone + VariationValue<Item = Self::Item>,
+    {
+        self.par_iter_var()
+            .map(<Variation<Self::Item> as VariationValue>::into_value)
+    }
+
+    /// Permutate through all [`Variation`]s that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::into_iter_val`] but in a form
+    /// that is thread safe
+    fn into_iter_val(self) -> impl Iterator<Item = Self::Item> + Send
+    where
+        Self: Sized,
+        Variation<Self::Item>: Clone + Send + VariationValue<Item = Self::Item>,
+    {
+        self.par_into_iter_var()
+            .map(<Variation<Self::Item> as VariationValue>::into_value)
+    }
+
+    /// Permutate through all variations that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::iter_str`] but in a form
+    /// that is thread safe
+    fn iter_str(&self) -> impl Iterator<Item = String> + Send
+    where
         Variation<Self::Item>: Clone + Display,
+    {
+        self.par_iter_var().map(move |v| v.to_string())
+    }
+
+    /// Permutate through all displayable variations that the phrase can take
+    ///
+    /// This provides the same object as [`SnippetExt::iter_str`] but in a form
+    /// that is thread safe
+    fn into_iter_str(self) -> impl Iterator<Item = String> + Send
+    where
+        Self: Sized,
+        Variation<Self::Item>: Clone + Display + Send,
     {
         self.par_into_iter_var().map(move |s| s.to_string())
     }
@@ -368,18 +384,19 @@ impl<T> SnippetExt for &BorrowedSnippet<T> {
             .multi_cartesian_product()
             .map(Variation::from_iter)
     }
+}
 
+impl<T> ThreadedSnippetExt for &BorrowedSnippet<T>
+where
+    Arc<T>: Sync,
+{
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
         Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone,
+        Variation<Self::Item>: Clone + Send,
     {
-        // The values produces are the exact same as [`Self::into_iter_var`],
-        // so why not just use it?
-        self.into_iter_var()
-    }
-}
+        SnippetExt::into_iter_var(self)
     }
 }
 
@@ -395,14 +412,18 @@ impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
             .multi_cartesian_product()
             .map(Variation::from_iter)
     }
+}
 
+impl<T> ThreadedSnippetExt for Vec<Section<T>>
+where
+    Arc<T>: Sync,
+{
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone + Send,
     {
-        self.into_iter_var()
+        SnippetExt::into_iter_var(self)
     }
 }
 
@@ -422,14 +443,18 @@ impl<T> SnippetExt for Phrase<T> {
     {
         self.sections.into_iter_var()
     }
+}
 
+impl<T> ThreadedSnippetExt for Phrase<T>
+where
+    Arc<T>: Sync,
+{
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Sync,
         Variation<Self::Item>: Clone + Send,
     {
-        self.into_iter_var()
+        SnippetExt::into_iter_var(self)
     }
 }
 
@@ -449,14 +474,18 @@ impl<T> SnippetExt for Snippet<'_, T> {
     {
         self.sections.into_iter_var()
     }
+}
 
+impl<T> ThreadedSnippetExt for Snippet<'_, T>
+where
+    Arc<T>: Sync,
+{
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
     where
         Self: Sized,
-        Arc<Self::Item>: Sync,
-        Variation<Self::Item>: Clone,
+        Variation<Self::Item>: Clone + Send,
     {
-        self.into_iter_var()
+        SnippetExt::into_iter_var(self)
     }
 }
 

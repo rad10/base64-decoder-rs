@@ -1,6 +1,6 @@
 //! Module provides all schema for the phrase structure.
 
-use std::{fmt::Display, sync::Arc};
+use std::{borrow::Borrow, fmt::Display, sync::Arc};
 
 use itertools::Itertools;
 
@@ -200,13 +200,13 @@ where
 /// objects. This trait is not guaranteed to be thread safe. If you require
 /// thread safety, It is recommended to use [`ThreadedSnippetExt`] instead as
 /// it reimplements all functions within [`SnippetExt`] in a thread safe manner.
-pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
+pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     /// Describes the item that is implemented here
     type Item;
 
     /// Gives the number of sections that make up this phrase
     fn len_sections(&self) -> usize {
-        self.as_ref().len()
+        self.borrow().len()
     }
 
     /// Gets the length of the phrase based on its value
@@ -217,14 +217,14 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
         // Used len at index 0 because all variations in that section should be
         // the same length. If that is not the case, something has gone terribly
         // wrong.
-        self.as_ref().iter().map(move |s| s[0].len()).sum()
+        self.borrow().iter().map(move |s| s[0].len()).sum()
     }
 
     /// Gives the number of referenced segments used to make this phrase. This
     /// is often used in debugging when developers are tracking memory issues
     /// so this may not be important to you
     fn num_of_references(&self) -> usize {
-        self.as_ref()
+        self.borrow()
             .iter()
             .flat_map(move |s| s.iter().map(move |v| v.num_of_refs()))
             .sum()
@@ -236,7 +236,7 @@ pub trait SnippetExt: AsRef<BorrowedSnippet<Self::Item>> {
     where
         Variation<Self::Item>: Clone,
     {
-        self.as_ref()
+        self.borrow()
             .iter()
             .multi_cartesian_product()
             .map(Variation::from_iter)
@@ -307,7 +307,7 @@ where
     where
         Variation<Self::Item>: Clone,
     {
-        self.as_ref()
+        self.borrow()
             .iter()
             .multi_cartesian_product()
             .map(Variation::from_iter)
@@ -427,9 +427,39 @@ where
     }
 }
 
-impl<T> AsRef<BorrowedSnippet<T>> for Phrase<T> {
-    fn as_ref(&self) -> &[Vec<Variation<T>>] {
+impl<T> Borrow<BorrowedSnippet<T>> for Phrase<T> {
+    fn borrow(&self) -> &BorrowedSnippet<T> {
         self.sections.as_slice()
+    }
+}
+
+impl<T> Borrow<BorrowedSnippet<T>> for &Phrase<T> {
+    fn borrow(&self) -> &BorrowedSnippet<T> {
+        self.sections.as_slice()
+    }
+}
+
+impl<T> Borrow<BorrowedSnippet<T>> for Snippet<'_, T> {
+    fn borrow(&self) -> &BorrowedSnippet<T> {
+        self.sections
+    }
+}
+
+impl<T> Borrow<BorrowedSnippet<T>> for &Snippet<'_, T> {
+    fn borrow(&self) -> &BorrowedSnippet<T> {
+        self.sections
+    }
+}
+
+impl<T> AsRef<BorrowedSnippet<T>> for Phrase<T> {
+    fn as_ref(&self) -> &BorrowedSnippet<T> {
+        self.sections.as_slice()
+    }
+}
+
+impl<T> AsRef<BorrowedSnippet<T>> for Snippet<'_, T> {
+    fn as_ref(&self) -> &BorrowedSnippet<T> {
+        self.sections
     }
 }
 
@@ -458,12 +488,6 @@ where
     }
 }
 
-impl<T> AsRef<BorrowedSnippet<T>> for Snippet<'_, T> {
-    fn as_ref(&self) -> &[Vec<Variation<T>>] {
-        self.sections
-    }
-}
-
 impl<T> SnippetExt for Snippet<'_, T> {
     type Item = T;
 
@@ -485,7 +509,38 @@ where
         Self: Sized,
         Variation<Self::Item>: Clone + Send,
     {
-        SnippetExt::into_iter_var(self)
+        self.into_iter_var()
+    }
+}
+
+impl<U> SnippetExt for &U
+where
+    U: SnippetExt,
+    for<'a> &'a U: Borrow<BorrowedSnippet<U::Item>>,
+{
+    type Item = U::Item;
+
+    fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
+    where
+        Self: Sized,
+        Variation<Self::Item>: Clone,
+    {
+        self.iter_var()
+    }
+}
+
+impl<U> ThreadedSnippetExt for &U
+where
+    Arc<U::Item>: Sync,
+    U: ThreadedSnippetExt,
+    for<'a> &'a U: Borrow<BorrowedSnippet<U::Item>>,
+{
+    fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
+    where
+        Self: Sized,
+        Variation<Self::Item>: Clone + Send,
+    {
+        self.par_iter_var()
     }
 }
 
@@ -751,6 +806,6 @@ impl<T> Permutation for [Vec<T>] {
 
 impl<U: SnippetExt> Permutation for U {
     fn permutations(&self) -> f64 {
-        self.as_ref().permutations()
+        self.borrow().permutations()
     }
 }

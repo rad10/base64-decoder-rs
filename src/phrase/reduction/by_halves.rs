@@ -125,7 +125,7 @@ where
         U: for<'a> From<&'a [Vec<Variation<Self::Item>>]>,
         Variation<T>: Clone,
     {
-        Self::from(Self::bulk_reduce_schema_binary(
+        Self::from_iter(Self::bulk_reduce_schema_binary(
             &size_checker,
             self.as_ref(),
             &mut confidence_interpreter,
@@ -304,7 +304,7 @@ pub mod rayon {
             U: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
             V: Send + Sync,
         {
-            Self::new(Self::bulk_reduce_schema_binary(
+            Self::from_iter(Self::bulk_reduce_schema_binary(
                 &size_checker,
                 self.as_ref(),
                 &confidence_interpreter,
@@ -518,7 +518,7 @@ pub mod r#async {
             FutBool: Future<Output = bool> + Send,
             Fut: Future<Output = V> + Send,
         {
-            Self::from(
+            Self::from_iter(
                 Self::bulk_reduce_schema_binary(
                     &size_checker,
                     self.as_ref(),

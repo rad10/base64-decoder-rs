@@ -171,7 +171,7 @@ where
                 }
             })
             .collect::<Vec<Section<T>>>();
-        Self::from(new_sections)
+        Self::from_iter(new_sections)
     }
 }
 
@@ -342,7 +342,7 @@ pub mod rayon {
                     }
                 })
                 .collect::<Vec<Section<T>>>();
-            Self::from(new_sections)
+            Self::from_iter(new_sections)
         }
     }
 }
@@ -523,7 +523,7 @@ pub mod r#async {
                 .flatten()
                 .collect::<Vec<Section<T>>>()
                 .await;
-            Self::from(new_sections)
+            Self::from_iter(new_sections)
         }
     }
 }

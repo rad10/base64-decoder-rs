@@ -153,6 +153,12 @@ impl Display for Variation<Vec<u16>> {
     }
 }
 
+impl Display for Variation<Vec<char>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links.iter().flat_map(move |v| v.iter()).try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
 impl<A: Into<Arc<T>>, T> Extend<A> for Variation<T> {
     fn extend<U: IntoIterator<Item = A>>(&mut self, iter: U) {
         self.links.extend(iter.into_iter().map_into());
@@ -593,7 +599,7 @@ impl<T> Phrase<T> {
         if !singles_buffer.is_empty() {
             new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
-        Self::from(new_sections)
+        Self::from_iter(new_sections)
     }
 
     /// Goes through its internal schema and joins all adjacent sections that
@@ -632,7 +638,7 @@ impl<T> Phrase<T> {
         if !singles_buffer.is_empty() {
             new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
-        Self::from(new_sections)
+        Self::from_iter(new_sections)
     }
 
     /// Produces a snippet of the phrase where sections can be referenced in
@@ -657,15 +663,14 @@ impl<T> From<T> for Variation<T> {
     }
 }
 
-impl<T, U, V, W> From<U> for Phrase<T>
+impl<U, V, W> FromIterator<U> for Phrase<V>
 where
-    U: IntoIterator<Item = V>,
-    V: IntoIterator<Item = W>,
-    W: Into<Variation<T>>,
+    U: IntoIterator<Item = W>,
+    W: Into<Variation<V>>,
 {
-    fn from(value: U) -> Self {
+    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
         Self {
-            sections: value
+            sections: iter
                 .into_iter()
                 .map(move |s| s.into_iter().map_into().collect())
                 .collect(),
@@ -673,43 +678,27 @@ where
     }
 }
 
-impl<U, V> FromIterator<U> for Phrase<V>
+impl<T, U> From<U> for Phrase<String>
 where
-    Vec<Vec<Variation<V>>>: FromIterator<U>,
-{
-    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
-        Self {
-            sections: iter.into_iter().collect(),
-        }
-    }
-}
-
-impl<T> From<Phrase<Vec<T>>> for Phrase<String>
-where
+    U: SnippetExt<Item = Vec<T>>,
     Variation<Vec<T>>: Display,
 {
-    fn from(value: Phrase<Vec<T>>) -> Self {
-        Self::from(
+    fn from(value: U) -> Self {
+        Self::from_iter(
             value
-                .sections
+                .borrow()
                 .into_iter()
                 .map(move |s| s.into_iter().map(move |v| v.to_string())),
         )
     }
 }
 
-impl From<Phrase<Vec<char>>> for Phrase<String> {
-    fn from(value: Phrase<Vec<char>>) -> Self {
-        Self::from(value.sections.into_iter().map(move |s| {
-            s.into_iter()
-                .map(move |v| v.value().into_iter().collect::<String>())
-        }))
-    }
-}
-
-impl From<Phrase<Vec<char>>> for Phrase<Vec<u32>> {
-    fn from(value: Phrase<Vec<char>>) -> Self {
-        Self::from(value.sections.into_iter().map(move |s| {
+impl<U> From<U> for Phrase<Vec<u32>>
+where
+    U: SnippetExt<Item = Vec<char>>,
+{
+    fn from(value: U) -> Self {
+        Self::from_iter(value.borrow().into_iter().map(move |s| {
             s.into_iter()
                 .map(move |v| v.value().into_iter().map_into().collect::<Vec<u32>>())
         }))
@@ -720,7 +709,7 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
     type Error = String;
 
     fn try_from(value: Phrase<Vec<u32>>) -> Result<Self, Self::Error> {
-        Ok(Self::from(
+        Ok(Self::from_iter(
             value
                 .sections
                 .into_iter()
@@ -748,22 +737,19 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<String> {
     }
 }
 
-impl<'a, 'b, T> From<&'a [Section<T>]> for Snippet<'b, T>
+impl<'a, 'b, T> From<&'a BorrowedSnippet<T>> for Snippet<'b, T>
 where
     'a: 'b,
 {
-    fn from(value: &'a [Section<T>]) -> Self {
+    fn from(value: &'a BorrowedSnippet<T>) -> Self {
         Self { sections: value }
     }
 }
 
-impl<'a, 'b, T> From<&'a Phrase<T>> for Snippet<'b, T>
-where
-    'a: 'b,
-{
-    fn from(value: &'a Phrase<T>) -> Self {
-        Self {
-            sections: &value.sections,
+impl<'a: 'b, 'b, T, U: SnippetExt<Item = T>> From<&'a U> for Snippet<'b, T> {
+    fn from(value: &'a U) -> Self {
+        Snippet {
+            sections: value.borrow(),
         }
     }
 }
@@ -773,7 +759,7 @@ where
     Variation<T>: Clone,
 {
     fn from(value: Snippet<'_, T>) -> Self {
-        Self::new(value)
+        Self::new(value.sections)
     }
 }
 

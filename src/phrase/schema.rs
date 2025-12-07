@@ -131,36 +131,29 @@ impl VariationLen for Variation<String> {
 
 impl Display for Variation<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let combo = self.links.iter().join("");
-        write!(f, "{combo}")
+        self.links.iter().try_for_each(move |l| write!(f, "{l}"))
     }
 }
 
 impl Display for Variation<Vec<u8>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let combo = self
-            .links
-            .iter()
-            .map(move |to_str| str::from_utf8(to_str.as_slice()).unwrap())
-            .join("");
-        write!(f, "{}", combo)
+        self.links.iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .try_for_each(move |r| r.and_then(|l| write!(f, "{l}")))
     }
 }
 
 impl Display for Variation<Vec<u16>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let combo = self
-            .links
-            .iter()
+        self.links.iter()
             .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
-            .join("");
-        write!(f, "{}", combo)
+            .try_for_each(move |l| write!(f, "{l}"))
     }
 }
 
-impl<T> Extend<Arc<T>> for Variation<T> {
-    fn extend<U: IntoIterator<Item = Arc<T>>>(&mut self, iter: U) {
-        self.links.extend(iter);
+impl<A: Into<Arc<T>>, T> Extend<A> for Variation<T> {
+    fn extend<U: IntoIterator<Item = A>>(&mut self, iter: U) {
+        self.links.extend(iter.into_iter().map_into());
     }
 }
 

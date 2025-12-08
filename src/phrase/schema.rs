@@ -792,12 +792,12 @@ where
     }
 }
 
-impl<T> ConvertString for Phrase<T>
+impl<U: SnippetExt> ConvertString for U
 where
-    Variation<T>: Display,
+    Variation<U::Item>: Display,
 {
     fn convert_to_string(&self) -> Vec<Vec<String>> {
-        self.sections
+        self.borrow()
             .iter()
             .map(move |section| {
                 section

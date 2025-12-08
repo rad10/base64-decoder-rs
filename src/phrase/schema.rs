@@ -3,6 +3,8 @@
 use std::{borrow::Borrow, fmt::Display, sync::Arc};
 
 use itertools::Itertools;
+#[cfg(feature = "rayon")]
+use rayon::iter::{FromParallelIterator, IntoParallelIterator};
 
 /// This represents the whole phrase including all of its variable sections.
 #[derive(Clone, Debug, Default)]
@@ -155,7 +157,10 @@ impl Display for Variation<Vec<u16>> {
 
 impl Display for Variation<Vec<char>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.links.iter().flat_map(move |v| v.iter()).try_for_each(move |l| write!(f, "{l}"))
+        self.links
+            .iter()
+            .flat_map(move |v| v.iter())
+            .try_for_each(move |l| write!(f, "{l}"))
     }
 }
 
@@ -406,7 +411,7 @@ where
     }
 }
 
-impl<T> SnippetExt for Vec<Vec<Variation<T>>> {
+impl<T> SnippetExt for Vec<Section<T>> {
     type Item = T;
 
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
@@ -673,6 +678,28 @@ where
             sections: iter
                 .into_iter()
                 .map(move |s| s.into_iter().map_into().collect())
+                .collect(),
+        }
+    }
+}
+
+#[cfg(feature = "rayon")]
+impl<U, V, W> FromParallelIterator<U> for Phrase<V>
+where
+    Arc<V>: Send,
+    U: IntoParallelIterator<Item = W> + Send,
+    W: Into<Variation<V>>,
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: rayon::prelude::IntoParallelIterator<Item = U>,
+    {
+        use rayon::iter::ParallelIterator;
+
+        Phrase {
+            sections: par_iter
+                .into_par_iter()
+                .map(move |s| s.into_par_iter().map(move |v| v.into()).collect())
                 .collect(),
         }
     }

@@ -1,6 +1,5 @@
 //! This module contains the structs used to convert utf8 and utf16 to
 //! combinations of potential valid characters
-#![allow(dead_code)]
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use byteorder::{ByteOrder, LittleEndian};
@@ -42,9 +41,9 @@ pub trait FromBase64 {
         validator: Option<fn(&Vec<Self::Type>) -> bool>,
     ) -> Self
     where
-        Self: From<Vec<Vec<Vec<Self::Type>>>>,
+        Self: FromIterator<Vec<Vec<Self::Type>>>,
     {
-        Self::from(
+        Self::from_iter(
             b64_string
                 .into_iter()
                 // Splitting iterator into chunks of the types size
@@ -77,8 +76,7 @@ pub trait FromBase64 {
                     } else {
                         check_empty
                     }
-                })
-                .collect(),
+                }),
         )
     }
 }
@@ -162,7 +160,10 @@ pub mod rayon {
     use byteorder::{ByteOrder, LittleEndian};
     use itertools::Itertools;
     use rayon::{
-        iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator},
+        iter::{
+            FromParallelIterator, IndexedParallelIterator, IntoParallelRefIterator,
+            ParallelIterator,
+        },
         str::ParallelString,
     };
 
@@ -206,9 +207,9 @@ pub mod rayon {
             validator: Option<fn(&Vec<Self::Type>) -> bool>,
         ) -> Self
         where
-            Self: From<Vec<Vec<Vec<Self::Type>>>>,
+            Self: Sized + FromParallelIterator<Vec<Vec<Self::Type>>>,
         {
-            Self::from(
+            Self::from_par_iter(
                 b64_string
                     // Splitting iterator into chunks of the types size
                     .chunks(Self::CHARS)
@@ -242,8 +243,7 @@ pub mod rayon {
                         } else {
                             check_empty
                         }
-                    })
-                    .collect(),
+                    }),
             )
         }
     }
@@ -370,10 +370,10 @@ pub mod r#async {
             validator: Option<fn(&Vec<Self::Type>) -> bool>,
         ) -> impl Future<Output = Self>
         where
-            Self: From<Vec<Vec<Vec<Self::Type>>>>,
+            Self: FromIterator<Vec<Vec<Self::Type>>>,
         {
             async move {
-                Self::from(
+                Self::from_iter(
                     b64_string
                         // Splitting iterator into chunks of the types size
                         .chunks(Self::CHARS)
@@ -408,7 +408,7 @@ pub mod r#async {
                                 check_empty
                             }
                         })
-                        .collect()
+                        .collect::<Vec<Vec<Vec<Self::Type>>>>()
                         .await,
                 )
             }

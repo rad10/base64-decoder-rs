@@ -43,7 +43,7 @@ pub(crate) struct ToolArgs {
 pub(crate) fn parse_json_to_schema(s: &str) -> Result<Phrase<String>, String> {
     let raw_schema: Result<Vec<Vec<String>>, String> =
         serde_json::from_str(s).map_err(|e| format!("Failed to collect schema: {e}"));
-    raw_schema.map(Phrase::from)
+    raw_schema.map(Phrase::from_iter)
 }
 
 /// Provides all possible ways to reduce the phrases permutations

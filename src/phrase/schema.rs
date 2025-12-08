@@ -358,7 +358,7 @@ where
     ///
     /// This provides the same object as [`SnippetExt::into_iter_val`] but in a form
     /// that is thread safe
-    fn into_iter_val(self) -> impl Iterator<Item = Self::Item> + Send
+    fn par_into_iter_val(self) -> impl Iterator<Item = Self::Item> + Send
     where
         Self: Sized,
         Variation<Self::Item>: Clone + Send + VariationValue<Item = Self::Item>,
@@ -371,7 +371,7 @@ where
     ///
     /// This provides the same object as [`SnippetExt::iter_str`] but in a form
     /// that is thread safe
-    fn iter_str(&self) -> impl Iterator<Item = String> + Send
+    fn par_iter_str(&self) -> impl Iterator<Item = String> + Send
     where
         Variation<Self::Item>: Clone + Display,
     {
@@ -382,7 +382,7 @@ where
     ///
     /// This provides the same object as [`SnippetExt::iter_str`] but in a form
     /// that is thread safe
-    fn into_iter_str(self) -> impl Iterator<Item = String> + Send
+    fn par_into_iter_str(self) -> impl Iterator<Item = String> + Send
     where
         Self: Sized,
         Variation<Self::Item>: Clone + Display + Send,

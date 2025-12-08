@@ -199,7 +199,7 @@ async fn main() -> () {
                             .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
                         string_permutation
                             .bulk_reduce_halves(
-                                async |snip| halves_size_check(snip),
+                                async move |snip| halves_size_check(snip),
                                 async |phr| {
                                     tmp_ollama_engine
                                         .validate_group(phr)

@@ -244,7 +244,9 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     /// Produces a snippet of the phrase where sections can be referenced in
     /// memory rather than a whole new phrase
     fn as_snippet(&self) -> Snippet<'_, Self::Item> {
-        Snippet { sections: self.borrow() }
+        Snippet {
+            sections: self.borrow(),
+        }
     }
 
     /// Creates an iterator of all possible combinations based on the memory
@@ -714,8 +716,8 @@ where
         Self::from_iter(
             value
                 .borrow()
-                .into_iter()
-                .map(move |s| s.into_iter().map(move |v| v.to_string())),
+                .iter()
+                .map(move |s| s.iter().map(move |v| v.to_string())),
         )
     }
 }
@@ -725,8 +727,8 @@ where
     U: SnippetExt<Item = Vec<char>>,
 {
     fn from(value: U) -> Self {
-        Self::from_iter(value.borrow().into_iter().map(move |s| {
-            s.into_iter()
+        Self::from_iter(value.borrow().iter().map(move |s| {
+            s.iter()
                 .map(move |v| v.value().into_iter().map_into().collect::<Vec<u32>>())
         }))
     }

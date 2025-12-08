@@ -19,6 +19,11 @@ mod tool_args;
 
 use crate::tool_args::{ReductionMethod, StringValidator, parse_json_to_schema};
 
+/// This is a simple helper function for the reduction by halves
+fn halves_size_check<I: Permutation>(item: I) -> bool {
+    item.permutations() <= 100_000_f64
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> () {
     let parser = ToolArgs::parse();
@@ -132,15 +137,14 @@ async fn main() -> () {
                         #[cfg(not(feature = "rayon"))]
                         {
                             use base64_bruteforcer_rs::phrase::reduction::by_pairs::ReducePairs;
-                            string_permutation.reduce_pairs(Some(pair_size), validate_with_whatlang)
+                            string_permutation.reduce_pairs(pair_size, validate_with_whatlang)
                         }
                         #[cfg(feature = "rayon")]
                         {
                             use base64_bruteforcer_rs::phrase::reduction::by_pairs::rayon::ParReducePairs;
 
                             tokio_rayon::spawn(move || {
-                                string_permutation
-                                    .reduce_pairs(Some(pair_size), validate_with_whatlang)
+                                string_permutation.reduce_pairs(pair_size, validate_with_whatlang)
                             })
                             .await
                         }
@@ -150,10 +154,8 @@ async fn main() -> () {
                         {
                             use base64_bruteforcer_rs::phrase::reduction::by_halves::ReduceHalves;
 
-                            string_permutation.reduce_halves(
-                                |snip| snip.permutations() <= 100_000_f64,
-                                validate_with_whatlang,
-                            )
+                            string_permutation
+                                .reduce_halves(halves_size_check, validate_with_whatlang)
                         }
                         #[cfg(feature = "rayon")]
                         {
@@ -161,7 +163,7 @@ async fn main() -> () {
 
                             tokio_rayon::spawn(move || {
                                 string_permutation.reduce_halves(
-                                    |snip: &Snippet<'_, String>| snip.permutations() <= 100_000_f64,
+                                    |snip| halves_size_check(snip),
                                     validate_with_whatlang,
                                 )
                             })
@@ -178,7 +180,7 @@ async fn main() -> () {
                             .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
 
                         string_permutation
-                            .bulk_reduce_pairs(Some(pair_size), async |phr| {
+                            .bulk_reduce_pairs(pair_size, async |phr: Snippet<'_, String>| {
                                 tmp_ollama_engine
                                     .validate_group(phr)
                                     .await
@@ -197,7 +199,7 @@ async fn main() -> () {
                             .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
                         string_permutation
                             .bulk_reduce_halves(
-                                async |snip| snip.permutations() <= 100_000_f64,
+                                async |snip| halves_size_check(snip),
                                 async |phr| {
                                     tmp_ollama_engine
                                         .validate_group(phr)

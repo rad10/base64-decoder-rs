@@ -33,11 +33,13 @@ use std::fmt::Debug;
 
 use itertools::Itertools;
 
-use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, Variation};
+use crate::phrase::schema::{
+    BorrowedSnippet, Permutation, Phrase, Section, Snippet, SnippetExt, Variation,
+};
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing pairs
-pub trait ReducePairs: SnippetExt {
+pub trait ReducePairs<S: SnippetExt<Item = Self::Item>>: SnippetExt {
     /// Takes a given schema and attempts to reduce valid choices by
     /// matching pairs. Select how many pairs will be compared at once.
     ///
@@ -77,7 +79,7 @@ pub trait ReducePairsBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: Snip
         C: FnMut(S) -> I;
 }
 
-impl<T> ReducePairs for Phrase<T>
+impl<T> ReducePairs<Snippet<'_, T>> for Phrase<T>
 where
     T: Debug,
     Variation<T>: Clone,
@@ -101,7 +103,7 @@ where
 impl<'s, 'b, T, S, I> ReducePairsBulk<'s, S, I> for Phrase<T>
 where
     T: Debug + 'b,
-    S: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+    S: From<&'b BorrowedSnippet<T>> + SnippetExt<Item = Self::Item>,
     I: IntoIterator<Item = (f64, Variation<T>)>,
     Variation<T>: Clone,
     's: 'b,
@@ -171,8 +173,7 @@ where
                         pairs.to_vec()
                     }
                 }
-            })
-            .collect::<Vec<Section<T>>>();
+            });
         Self::from_iter(new_sections)
     }
 }
@@ -184,19 +185,20 @@ pub mod rayon {
 
     use itertools::Itertools;
     use rayon::{
-        iter::{ParallelBridge, ParallelIterator},
+        iter::{FromParallelIterator, ParallelBridge, ParallelIterator},
         slice::ParallelSlice,
     };
 
     use crate::phrase::schema::{
-        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+        BorrowedSnippet, Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt,
+        Variation,
     };
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait ParReducePairs: ThreadedSnippetExt
+    pub trait ParReducePairs<S: ThreadedSnippetExt<Item = Self::Item>>: ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
     {
@@ -247,10 +249,10 @@ pub mod rayon {
             Variation<Self::Item>: Send;
     }
 
-    impl<T> ParReducePairs for Phrase<T>
+    impl<T> ParReducePairs<Snippet<'_, T>> for Phrase<T>
     where
         T: Debug,
-        Arc<T>: Sync,
+        Arc<T>: Send + Sync,
         Variation<T>: Clone,
     {
         fn reduce_pairs<C>(
@@ -279,8 +281,8 @@ pub mod rayon {
     impl<'s, 'b, T, S, I> ParReducePairsBulk<'s, S, I> for Phrase<T>
     where
         T: Debug + 'b,
-        Arc<T>: Sync,
-        S: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
+        Arc<T>: Send + Sync,
+        S: From<&'b BorrowedSnippet<T>> + ThreadedSnippetExt<Item = Self::Item>,
         I: IntoIterator<Item = (f64, Variation<T>)> + Sync,
         Variation<T>: Clone,
         's: 'b,
@@ -354,9 +356,8 @@ pub mod rayon {
                             pairs.to_vec()
                         }
                     }
-                })
-                .collect::<Vec<Section<T>>>();
-            Self::from_iter(new_sections)
+                });
+            Self::from_par_iter(new_sections)
         }
     }
 }
@@ -371,7 +372,8 @@ pub mod r#async {
     use itertools::Itertools;
 
     use crate::phrase::schema::{
-        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+        BorrowedSnippet, Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt,
+        Variation,
     };
 
     /// Provides an interface to reduce an array like structure to through a
@@ -379,7 +381,8 @@ pub mod r#async {
     ///
     /// Utilizes the rayon library to validate pairs in parallel
     #[async_trait]
-    pub trait AsyncReducePairs: ThreadedSnippetExt
+    pub trait AsyncReducePairs<'s, S: ThreadedSnippetExt<Item = Self::Item>>:
+        ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
     {
@@ -391,7 +394,7 @@ pub mod r#async {
         ///
         /// Default is 2
         async fn reduce_pairs<C, Fut>(
-            &self,
+            &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: C,
         ) -> Self
@@ -438,14 +441,14 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<T> AsyncReducePairs for Phrase<T>
+    impl<'s, T> AsyncReducePairs<'s, Snippet<'_, T>> for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
         Variation<T>: Clone + Send,
     {
         async fn reduce_pairs<C, Fut>(
-            &self,
+            &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: C,
         ) -> Self
@@ -455,7 +458,7 @@ pub mod r#async {
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_pairs(number_of_pairs, async |snip: Snippet<'_, T>| {
-                stream::iter(snip.iter_var())
+                stream::iter(snip.par_iter_var())
                     .then(async move |line| (conf_link(&line).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
@@ -469,7 +472,7 @@ pub mod r#async {
     where
         T: Debug + 'b,
         Arc<T>: Sync,
-        S: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
+        S: From<&'b BorrowedSnippet<T>> + ThreadedSnippetExt<Item = Self::Item>,
         I: IntoIterator<Item = (f64, Variation<T>)>,
         Variation<T>: Clone + Send,
         's: 'b,

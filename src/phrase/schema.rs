@@ -241,6 +241,12 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
             .sum()
     }
 
+    /// Produces a snippet of the phrase where sections can be referenced in
+    /// memory rather than a whole new phrase
+    fn as_snippet(&self) -> Snippet<'_, Self::Item> {
+        Snippet { sections: self.borrow() }
+    }
+
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
     fn iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>>
@@ -644,12 +650,6 @@ impl<T> Phrase<T> {
             new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
         Self::from_iter(new_sections)
-    }
-
-    /// Produces a snippet of the phrase where sections can be referenced in
-    /// memory rather than a whole new phrase
-    pub fn as_snippet(&self) -> Snippet<'_, T> {
-        Snippet::from(self)
     }
 }
 

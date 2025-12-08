@@ -170,14 +170,14 @@ pub mod rayon {
     use crate::phrase::schema::Phrase;
 
     /// Bruteforces all combinations of a lowercase base64 string and converts it
-    /// into the given struct. Provides [`parse_base64`] to create a new version of
+    /// into the given struct. Provides [`par_parse_base64`] to create a new version of
     /// [`Self`]
     ///
     /// This is similar to [`FromBase64`] except this trait implements the same
     /// functions and features using the [`rayon`] library
     ///
     /// [`Self`]: FromParBase64
-    /// [`parse_base64`]: FromParBase64::parse_base64
+    /// [`par_parse_base64`]: FromParBase64::par_parse_base64
     /// [`FromBase64`]: super::FromBase64
     pub trait FromParBase64 {
         type Type: Sized + Clone + From<u8> + Send;
@@ -333,14 +333,14 @@ pub mod r#async {
     use crate::phrase::schema::Phrase;
 
     /// Bruteforces all combinations of a lowercase base64 string and converts it
-    /// into the given struct. Provides [`parse_base64`] to create a new version of
+    /// into the given struct. Provides [`parse_base64_stream`] to create a new version of
     /// [`Self`]
     ///
     /// This is similar to [`FromBase64`] except this trait implements the same
     /// functions and features using [`futures`] streams
     ///
     /// [`Self`]: FromBase64Stream
-    /// [`parse_base64`]: FromBase64Stream::parse_base64
+    /// [`parse_base64_stream`]: FromBase64Stream::parse_base64_stream
     /// [`FromBase64`]: super::FromBase64
     pub trait FromBase64Stream {
         type Type: Sized + Clone + From<u8> + Send;

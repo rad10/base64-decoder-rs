@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use async_trait::async_trait;
 #[cfg(feature = "async")]
@@ -10,7 +10,7 @@ use ollama_rs::{Ollama, generation::completion::request::GenerationRequest};
 #[cfg(feature = "ollama")]
 use url::Url;
 
-use crate::phrase::schema::{Snippet, SnippetExt, Variation, VariationLen};
+use crate::phrase::schema::{ThreadedSnippetExt, Variation, VariationLen};
 
 /// Contains all the data necessary for string validation with ollama
 pub struct OllamaHandler {
@@ -44,20 +44,18 @@ You will need to give a response in the form
 #[async_trait]
 pub trait AsyncOllama {
     /// Takes a phrase and returns the confidence for each line provided by ollama
-    async fn validate_group<T>(
-        &self,
-        snippet: Snippet<'_, T>,
-    ) -> impl Stream<Item = (f64, Variation<T>)>
+    async fn validate_group<T, U>(&self, snippet: U) -> impl Stream<Item = (f64, Variation<T>)>
     where
-        T: Send + Sync,
-        Variation<T>: Clone + Display + VariationLen;
+        Arc<T>: Sync,
+        U: ThreadedSnippetExt<Item = T> + Send,
+        Variation<T>: Clone + Display + Send + VariationLen;
 
     /// Takes a single line and has ollama give a confidence value on the given
     /// line
     async fn validate_line<T>(&self, line: &Variation<T>) -> f64
     where
-        T: Send + Sync,
-        Variation<T>: Display;
+        Arc<T>: Sync,
+        Variation<T>: Display + Send;
 }
 
 impl OllamaHandler {
@@ -72,16 +70,14 @@ impl OllamaHandler {
 #[async_trait]
 impl AsyncOllama for OllamaHandler {
     /// Takes a phrase and returns the confidence for each line provided by ollama
-    async fn validate_group<T>(
-        &self,
-        snippet: Snippet<'_, T>,
-    ) -> impl Stream<Item = (f64, Variation<T>)>
+    async fn validate_group<T, U>(&self, snippet: U) -> impl Stream<Item = (f64, Variation<T>)>
     where
-        T: Send + Sync,
-        Variation<T>: Clone + Display + VariationLen,
+        Arc<T>: Sync,
+        U: ThreadedSnippetExt<Item = T> + Send,
+        Variation<T>: Clone + Display + Send + VariationLen,
     {
         let snippet_len = snippet.len_phrase();
-        futures::stream::iter(snippet.into_iter_var())
+        futures::stream::iter(snippet.par_into_iter_var())
             // Separate permutations into groups that will fit into a reasonably sized message
             // max size = x
             // `{y}`\n`{y}`\n... = x
@@ -107,11 +103,9 @@ impl AsyncOllama for OllamaHandler {
                     Ok(response) => {
                         // Attempt to collect values from response
                         match serde_json::from_str::<Vec<f64>>(response.response.as_str()) {
-                            Ok(values) => {
-                                let final_result: Vec<(f64, Variation<T>)> =
-                                    values.into_iter().zip(package).collect();
-                                futures::stream::iter(final_result)
-                            }
+                            Ok(values) => futures::stream::iter(
+                                values.into_iter().zip(package).collect::<Vec<_>>(),
+                            ),
                             Err(e) => {
                                 log::error!(
                                     "Failed to parse response from ollama. Dropping all values"
@@ -139,8 +133,8 @@ impl AsyncOllama for OllamaHandler {
     /// line
     async fn validate_line<T>(&self, line: &Variation<T>) -> f64
     where
-        T: Send + Sync,
-        Variation<T>: Display,
+        Arc<T>: Sync,
+        Variation<T>: Display + Send,
     {
         let message_data = format!("1. `{}`", line.to_string().escape_default());
 

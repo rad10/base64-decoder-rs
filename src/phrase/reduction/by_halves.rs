@@ -29,7 +29,7 @@
 //!
 //! [`reduce_halves`]: ReduceHalves::reduce_halves
 
-use std::fmt::Debug;
+use std::{borrow::Borrow, fmt::Debug};
 
 use itertools::Itertools;
 
@@ -37,7 +37,9 @@ use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, V
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>>: SnippetExt {
+pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>, B: SnippetExt<Item = Self::Item>>:
+    SnippetExt
+{
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
@@ -46,13 +48,20 @@ pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>>: SnippetExt {
     fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
     where
         Variation<Self::Item>: Clone,
-        L: Fn(&S) -> bool,
-        C: Fn(&Variation<Self::Item>) -> f64;
+        L: Fn(&B) -> bool,
+        C: Fn(&Variation<Self::Item>) -> f64,
+        S: Borrow<B>;
 }
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalvesBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: SnippetExt {
+pub trait ReduceHalvesBulk<
+    's,
+    S: SnippetExt<Item = Self::Item>,
+    B: SnippetExt<Item = Self::Item>,
+    I: ?Sized,
+>: SnippetExt
+{
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
@@ -60,7 +69,7 @@ pub trait ReduceHalvesBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: Sni
     /// to decide the size of the section.
     fn bulk_reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
     where
-        L: Fn(&S) -> bool,
+        L: Fn(&B) -> bool,
         C: FnMut(S) -> I;
 
     /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
@@ -75,11 +84,12 @@ pub trait ReduceHalvesBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: Sni
         confidence_interpreter: &mut C,
     ) -> Vec<Section<Self::Item>>
     where
-        L: Fn(&S) -> bool,
-        C: FnMut(S) -> I;
+        L: Fn(&B) -> bool,
+        C: FnMut(S) -> I,
+        S: Borrow<B>;
 }
 
-impl<'s, 'b, T> ReduceHalves<'s, Snippet<'b, T>> for Phrase<T>
+impl<'s, 'b, T> ReduceHalves<'s, Snippet<'b, T>, Snippet<'b, T>> for Phrase<T>
 where
     T: Debug,
     's: 'b,
@@ -92,14 +102,13 @@ where
         C: Fn(&Variation<T>) -> f64,
     {
         let conf_link = &confidence_interpreter;
-        self.bulk_reduce_halves(size_checker, move |snip| {
-            snip.into_iter_var()
-                .map(move |line| (conf_link(&line), line))
+        self.bulk_reduce_halves(size_checker, move |s: Snippet<'b, T>| {
+            s.into_iter_var().map(move |v| (conf_link(&v), v))
         })
     }
 }
 
-impl<'s, 'b, T, I> ReduceHalvesBulk<'s, Snippet<'b, T>, I> for Phrase<T>
+impl<'s, 'b, T, I> ReduceHalvesBulk<'s, Snippet<'b, T>, Snippet<'b, T>, I> for Phrase<T>
 where
     T: Debug + 'b,
     Variation<T>: Clone,
@@ -157,7 +166,7 @@ where
             phrase_snippet
                 .sections
                 .chunks(phrase_snippet.len_sections() / 2)
-                .map(Snippet::new)
+                .map_into()
                 .flat_map(move |s| {
                     Self::bulk_reduce_schema_binary(size_checker, s, confidence_interpreter)
                 })
@@ -169,7 +178,7 @@ where
 /// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
-    use std::{fmt::Debug, sync::Arc};
+    use std::{borrow::Borrow, fmt::Debug, sync::Arc};
 
     use itertools::Itertools;
     use rayon::{
@@ -185,7 +194,11 @@ pub mod rayon {
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalves<'s, S: SnippetExt<Item = Self::Item>>: ThreadedSnippetExt
+    pub trait ParReduceHalves<
+        's,
+        S: ThreadedSnippetExt<Item = Self::Item>,
+        B: ThreadedSnippetExt<Item = Self::Item>,
+    >: ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
     {
@@ -197,15 +210,18 @@ pub mod rayon {
         fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
         where
             L: Fn(&S) -> bool + Send + Sync,
-            C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync;
+            C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
+            S: Borrow<B>;
     }
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalvesBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>:
-        SnippetExt
+    pub trait ParReduceHalvesBulk<'s, S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
+        ThreadedSnippetExt
+    where
+        Arc<Self::Item>: Sync,
     {
         /// This schema reduction strategy takes the reverse of pairs. While
         /// pairs will start with the smallest group, this function will work
@@ -233,7 +249,7 @@ pub mod rayon {
             C: Fn(S) -> I + Send + Sync;
     }
 
-    impl<'s, 'b, T> ParReduceHalves<'s, Snippet<'b, T>> for Phrase<T>
+    impl<'s, 'b, T> ParReduceHalves<'s, Snippet<'b, T>, Snippet<'b, T>> for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
@@ -316,7 +332,7 @@ pub mod rayon {
                 phrase_snippet
                     .sections
                     .par_chunks(phrase_snippet.len_sections() / 2)
-                    .map(Snippet::new)
+                    .map(|v| v.into())
                     .flat_map(move |s| {
                         Self::bulk_reduce_schema_binary(size_checker, s, confidence_interpreter)
                     })

@@ -37,38 +37,39 @@ use crate::phrase::schema::{Permutation, Phrase, Section, SnippetExt, Variation}
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalves: SnippetExt {
+pub trait ReduceHalves<S: SnippetExt<Item = Self::Item>>: SnippetExt {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `size_checker`
     /// to decide the size of the section.
-    fn reduce_halves<U>(
+    fn reduce_halves<L, C>(
         &self,
-        size_checker: impl Fn(&U) -> bool,
-        confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64,
+        size_checker: L,
+        confidence_interpreter: C,
     ) -> Self
     where
-        U: for<'a> From<&'a [Vec<Variation<Self::Item>>]> + SnippetExt<Item = Self::Item>,
-        Variation<Self::Item>: Clone;
+        L: Fn(&S) -> bool,
+        C: Fn(&Variation<Self::Item>) -> f64;
 }
 
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
-pub trait ReduceHalvesBulk<U: SnippetExt<Item = Self::Item>, V: ?Sized>: SnippetExt {
+pub trait ReduceHalvesBulk<S: SnippetExt<Item = Self::Item>, I: ?Sized>: SnippetExt {
     /// This schema reduction strategy takes the reverse of pairs. While
     /// pairs will start with the smallest group, this function will work
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `size_checker`
     /// to decide the size of the section.
-    fn bulk_reduce_halves(
+    fn bulk_reduce_halves<L, C>(
         &self,
-        size_checker: impl Fn(&U) -> bool,
-        confidence_interpreter: impl FnMut(U) -> V,
+        size_checker: L,
+        confidence_interpreter: C,
     ) -> Self
     where
-        U: for<'a> From<&'a [Vec<Variation<Self::Item>>]>,
-        Variation<Self::Item>: Clone;
+        L: Fn(&S) -> bool,
+        C: FnMut(S) -> I,
+        S: for<'a> From<&'a [Vec<Variation<Self::Item>>]>;
 
     /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
     /// approach by cutting the sections in half and running the validation
@@ -76,31 +77,31 @@ pub trait ReduceHalvesBulk<U: SnippetExt<Item = Self::Item>, V: ?Sized>: Snippet
     /// enough. Otherwise, cut it in half and try again.
     ///
     /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
-    fn bulk_reduce_schema_binary<'a, W, X>(
-        size_checker: &W,
+    fn bulk_reduce_schema_binary<'a, L, C>(
+        size_checker: &L,
         phrase_snippet: &'a [Section<Self::Item>],
-        confidence_interpreter: &mut X,
+        confidence_interpreter: &mut C,
     ) -> Vec<Section<Self::Item>>
     where
-        Variation<Self::Item>: Clone,
-        U: From<&'a [Vec<Variation<Self::Item>>]>,
-        W: Fn(&U) -> bool,
-        X: FnMut(U) -> V;
+        L: Fn(&S) -> bool,
+        C: FnMut(S) -> I,
+        S: From<&'a [Vec<Variation<Self::Item>>]>;
 }
 
-impl<T> ReduceHalves for Phrase<T>
+impl<T, S> ReduceHalves<S> for Phrase<T>
 where
     T: Debug,
+    S: for<'a> From<&'a [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+    Variation<T>: Clone,
 {
-    fn reduce_halves<U>(
+    fn reduce_halves<L, C>(
         &self,
-        size_checker: impl Fn(&U) -> bool,
-        confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64,
+        size_checker: L,
+        confidence_interpreter: C,
     ) -> Self
     where
-        T: Debug,
-        U: for<'a> From<&'a [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
-        Variation<T>: Clone,
+        L: Fn(&S) -> bool,
+        C: Fn(&Variation<Self::Item>) -> f64,
     {
         let conf_link = &confidence_interpreter;
         self.bulk_reduce_halves(size_checker, move |snip| {
@@ -110,20 +111,22 @@ where
     }
 }
 
-impl<T, U, V> ReduceHalvesBulk<U, V> for Phrase<T>
+impl<T, S, I> ReduceHalvesBulk<S, I> for Phrase<T>
 where
     T: Debug,
-    U: SnippetExt<Item = Self::Item>,
-    V: IntoIterator<Item = (f64, Variation<T>)>,
+    S: SnippetExt<Item = Self::Item>,
+    I: IntoIterator<Item = (f64, Variation<T>)>,
+    Variation<T>: Clone,
 {
-    fn bulk_reduce_halves(
+    fn bulk_reduce_halves<L, C>(
         &self,
-        size_checker: impl Fn(&U) -> bool,
-        mut confidence_interpreter: impl FnMut(U) -> V,
+        size_checker: L,
+        mut confidence_interpreter: C,
     ) -> Self
     where
-        U: for<'a> From<&'a [Vec<Variation<Self::Item>>]>,
-        Variation<T>: Clone,
+        L: Fn(&S) -> bool,
+        C: FnMut(S) -> I,
+        S: for<'a> From<&'a [Vec<Variation<Self::Item>>]>,
     {
         Self::from_iter(Self::bulk_reduce_schema_binary(
             &size_checker,
@@ -138,11 +141,9 @@ where
         confidence_interpreter: &mut X,
     ) -> Vec<Section<T>>
     where
-        T: Debug,
-        U: From<&'a [Vec<Variation<Self::Item>>]>,
-        Variation<T>: Clone,
-        W: Fn(&U) -> bool,
-        X: FnMut(U) -> V,
+        W: Fn(&S) -> bool,
+        X: FnMut(S) -> I,
+        S: From<&'a [Vec<Variation<Self::Item>>]>,
     {
         // Leave early if section is empty or just one
         if phrase_snippet.len_sections() < 2 {
@@ -190,14 +191,14 @@ pub mod rayon {
     use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 
     use crate::phrase::schema::{
-        BorrowedSnippet, Permutation, Phrase, Section, SnippetExt, ThreadedSnippetExt, Variation,
+        BorrowedSnippet, Permutation, Phrase, Section, SnippetExt, ThreadedSnippetExt, Variation
     };
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalves: ThreadedSnippetExt
+    pub trait ParReduceHalves<S: ThreadedSnippetExt<Item = Self::Item>>: ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
     {
@@ -206,21 +207,23 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
-        fn reduce_halves<V: ThreadedSnippetExt<Item = Self::Item>>(
+        fn reduce_halves<L, C>(
             &self,
-            size_checker: impl Fn(&V) -> bool + Send + Sync,
-            confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
             Arc<Self::Item>: Sync,
-            V: for<'a> From<&'a BorrowedSnippet<Self::Item>>;
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>;
     }
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing a recursive process
     ///
     /// Utilizes the [`rayon`] library to validate pairs in parallel
-    pub trait ParReduceHalvesBulk<U: ThreadedSnippetExt<Item = Self::Item>, V: ?Sized>:
+    pub trait ParReduceHalvesBulk<S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
         ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
@@ -230,16 +233,18 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
-        fn bulk_reduce_halves(
+        fn bulk_reduce_halves<L, C>(
             &self,
-            size_checker: impl Fn(&U) -> bool + Send + Sync,
-            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(S) -> I + Send + Sync,
             Arc<Self::Item>: Sync,
-            Variation<Self::Item>: Clone + Send,
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
-            V: Send + Sync;
+            Variation<Self::Item>: Send,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
+            I: Send + Sync;
 
         /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -247,35 +252,37 @@ pub mod rayon {
         /// enough. Otherwise, cut it in half and try again.
         ///
         /// [`bulk_reduce_halves`]: Self::bulk_reduce_halves
-        fn bulk_reduce_schema_binary<'a, W, X>(
-            size_checker: &W,
+        fn bulk_reduce_schema_binary<'a, L, C>(
+            size_checker: &L,
             phrase_snippet: &'a BorrowedSnippet<Self::Item>,
-            confidence_interpreter: &X,
+            confidence_interpreter: &C,
         ) -> Vec<Section<Self::Item>>
         where
             Arc<Self::Item>: Sync,
             Variation<Self::Item>: Clone + Send,
-            U: From<&'a BorrowedSnippet<Self::Item>>,
-            W: Fn(&U) -> bool + Send + Sync,
-            X: Fn(U) -> V + Send + Sync,
-            V: Send + Sync;
+            S: From<&'a BorrowedSnippet<Self::Item>>,
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(S) -> I + Send + Sync,
+            I: Send + Sync;
     }
 
-    impl<T> ParReduceHalves for Phrase<T>
+    impl<T, S> ParReduceHalves<S> for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
+        S: ThreadedSnippetExt<Item = Self::Item>,
         Variation<T>: Clone + Send,
     {
-        fn reduce_halves<U>(
+        fn reduce_halves<L, C>(
             &self,
-            size_checker: impl Fn(&U) -> bool + Send + Sync,
-            confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
             Arc<T>: Sync,
-            U: ThreadedSnippetExt<Item = Self::Item>
-                + for<'a> From<&'a BorrowedSnippet<Self::Item>>,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, move |snip| {
@@ -286,23 +293,24 @@ pub mod rayon {
         }
     }
 
-    impl<T, U, V> ParReduceHalvesBulk<U, V> for Phrase<T>
+    impl<T, S, I> ParReduceHalvesBulk<S, I> for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
-        U: ThreadedSnippetExt<Item = Self::Item>,
-        V: IntoIterator<Item = (f64, Variation<T>)>,
+        S: ThreadedSnippetExt<Item = Self::Item>,
+        I: IntoIterator<Item = (f64, Variation<T>)> + Send + Sync,
+        Variation<T>: Clone,
     {
-        fn bulk_reduce_halves(
+        fn bulk_reduce_halves<L, C>(
             &self,
-            size_checker: impl Fn(&U) -> bool + Send + Sync,
-            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Arc<T>: Sync,
-            Variation<T>: Clone + Send,
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
-            V: Send + Sync,
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(S) -> I + Send + Sync,
+            Variation<T>: Send,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
         {
             Self::from_iter(Self::bulk_reduce_schema_binary(
                 &size_checker,
@@ -311,26 +319,24 @@ pub mod rayon {
             ))
         }
 
-        fn bulk_reduce_schema_binary<'a, W, X>(
-            size_checker: &W,
-            phrase_snippet: &'a BorrowedSnippet<T>,
-            confidence_interpreter: &X,
+        fn bulk_reduce_schema_binary<'s, L, C>(
+            size_checker: &L,
+            phrase_snippet: &'s BorrowedSnippet<T>,
+            confidence_interpreter: &C,
         ) -> Vec<Section<T>>
         where
-            T: 'a,
-            Arc<T>: Sync,
-            Variation<T>: Clone + Send,
-            U: ThreadedSnippetExt<Item = Self::Item> + From<&'a BorrowedSnippet<Self::Item>>,
-            V: Send + Sync,
-            W: Fn(&U) -> bool + Send + Sync,
-            X: Fn(U) -> V + Send + Sync,
+            T: 's,
+            Variation<T>: Send,
+            S: From<&'s BorrowedSnippet<Self::Item>>,
+            L: Fn(S) -> bool + Send + Sync,
+            C: Fn(S) -> I + Send + Sync,
         {
             // Leave early if section is empty or just one
             if phrase_snippet.len_sections() < 2 {
                 phrase_snippet.as_ref().to_vec()
             }
             // If the permutations within the sections is less than limit, then start crunching through them
-            else if size_checker(&phrase_snippet.into()) {
+            else if size_checker(phrase_snippet.into()) {
                 let snippet_permutation = phrase_snippet.permutations();
                 vec![
                     confidence_interpreter(phrase_snippet.into())
@@ -383,7 +389,7 @@ pub mod r#async {
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
     #[async_trait]
-    pub trait AsyncReduceHalves: ThreadedSnippetExt
+    pub trait AsyncReduceHalves<S: ThreadedSnippetExt<Item = Self::Item>>: ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
     {
@@ -392,19 +398,18 @@ pub mod r#async {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
-        async fn reduce_halves<U, FutBool, Fut>(
+        async fn reduce_halves<L, C, FutBool, Fut>(
             &self,
-            size_checker: impl Fn(U) -> FutBool + Send + Sync,
-            confidence_interpreter: impl for<'c> Fn(&'c Variation<Self::Item>) -> Fut + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Variation<Self::Item>: Clone + Send,
+            L: Fn(S) -> FutBool + Send + Sync,
+            C: for<'c> Fn(&'c Variation<Self::Item>) -> Fut + Send + Sync,
+            Variation<Self::Item>: Send,
             FutBool: Future<Output = bool> + Send,
             Fut: Future<Output = f64> + Send,
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>>
-                + ThreadedSnippetExt<Item = Self::Item>
-                + Send
-                + Sync;
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>;
     }
 
     /// Provides an interface to reduce an array like structure to through a
@@ -412,7 +417,7 @@ pub mod r#async {
     ///
     /// Utilizes asynchronous tasks for asynchronous functions
     #[async_trait]
-    pub trait AsyncReduceHalvesBulk<U: ThreadedSnippetExt<Item = Self::Item>, V: ?Sized>:
+    pub trait AsyncReduceHalvesBulk<S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
         ThreadedSnippetExt
     where
         Arc<Self::Item>: Sync,
@@ -428,16 +433,18 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_halves<FutBool, Fut>(
+        async fn bulk_reduce_halves<L, C, FutBool, Fut>(
             &self,
-            size_checker: impl Fn(U) -> FutBool + Send + Sync,
-            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>> + Send + Sync,
-            Variation<Self::Item>: Clone + Send,
+            L: Fn(S) -> FutBool + Send + Sync,
+            C: Fn(S) -> Fut + Send + Sync,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>> + Send + Sync,
+            Variation<Self::Item>: Send,
             FutBool: Future<Output = bool> + Send,
-            Fut: Future<Output = V> + Send;
+            Fut: Future<Output = I> + Send;
 
         /// A helper function to [`bulk_reduce_halves`]. Takes a binary search
         /// approach by cutting the sections in half and running the validation
@@ -451,38 +458,38 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_schema_binary<'a, W, FutBool, X, Fut>(
-            size_checker: &W,
-            phrase_snippet: &'a BorrowedSnippet<Self::Item>,
-            confidence_interpreter: &X,
+        async fn bulk_reduce_schema_binary<'s, L, C, FutBool, Fut>(
+            size_checker: &L,
+            phrase_snippet: &'s BorrowedSnippet<Self::Item>,
+            confidence_interpreter: &C,
         ) -> Vec<Section<Self::Item>>
         where
-            U: From<&'a BorrowedSnippet<Self::Item>> + Send + Sync,
+            S: From<&'s BorrowedSnippet<Self::Item>> + Send + Sync,
             Variation<Self::Item>: Clone + Send,
-            W: Fn(U) -> FutBool + Send + Sync,
+            L: Fn(S) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            X: Fn(U) -> Fut + Send + Sync,
-            Fut: Future<Output = V> + Send;
+            C: Fn(S) -> Fut + Send + Sync,
+            Fut: Future<Output = I> + Send;
     }
 
     #[async_trait]
-    impl<T> AsyncReduceHalves for Phrase<T>
+    impl<T, S> AsyncReduceHalves<S> for Phrase<T>
     where
         T: Debug,
+        S: ThreadedSnippetExt<Item = Self::Item> + Send + Sync,
         Arc<T>: Sync,
         Variation<T>: Clone + Send,
     {
-        async fn reduce_halves<U, FutBool, Fut>(
+        async fn reduce_halves<L, C, FutBool, Fut>(
             &self,
-            size_checker: impl Fn(U) -> FutBool + Send + Sync,
-            confidence_interpreter: impl for<'c> Fn(&'c Variation<Self::Item>) -> Fut + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
+            L: Fn(S) -> FutBool + Send + Sync,
+            C: for<'c> Fn(&'c Variation<Self::Item>) -> Fut + Send + Sync,
             Arc<Self::Item>: Sync,
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>>
-                + ThreadedSnippetExt<Item = Self::Item>
-                + Send
-                + Sync,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
             FutBool: Future<Output = bool> + Send,
             Fut: Future<Output = f64> + Send,
         {
@@ -499,24 +506,27 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<T, U, V> AsyncReduceHalvesBulk<U, V> for Phrase<T>
+    impl<T, S, I> AsyncReduceHalvesBulk<S, I> for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
-        U: ThreadedSnippetExt<Item = Self::Item>,
-        V: IntoIterator<Item = (f64, Variation<T>)>,
+        S: ThreadedSnippetExt<Item = Self::Item> + Send + Sync,
+        I: IntoIterator<Item = (f64, Variation<T>)>,
+        Variation<T>: Clone,
     {
-        async fn bulk_reduce_halves<FutBool, Fut>(
+        async fn bulk_reduce_halves<L, C, FutBool, Fut>(
             &self,
-            size_checker: impl Fn(U) -> FutBool + Send + Sync,
-            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
+            size_checker: L,
+            confidence_interpreter: C,
         ) -> Self
         where
+            L: Fn(S) -> FutBool + Send + Sync,
+            C: Fn(S) -> Fut + Send + Sync,
             Arc<T>: Sync,
-            U: for<'a> From<&'a BorrowedSnippet<Self::Item>> + Send + Sync,
-            Variation<T>: Clone + Send,
+            S: for<'a> From<&'a BorrowedSnippet<Self::Item>>,
+            Variation<T>: Send,
             FutBool: Future<Output = bool> + Send,
-            Fut: Future<Output = V> + Send,
+            Fut: Future<Output = I> + Send,
         {
             Self::from_iter(
                 Self::bulk_reduce_schema_binary(
@@ -528,19 +538,19 @@ pub mod r#async {
             )
         }
 
-        async fn bulk_reduce_schema_binary<'a, W, FutBool, X, Fut>(
-            size_checker: &W,
-            phrase_snippet: &'a [Section<Self::Item>],
-            confidence_interpreter: &X,
+        async fn bulk_reduce_schema_binary<'s, L, C, FutBool, Fut>(
+            size_checker: &L,
+            phrase_snippet: &'s [Section<Self::Item>],
+            confidence_interpreter: &C,
         ) -> Vec<Section<T>>
         where
             Arc<T>: Sync,
-            U: From<&'a BorrowedSnippet<Self::Item>> + SnippetExt<Item = Self::Item> + Send + Sync,
-            Variation<T>: Clone + Send,
-            W: Fn(U) -> FutBool + Send + Sync,
+            S: From<&'s BorrowedSnippet<Self::Item>>,
+            Variation<T>: Send,
+            L: Fn(S) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send,
-            X: Fn(U) -> Fut + Send + Sync,
-            Fut: Future<Output = V> + Send,
+            C: Fn(S) -> Fut + Send + Sync,
+            Fut: Future<Output = I> + Send,
         {
             // Leave early if section is empty or just one
             if phrase_snippet.len_sections() < 2 {

@@ -45,11 +45,13 @@ pub trait ReducePairs: SnippetExt {
     /// closer to your objective than another.
     ///
     /// Default is 2
-    fn reduce_pairs(
+    fn reduce_pairs<C>(
         &self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64,
-    ) -> Self;
+        confidence_interpreter: C,
+    ) -> Self
+    where
+        C: Fn(&Variation<Self::Item>) -> f64;
 }
 
 /// Provides an interface to reduce an array like structure to through a
@@ -57,7 +59,7 @@ pub trait ReducePairs: SnippetExt {
 ///
 /// While this is similar in function to [`ReducePairs`], the reduction functions
 /// take a validator that takes values in bulk
-pub trait ReducePairsBulk<'a, U: SnippetExt<Item = Self::Item>, V: ?Sized>: SnippetExt {
+pub trait ReducePairsBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: SnippetExt {
     /// Takes a given schema and attempts to reduce valid choices by
     /// matching pairs. Select how many pairs will be compared at once.
     ///
@@ -66,13 +68,13 @@ pub trait ReducePairsBulk<'a, U: SnippetExt<Item = Self::Item>, V: ?Sized>: Snip
     /// each string
     ///
     /// Default is 2
-    fn bulk_reduce_pairs(
-        &'a self,
+    fn bulk_reduce_pairs<C>(
+        &'s self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: impl FnMut(U) -> V,
+        confidence_interpreter: C,
     ) -> Self
     where
-        Variation<Self::Item>: Clone;
+        C: FnMut(S) -> I;
 }
 
 impl<T> ReducePairs for Phrase<T>
@@ -80,14 +82,13 @@ where
     T: Debug,
     Variation<T>: Clone,
 {
-    fn reduce_pairs(
+    fn reduce_pairs<C>(
         &self,
         number_of_pairs: impl Into<Option<usize>>,
-        confidence_interpreter: impl Fn(&Variation<T>) -> f64,
+        confidence_interpreter: C,
     ) -> Self
     where
-        T: Debug,
-        Variation<T>: Clone,
+        C: Fn(&Variation<Self::Item>) -> f64,
     {
         let conf_link = &confidence_interpreter;
         self.bulk_reduce_pairs(number_of_pairs, move |snip: Snippet<'_, T>| {
@@ -97,20 +98,21 @@ where
     }
 }
 
-impl<'a, 'b, T, U, V> ReducePairsBulk<'a, U, V> for Phrase<T>
+impl<'s, 'b, T, S, I> ReducePairsBulk<'s, S, I> for Phrase<T>
 where
     T: Debug + 'b,
-    U: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
-    V: IntoIterator<Item = (f64, Variation<T>)>,
-    'a: 'b,
+    S: From<&'b [Vec<Variation<T>>]> + SnippetExt<Item = Self::Item>,
+    I: IntoIterator<Item = (f64, Variation<T>)>,
+    Variation<T>: Clone,
+    's: 'b,
 {
-    fn bulk_reduce_pairs(
-        &'a self,
+    fn bulk_reduce_pairs<C>(
+        &'s self,
         number_of_pairs: impl Into<Option<usize>>,
-        mut confidence_interpreter: impl FnMut(U) -> V,
+        mut confidence_interpreter: C,
     ) -> Self
     where
-        Variation<Self::Item>: Clone,
+        C: FnMut(S) -> I,
     {
         // Check to make sure size is correctly placed or replace with own value
         let pair_size = match number_of_pairs.into() {
@@ -186,13 +188,18 @@ pub mod rayon {
         slice::ParallelSlice,
     };
 
-    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation};
+    use crate::phrase::schema::{
+        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+    };
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
     /// Utilizes the rayon library to validate pairs in parallel
-    pub trait ParReducePairs: ThreadedSnippetExt where Arc<Self::Item>: Sync {
+    pub trait ParReducePairs: ThreadedSnippetExt
+    where
+        Arc<Self::Item>: Sync,
+    {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
@@ -200,12 +207,13 @@ pub mod rayon {
         /// closer to your objective than another.
         ///
         /// Default is 2
-        fn reduce_pairs(
+        fn reduce_pairs<C>(
             &self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: impl Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
+            C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
             Variation<Self::Item>: Send;
     }
 
@@ -216,8 +224,10 @@ pub mod rayon {
     /// take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
-    pub trait ParReducePairsBulk<'a, U: ThreadedSnippetExt<Item = Self::Item>, V: ?Sized>:
-        ThreadedSnippetExt where Arc<Self::Item>: Sync
+    pub trait ParReducePairsBulk<'s, S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
+        ThreadedSnippetExt
+    where
+        Arc<Self::Item>: Sync,
     {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
@@ -227,28 +237,30 @@ pub mod rayon {
         /// each string
         ///
         /// Default is 2
-        fn bulk_reduce_pairs(
-            &'a self,
+        fn bulk_reduce_pairs<C>(
+            &'s self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Variation<Self::Item>: Clone + Send;
+            C: Fn(S) -> I + Send + Sync,
+            Variation<Self::Item>: Send;
     }
 
     impl<T> ParReducePairs for Phrase<T>
     where
         T: Debug,
         Arc<T>: Sync,
-        Variation<T>: Clone + Send,
+        Variation<T>: Clone,
     {
-        fn reduce_pairs(
+        fn reduce_pairs<C>(
             &self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: impl Fn(&Variation<T>) -> f64 + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
-            T: Debug,
+            C: Fn(&Variation<T>) -> f64 + Send + Sync,
+            Variation<T>: Send,
         {
             self.bulk_reduce_pairs(number_of_pairs, move |snip: Snippet<'_, T>| {
                 snip
@@ -264,21 +276,23 @@ pub mod rayon {
         }
     }
 
-    impl<'a, 'b, T, U, V> ParReducePairsBulk<'a, U, V> for Phrase<T>
+    impl<'s, 'b, T, S, I> ParReducePairsBulk<'s, S, I> for Phrase<T>
     where
         T: Debug + 'b,
         Arc<T>: Sync,
-        U: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
-        V: IntoIterator<Item = (f64, Variation<T>)> + Sync,
-        'a: 'b,
+        S: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
+        I: IntoIterator<Item = (f64, Variation<T>)> + Sync,
+        Variation<T>: Clone,
+        's: 'b,
     {
-        fn bulk_reduce_pairs(
-            &'a self,
+        fn bulk_reduce_pairs<C>(
+            &'s self,
             number_of_pairs: impl Into<Option<usize>>,
-            confidence_interpreter: impl Fn(U) -> V + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Variation<T>: Clone + Send,
+            C: Fn(S) -> I + Send + Sync,
+            Variation<T>: Send,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs.into() {
@@ -356,14 +370,19 @@ pub mod r#async {
     use futures::{StreamExt, stream};
     use itertools::Itertools;
 
-    use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation};
+    use crate::phrase::schema::{
+        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+    };
 
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
     /// Utilizes the rayon library to validate pairs in parallel
     #[async_trait]
-    pub trait AsyncReducePairs: ThreadedSnippetExt where Arc<Self::Item>: Sync {
+    pub trait AsyncReducePairs: ThreadedSnippetExt
+    where
+        Arc<Self::Item>: Sync,
+    {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
@@ -371,12 +390,13 @@ pub mod r#async {
         /// is closer to your objective than another.
         ///
         /// Default is 2
-        async fn reduce_pairs<Fut>(
+        async fn reduce_pairs<C, Fut>(
             &self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: impl for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
+            C: for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
     }
 
@@ -388,8 +408,10 @@ pub mod r#async {
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
-    pub trait AsyncReducePairsBulk<'a, U: ThreadedSnippetExt<Item = Self::Item>, V: ?Sized>:
-        ThreadedSnippetExt where Arc<Self::Item>: Sync
+    pub trait AsyncReducePairsBulk<'s, S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
+        ThreadedSnippetExt
+    where
+        Arc<Self::Item>: Sync,
     {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
@@ -405,14 +427,14 @@ pub mod r#async {
         ///
         /// [`Phrase`]: crate::phrase::schema::Phrase
         /// [`Snippet`]: crate::phrase::schema::Snippet
-        async fn bulk_reduce_pairs<Fut>(
-            &'a self,
+        async fn bulk_reduce_pairs<C, Fut>(
+            &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Variation<Self::Item>: Clone + Send,
-            Fut: Future<Output = V> + Send;
+            C: Fn(S) -> Fut + Send + Sync,
+            Fut: Future<Output = I> + Send;
     }
 
     #[async_trait]
@@ -422,12 +444,13 @@ pub mod r#async {
         Arc<T>: Sync,
         Variation<T>: Clone + Send,
     {
-        async fn reduce_pairs<Fut>(
+        async fn reduce_pairs<C, Fut>(
             &self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: impl for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
+            C: for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
             let conf_link = &confidence_interpreter;
@@ -442,22 +465,23 @@ pub mod r#async {
     }
 
     #[async_trait]
-    impl<'a, 'b, T, U, V> AsyncReducePairsBulk<'a, U, V> for Phrase<T>
+    impl<'s, 'b, T, S, I> AsyncReducePairsBulk<'s, S, I> for Phrase<T>
     where
         T: Debug + 'b,
         Arc<T>: Sync,
-        U: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
-        V: IntoIterator<Item = (f64, Variation<T>)>,
-        'a: 'b,
+        S: From<&'b [Vec<Variation<T>>]> + ThreadedSnippetExt<Item = Self::Item>,
+        I: IntoIterator<Item = (f64, Variation<T>)>,
+        Variation<T>: Clone + Send,
+        's: 'b,
     {
-        async fn bulk_reduce_pairs<Fut>(
-            &'a self,
+        async fn bulk_reduce_pairs<C, Fut>(
+            &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
-            confidence_interpreter: impl Fn(U) -> Fut + Send + Sync,
+            confidence_interpreter: C,
         ) -> Self
         where
-            Variation<T>: Clone + Send,
-            Fut: Future<Output = V> + Send,
+            C: Fn(S) -> Fut + Send + Sync,
+            Fut: Future<Output = I> + Send,
         {
             // Check to make sure size is correctly placed or replace with own value
             let pair_size = match number_of_pairs.into() {

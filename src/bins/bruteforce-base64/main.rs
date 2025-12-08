@@ -1,7 +1,5 @@
 #[cfg(not(feature = "rayon"))]
 use base64_bruteforcer_rs::base64_parser::FromBase64;
-#[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::schema::Variation;
 #[cfg(feature = "ollama")]
@@ -10,9 +8,13 @@ use base64_bruteforcer_rs::phrase::{
     schema::{ConvertString, Permutation, Phrase, Snippet, SnippetExt},
     validation::validate_with_whatlang,
 };
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::{
+    base64_parser::rayon::FromParBase64, phrase::schema::ThreadedSnippetExt,
+};
 use clap::Parser;
 #[cfg(feature = "rayon")]
-use rayon::iter::IntoParallelIterator;
+use rayon::iter::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use tool_args::ToolArgs;
 
 mod tool_args;
@@ -234,7 +236,13 @@ async fn main() -> () {
     }
 
     // Creating distinct lines to see results
+    #[cfg(not(feature = "rayon"))]
     string_permutation
         .into_iter_str()
         .for_each(|line| println!("{line}"));
+    #[cfg(feature = "rayon")]
+    string_permutation
+        .par_into_iter_str()
+        .par_bridge()
+        .for_each(move |line| println!("{line}"));
 }

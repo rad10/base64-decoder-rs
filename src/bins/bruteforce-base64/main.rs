@@ -1,5 +1,5 @@
 #[cfg(not(feature = "rayon"))]
-use base64_bruteforcer_rs::base64_parser::FromBase64;
+use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::schema::Variation;
 #[cfg(feature = "ollama")]
@@ -10,7 +10,7 @@ use base64_bruteforcer_rs::phrase::{
 };
 #[cfg(feature = "rayon")]
 use base64_bruteforcer_rs::{
-    base64_parser::rayon::FromParBase64, phrase::schema::ThreadedSnippetExt,
+    base64_parser::rayon::FromParBase64ToAscii, phrase::schema::ThreadedSnippetExt,
 };
 use clap::Parser;
 #[cfg(feature = "rayon")]

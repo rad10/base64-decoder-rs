@@ -11,16 +11,18 @@ use crate::phrase::schema::Phrase;
 /// into the given struct. Provides [`parse_base64`] to create a new version of
 /// [`Self`]
 ///
-/// [`Self`]: FromBase64
-/// [`parse_base64`]: FromBase64::parse_base64
-pub trait FromBase64 {
+/// [`Self`]: FromBase64ToAscii
+/// [`parse_base64`]: FromBase64ToAscii::parse_base64
+pub trait FromBase64ToAscii {
     type Type: Sized + Clone + From<u8>;
 
-    /// Denotes the number of base64 characters to process to get 3 standard characters
+    /// Denotes the number of base64 characters to process to get 3 standard
+    /// characters
     ///
-    /// This is easily calculated by dividing the number of bits in [`Type`] by 2, or by multiplying the number of bytes in [`Type`] by 4
+    /// This is easily calculated by dividing the number of bits in [`Type`] by
+    /// 2, or by multiplying the number of bytes in [`Type`] by 4
     ///
-    /// [`Type`]: FromBase64::Type
+    /// [`Type`]: FromBase64ToAscii::Type
     const CHARS: usize = size_of::<Self::Type>() * 4;
 
     /// A helper function used to convert resulting bytes into the desired type.
@@ -34,8 +36,8 @@ pub trait FromBase64 {
     /// Parses a collection of [`Self::Type`] and produces [`Self`] from the
     /// combinations
     ///
-    /// [`Self::Type`]: FromBase64::Type
-    /// [`Self`]: FromBase64
+    /// [`Self::Type`]: FromBase64ToAscii::Type
+    /// [`Self`]: FromBase64ToAscii
     fn parse_base64(
         b64_string: impl IntoIterator<Item = u8>,
         validator: Option<fn(&Vec<Self::Type>) -> bool>,
@@ -81,7 +83,7 @@ pub trait FromBase64 {
     }
 }
 
-impl FromBase64 for Phrase<Vec<u8>> {
+impl FromBase64ToAscii for Phrase<Vec<u8>> {
     type Type = u8;
 
     fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -97,7 +99,7 @@ impl FromBase64 for Phrase<Vec<u8>> {
     }
 }
 
-impl FromBase64 for Phrase<Vec<u16>> {
+impl FromBase64ToAscii for Phrase<Vec<u16>> {
     type Type = u16;
 
     fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -125,7 +127,7 @@ impl FromBase64 for Phrase<Vec<u16>> {
     }
 }
 
-impl FromBase64 for Phrase<Vec<u32>> {
+impl FromBase64ToAscii for Phrase<Vec<u32>> {
     type Type = u32;
 
     fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -173,20 +175,22 @@ pub mod rayon {
     /// into the given struct. Provides [`par_parse_base64`] to create a new version of
     /// [`Self`]
     ///
-    /// This is similar to [`FromBase64`] except this trait implements the same
+    /// This is similar to [`FromBase64ToAscii`] except this trait implements the same
     /// functions and features using the [`rayon`] library
     ///
-    /// [`Self`]: FromParBase64
-    /// [`par_parse_base64`]: FromParBase64::par_parse_base64
-    /// [`FromBase64`]: super::FromBase64
-    pub trait FromParBase64 {
+    /// [`Self`]: FromParBase64ToAscii
+    /// [`par_parse_base64`]: FromParBase64ToAscii::par_parse_base64
+    /// [`FromBase64ToAscii`]: super::FromBase64ToAscii
+    pub trait FromParBase64ToAscii {
         type Type: Sized + Clone + From<u8> + Send;
 
-        /// Denotes the number of base64 characters to process to get 3 standard characters
+        /// Denotes the number of base64 characters to process to get 3 standard
+        /// characters
         ///
-        /// This is easily calculated by dividing the number of bits in [`Type`] by 2, or by multiplying the number of bytes in [`Type`] by 4
+        /// This is easily calculated by dividing the number of bits in [`Type`]
+        /// by 2, or by multiplying the number of bytes in [`Type`] by 4
         ///
-        /// [`Type`]: FromParBase64::Type
+        /// [`Type`]: FromParBase64ToAscii::Type
         const CHARS: usize = size_of::<Self::Type>() * 4;
 
         /// A helper function used to convert resulting bytes into the desired type.
@@ -200,8 +204,8 @@ pub mod rayon {
         /// Parses a collection of [`Self::Type`] and produces [`Self`] from the
         /// combinations
         ///
-        /// [`Self::Type`]: FromParBase64::Type
-        /// [`Self`]: FromParBase64
+        /// [`Self::Type`]: FromParBase64ToAscii::Type
+        /// [`Self`]: FromParBase64ToAscii
         fn par_parse_base64(
             b64_string: impl IndexedParallelIterator<Item = u8>,
             validator: Option<fn(&Vec<Self::Type>) -> bool>,
@@ -248,7 +252,7 @@ pub mod rayon {
         }
     }
 
-    impl FromParBase64 for Phrase<Vec<u8>> {
+    impl FromParBase64ToAscii for Phrase<Vec<u8>> {
         type Type = u8;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -264,7 +268,7 @@ pub mod rayon {
         }
     }
 
-    impl FromParBase64 for Phrase<Vec<u16>> {
+    impl FromParBase64ToAscii for Phrase<Vec<u16>> {
         type Type = u16;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -292,7 +296,7 @@ pub mod rayon {
         }
     }
 
-    impl FromParBase64 for Phrase<Vec<u32>> {
+    impl FromParBase64ToAscii for Phrase<Vec<u32>> {
         type Type = u32;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -336,20 +340,22 @@ pub mod r#async {
     /// into the given struct. Provides [`parse_base64_stream`] to create a new version of
     /// [`Self`]
     ///
-    /// This is similar to [`FromBase64`] except this trait implements the same
+    /// This is similar to [`FromBase64ToAscii`] except this trait implements the same
     /// functions and features using [`futures`] streams
     ///
-    /// [`Self`]: FromBase64Stream
-    /// [`parse_base64_stream`]: FromBase64Stream::parse_base64_stream
-    /// [`FromBase64`]: super::FromBase64
-    pub trait FromBase64Stream {
+    /// [`Self`]: FromBase64StreamToAscii
+    /// [`parse_base64_stream`]: FromBase64StreamToAscii::parse_base64_stream
+    /// [`FromBase64ToAscii`]: super::FromBase64ToAscii
+    pub trait FromBase64StreamToAscii {
         type Type: Sized + Clone + From<u8> + Send;
 
-        /// Denotes the number of base64 characters to process to get 3 standard characters
+        /// Denotes the number of base64 characters to process to get 3 standard
+        /// characters
         ///
-        /// This is easily calculated by dividing the number of bits in [`Type`] by 2, or by multiplying the number of bytes in [`Type`] by 4
+        /// This is easily calculated by dividing the number of bits in [`Type`]
+        /// by 2, or by multiplying the number of bytes in [`Type`] by 4
         ///
-        /// [`Type`]: FromBase64Stream::Type
+        /// [`Type`]: FromBase64StreamToAscii::Type
         const CHARS: usize = size_of::<Self::Type>() * 4;
 
         /// A helper function used to convert resulting bytes into the desired type.
@@ -363,8 +369,8 @@ pub mod r#async {
         /// Parses a collection of [`Self::Type`] and produces [`Self`] from the
         /// combinations
         ///
-        /// [`Self::Type`]: FromBase64Stream::Type
-        /// [`Self`]: FromBase64Stream
+        /// [`Self::Type`]: FromBase64StreamToAscii::Type
+        /// [`Self`]: FromBase64StreamToAscii
         fn parse_base64_stream(
             b64_string: impl Stream<Item = u8>,
             validator: Option<fn(&Vec<Self::Type>) -> bool>,
@@ -415,7 +421,7 @@ pub mod r#async {
         }
     }
 
-    impl FromBase64Stream for Phrase<Vec<u8>> {
+    impl FromBase64StreamToAscii for Phrase<Vec<u8>> {
         type Type = u8;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -431,7 +437,7 @@ pub mod r#async {
         }
     }
 
-    impl FromBase64Stream for Phrase<Vec<u16>> {
+    impl FromBase64StreamToAscii for Phrase<Vec<u16>> {
         type Type = u16;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {
@@ -459,7 +465,7 @@ pub mod r#async {
         }
     }
 
-    impl FromBase64Stream for Phrase<Vec<u32>> {
+    impl FromBase64StreamToAscii for Phrase<Vec<u32>> {
         type Type = u32;
 
         fn convert_bytes_to_type(bytes: Vec<u8>) -> Vec<Self::Type> {

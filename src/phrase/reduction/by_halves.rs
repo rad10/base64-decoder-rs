@@ -209,7 +209,7 @@ pub mod rayon {
         /// to decide the size of the section.
         fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
         where
-            L: Fn(&S) -> bool + Send + Sync,
+            L: Fn(&B) -> bool + Send + Sync,
             C: Fn(&Variation<Self::Item>) -> f64 + Send + Sync,
             S: Borrow<B>;
     }
@@ -263,7 +263,7 @@ pub mod rayon {
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, move |snip| {
-                snip.into_iter_var()
+                snip.par_iter_var()
                     .par_bridge()
                     .map(move |line| (conf_link(&line), line))
                     .collect::<Vec<(f64, Variation<T>)>>()

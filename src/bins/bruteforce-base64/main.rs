@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #[cfg(not(feature = "rayon"))]
 use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
 #[cfg(feature = "ollama")]

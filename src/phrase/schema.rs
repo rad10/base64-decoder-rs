@@ -94,6 +94,16 @@ impl<T> Variation<T> {
     pub fn num_of_refs(&self) -> usize {
         self.links.len()
     }
+
+    /// Shrinks the backend's allocator to the exact size it currently is.
+    ///
+    /// This can be useful as a phrase should never increase in size, only
+    /// decrease. So running this on initialization of a phrase can be a cheap
+    /// method of saving on memory. Especially if the given phrase is memory
+    /// intensive.
+    pub fn shrink_to_fit(&mut self) {
+        self.links.shrink_to_fit();
+    }
 }
 
 impl<'a, V> FromIterator<&'a Variation<V>> for Variation<V> {
@@ -652,6 +662,22 @@ impl<T> Phrase<T> {
             new_sections.push(vec![Variation::from_iter(singles_buffer)]);
         }
         Self::from_iter(new_sections)
+    }
+
+    /// Shrinks the backend's allocator to the exact size it currently is.
+    ///
+    /// This can be useful as a phrase should never increase in size, only
+    /// decrease. So running this on initialization of a phrase can be a cheap
+    /// method of saving on memory. Especially if the given phrase is memory
+    /// intensive.
+    pub fn shrink_to_fit(&mut self) {
+        self.sections.iter_mut().for_each(|section| {
+            section
+                .iter_mut()
+                .for_each(|variation| variation.shrink_to_fit());
+            section.shrink_to_fit();
+        });
+        self.sections.shrink_to_fit();
     }
 }
 

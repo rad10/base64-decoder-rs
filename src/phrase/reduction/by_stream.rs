@@ -16,6 +16,10 @@ use crate::phrase::schema::{BorrowedSnippet, Permutation, Phrase, SnippetExt, Va
 /// Provides an interface to reduce a snippet by reading in data one section at
 /// a time
 pub trait ReduceReading<'s, B: SnippetExt<Item = Self::Item>>: SnippetExt + Sized {
+    /// Reduces a phrases by validating a phrase from left to right.
+    /// 
+    /// This is slower than other methods but comes with the benefit of being
+    /// more accurate
     fn reduce_reading<L, C>(&'s self, base_determination: L, confidence_interpreter: C) -> Self
     where
         L: Fn(&B) -> bool,
@@ -84,6 +88,7 @@ where
     }
 }
 
+/// Provides and implements the [`ReduceReading`] trait for use in futures
 #[cfg(feature = "async")]
 pub mod r#async {
     use std::{borrow::Borrow, sync::Arc};
@@ -95,11 +100,18 @@ pub mod r#async {
     use crate::phrase::schema::{Permutation, Phrase, SnippetExt, ThreadedSnippetExt, Variation};
 
     #[async_trait]
+    /// Provides an interface to reduce a snippet by reading in data one section at
+    /// a time in a streaming format
     pub trait AsyncReduceReadings<'s, B: ThreadedSnippetExt<Item = Self::Item>>:
         ThreadedSnippetExt + Sized
     where
         Arc<Self::Item>: Sync,
     {
+        /// Reduces a phrases by validating a phrase from left to right. in an
+        /// asynchronous stream
+        /// 
+        /// This is slower than other methods but comes with the benefit of being
+        /// more accurate
         async fn reduce_reading<L, C, LFut, CFut>(
             &'s self,
             base_determination: L,

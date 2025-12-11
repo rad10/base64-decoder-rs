@@ -28,7 +28,7 @@ fn halves_size_check<I: Permutation>(item: I) -> bool {
 }
 
 #[tokio::main(flavor = "multi_thread")]
-async fn main() -> () {
+async fn main() -> Result<(), String> {
     let parser = ToolArgs::parse();
 
     env_logger::builder()
@@ -39,8 +39,7 @@ async fn main() -> () {
     let b64_string = if let Ok(input_content) = parser.input.async_read_to_string().await {
         input_content
     } else {
-        log::error!("Failed to get file content. Failing early.");
-        return;
+        return Err("Failed to get file content. Failing early.".to_string());
     };
 
     // Determine if input is a schema that has already been processed in past
@@ -49,10 +48,9 @@ async fn main() -> () {
         if let Ok(string_schema) = parse_json_to_schema(&b64_string) {
             string_schema
         } else {
-            log::error!(
-                "Input does not match expected outputs. Please reobtain bruteforce progress in correct format."
+            return Err(
+                "Input does not match expected outputs. Please reobtain bruteforce progress in correct format.".to_string()
             );
-            return;
         }
     } else if parser.use_utf16 {
         #[cfg(not(feature = "rayon"))]
@@ -233,7 +231,7 @@ async fn main() -> () {
             string_permutation.convert_to_string(),
             string_permutation.permutations(),
         );
-        return;
+        return Ok(());
     }
 
     // Creating distinct lines to see results
@@ -246,4 +244,5 @@ async fn main() -> () {
         .par_into_iter_str()
         .par_bridge()
         .for_each(move |line| println!("{line}"));
+    Ok(())
 }

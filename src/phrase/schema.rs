@@ -670,6 +670,24 @@ impl<T> From<T> for Variation<T> {
     }
 }
 
+impl<T> From<&BorrowedSnippet<T>> for Phrase<T>
+where
+    Variation<T>: Clone,
+{
+    fn from(value: &BorrowedSnippet<T>) -> Self {
+        Phrase::new(value)
+    }
+}
+
+impl<T> From<Vec<Vec<Variation<T>>>> for Phrase<T>
+where
+    Variation<T>: Clone,
+{
+    fn from(value: Vec<Vec<Variation<T>>>) -> Self {
+        Phrase { sections: value }
+    }
+}
+
 impl<U, V, W> FromIterator<U> for Phrase<V>
 where
     U: IntoIterator<Item = W>,

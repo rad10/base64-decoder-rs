@@ -28,7 +28,7 @@ pub(crate) struct ToolArgs {
     pub(crate) info: bool,
 
     /// Sets the form of reduction used on the string
-    #[arg(short, long, value_enum, default_value_t = ReductionMethod::Halves)]
+    #[arg(short, long, value_enum, default_value_t = ReductionMethod::Pairs)]
     pub(crate) reduction_method: ReductionMethod,
 
     /// Sets which validator is used on the strings

@@ -280,7 +280,7 @@ async fn main() -> Result<(), String> {
                         // Writing out line contents
                         out.write_all(safe_line.as_bytes()).await?;
                         // Writing new line to separate values
-                        out.write(b"\n").await?;
+                        _ = out.write(b"\n").await?;
                         out.flush().await?;
                         Ok(out)
                     } else {

@@ -62,6 +62,13 @@ pub trait VariationLen {
     }
 }
 
+/// Provides a better debugging format for [`Variation`]s that helps in keeping
+/// track of each of the base64 pieces being interpreted.
+pub trait VariationDebug: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error>;
+    fn debug_string(&self) -> Result<String, std::fmt::Error>;
+}
+
 /// Converts a schema of a non string type into a string type
 pub trait ConvertString {
     /// Produces a copy of the schema with variations converted to strings
@@ -147,6 +154,17 @@ impl Display for Variation<String> {
     }
 }
 
+impl VariationDebug for Variation<String> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "|")?;
+        self.links.iter().try_for_each(move |l| write!(f, "{l}|"))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self.links.iter().join("|"))
+    }
+}
+
 impl Display for Variation<Vec<u8>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
@@ -156,12 +174,50 @@ impl Display for Variation<Vec<u8>> {
     }
 }
 
+impl VariationDebug for Variation<Vec<u8>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .try_for_each(move |r| r.and_then(|l| write!(f, "{l}|")))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .collect::<Result<Vec<&str>, std::fmt::Error>>()?
+            .into_iter()
+            .join("|"))
+    }
+}
+
 impl Display for Variation<Vec<u16>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
             .iter()
             .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
             .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
+impl VariationDebug for Variation<Vec<u16>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
+            .try_for_each(move |l| write!(f, "{l}|"))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
+            .join("|"))
     }
 }
 
@@ -181,6 +237,24 @@ impl Display for Variation<Vec<char>> {
             .iter()
             .flat_map(move |v| v.iter())
             .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
+impl VariationDebug for Variation<Vec<char>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |v| String::from_iter(v.iter()))
+            .try_for_each(move |l| write!(f, "{l}|"))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |v| String::from_iter(v.iter()))
+            .join("|"))
     }
 }
 

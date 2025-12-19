@@ -1,12 +1,12 @@
 #![forbid(unsafe_code)]
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 
 #[cfg(not(feature = "rayon"))]
 use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
 #[cfg(feature = "rayon")]
 use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64ToAscii;
 use base64_bruteforcer_rs::phrase::{
-    schema::{ConvertString, Permutation, Phrase, SnippetExt},
+    schema::{ConvertString, Permutation, Phrase, SnippetExt, VariationDebug},
     validation::validate_with_whatlang,
 };
 #[cfg(feature = "ollama")]
@@ -264,17 +264,28 @@ async fn main() -> Result<(), String> {
     }
 
     // Creating distinct lines to see results
-    let mut stdio = futures::stream::iter(string_permutation.into_iter_str())
+    let mut stdio = futures::stream::iter(string_permutation.iter_var())
+        .map(move |v| {
+            if log::max_level() == log::Level::Info {
+                v.debug_string()
+            } else {
+                Ok(v.to_string())
+            }
+        })
         .fold(
             Result::<Stdout, Error>::Ok(tokio::io::stdout()),
             async move |stdout, line| {
                 if let Ok(mut out) = stdout {
-                    // Writing out line contents
-                    out.write_all(line.as_bytes()).await?;
-                    // Writing new line to separate values
-                    out.write(b"\n").await?;
-                    out.flush().await?;
-                    Ok(out)
+                    if let Ok(safe_line) = line {
+                        // Writing out line contents
+                        out.write_all(safe_line.as_bytes()).await?;
+                        // Writing new line to separate values
+                        out.write(b"\n").await?;
+                        out.flush().await?;
+                        Ok(out)
+                    } else {
+                        Err(std::io::Error::from(ErrorKind::Other))
+                    }
                 } else {
                     stdout
                 }

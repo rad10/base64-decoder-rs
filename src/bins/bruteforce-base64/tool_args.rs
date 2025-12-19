@@ -17,9 +17,9 @@ pub(crate) struct ToolArgs {
     #[arg(short = 's', long)]
     pub(crate) use_schema: bool,
 
-    /// Tells the tools that the string is UTF16
-    #[arg(short, long)]
-    pub(crate) use_utf16: bool,
+    /// Tells the tool what format the underlying string is encoded in
+    #[arg(short, long, value_enum, default_value_t = UtfFormat::UTF8)]
+    pub(crate) format: UtfFormat,
 
     /// Skips printing out all possible values and instead prints out the
     /// combination framework as well as other options such as the number of
@@ -53,6 +53,19 @@ pub(crate) enum ReductionMethod {
     Pairs,
     /// Uses reduction by halves
     Halves,
+}
+
+/// Specifies the UTF format the given text is in
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub(crate) enum UtfFormat {
+    /// Expected the underlying text to be UTF8
+    UTF8,
+    /// Expected the underlying text to be UTF16LE
+    ///
+    /// This is common on strings encoded on windows systems
+    UTF16LE,
+    /// Expected the underlying text to be UTF32LE
+    UTF32LE,
 }
 
 /// Determines what function to use when validating part of a phrase

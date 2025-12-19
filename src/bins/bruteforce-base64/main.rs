@@ -20,7 +20,7 @@ use tool_args::ToolArgs;
 
 mod tool_args;
 
-use crate::tool_args::{ReductionMethod, StringValidator, parse_json_to_schema};
+use crate::tool_args::{ReductionMethod, StringValidator, UtfFormat, parse_json_to_schema};
 
 /// This is a simple helper function for the reduction by halves
 fn halves_size_check<I: Permutation>(item: I) -> bool {
@@ -52,28 +52,54 @@ async fn main() -> Result<(), String> {
                 "Input does not match expected outputs. Please reobtain bruteforce progress in correct format.".to_string()
             );
         }
-    } else if parser.use_utf16 {
-        #[cfg(not(feature = "rayon"))]
-        {
-            Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
-        }
-        #[cfg(feature = "rayon")]
-        tokio_rayon::spawn(move || {
-            Phrase::<Vec<u16>>::par_parse_base64(b64_string.into_bytes().into_par_iter(), None)
-        })
-        .await
-        .into()
     } else {
-        #[cfg(not(feature = "rayon"))]
-        {
-            Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
+        match parser.format {
+            UtfFormat::UTF8 => {
+                #[cfg(not(feature = "rayon"))]
+                {
+                    Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
+                }
+                #[cfg(feature = "rayon")]
+                tokio_rayon::spawn(move || {
+                    Phrase::<Vec<u8>>::par_parse_base64(
+                        b64_string.into_bytes().into_par_iter(),
+                        None,
+                    )
+                })
+                .await
+                .into()
+            }
+            UtfFormat::UTF16LE => {
+                #[cfg(not(feature = "rayon"))]
+                {
+                    Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
+                }
+                #[cfg(feature = "rayon")]
+                tokio_rayon::spawn(move || {
+                    Phrase::<Vec<u16>>::par_parse_base64(
+                        b64_string.into_bytes().into_par_iter(),
+                        None,
+                    )
+                })
+                .await
+                .into()
+            }
+            UtfFormat::UTF32LE => {
+                #[cfg(not(feature = "rayon"))]
+                {
+                    Phrase::<Vec<u32>>::parse_base64(b64_string.into_bytes(), None).into()
+                }
+                #[cfg(feature = "rayon")]
+                tokio_rayon::spawn(move || {
+                    Phrase::<Vec<u32>>::par_parse_base64(
+                        b64_string.into_bytes().into_par_iter(),
+                        None,
+                    )
+                })
+                .await
+                .into()
+            }
         }
-        #[cfg(feature = "rayon")]
-        tokio_rayon::spawn(move || {
-            Phrase::<Vec<u8>>::par_parse_base64(b64_string.into_bytes().into_par_iter(), None)
-        })
-        .await
-        .into()
     };
 
     if parser.validation_method != StringValidator::None {

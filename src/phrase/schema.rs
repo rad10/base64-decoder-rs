@@ -165,6 +165,16 @@ impl Display for Variation<Vec<u16>> {
     }
 }
 
+impl Display for Variation<Vec<u32>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links
+            .iter()
+            .flat_map(move |v| v.iter())
+            .map(move |u| char::from_u32(*u).ok_or(std::fmt::Error))
+            .try_for_each(move |c| c.and_then(|l| write!(f, "{l}")))
+    }
+}
+
 impl Display for Variation<Vec<char>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
@@ -799,14 +809,6 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
                 })
                 .collect::<Result<Vec<Vec<Vec<char>>>, String>>()?,
         ))
-    }
-}
-
-impl TryFrom<Phrase<Vec<u32>>> for Phrase<String> {
-    type Error = String;
-
-    fn try_from(value: Phrase<Vec<u32>>) -> Result<Self, Self::Error> {
-        Ok(Phrase::<Vec<char>>::try_from(value)?.into())
     }
 }
 

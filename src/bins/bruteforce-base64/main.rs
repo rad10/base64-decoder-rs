@@ -1,21 +1,24 @@
 #![forbid(unsafe_code)]
+use std::io::Error;
+
 #[cfg(not(feature = "rayon"))]
 use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
-#[cfg(feature = "ollama")]
-use base64_bruteforcer_rs::phrase::schema::Variation;
-#[cfg(feature = "ollama")]
-use base64_bruteforcer_rs::phrase::validation::ollama::OllamaHandler;
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64ToAscii;
 use base64_bruteforcer_rs::phrase::{
-    schema::{ConvertString, Permutation, Phrase, Snippet, SnippetExt},
+    schema::{ConvertString, Permutation, Phrase, SnippetExt},
     validation::validate_with_whatlang,
 };
-#[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::{
-    base64_parser::rayon::FromParBase64ToAscii, phrase::schema::ThreadedSnippetExt,
+#[cfg(feature = "ollama")]
+use base64_bruteforcer_rs::phrase::{
+    schema::{Snippet, Variation},
+    validation::ollama::OllamaHandler,
 };
 use clap::Parser;
+use futures::StreamExt;
 #[cfg(feature = "rayon")]
-use rayon::iter::{IntoParallelIterator, ParallelBridge, ParallelIterator};
+use rayon::iter::IntoParallelIterator;
+use tokio::io::{AsyncWriteExt, Stdout};
 use tool_args::ToolArgs;
 
 mod tool_args;
@@ -261,14 +264,25 @@ async fn main() -> Result<(), String> {
     }
 
     // Creating distinct lines to see results
-    #[cfg(not(feature = "rayon"))]
-    string_permutation
-        .into_iter_str()
-        .for_each(|line| println!("{line}"));
-    #[cfg(feature = "rayon")]
-    string_permutation
-        .par_into_iter_str()
-        .par_bridge()
-        .for_each(move |line| println!("{line}"));
+    let mut stdio = futures::stream::iter(string_permutation.into_iter_str())
+        .fold(
+            Result::<Stdout, Error>::Ok(tokio::io::stdout()),
+            async move |stdout, line| {
+                if let Ok(mut out) = stdout {
+                    // Writing out line contents
+                    out.write_all(line.as_bytes()).await?;
+                    // Writing new line to separate values
+                    out.write(b"\n").await?;
+                    out.flush().await?;
+                    Ok(out)
+                } else {
+                    stdout
+                }
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    stdio.flush().await.map_err(|e| e.to_string())?;
     Ok(())
 }

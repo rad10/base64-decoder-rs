@@ -19,7 +19,7 @@ pub trait ReduceToEnd: SnippetExt + Sized {
         F: FnMut(Self) -> Self;
 
     /// Reduces a phrase as much as humanly possible by mutating itself.
-    /// 
+    ///
     /// This can be more memory efficient than using [`ReduceToEnd::reduce_to_end`]
     /// as it allows mutating its own contents directly
     fn reduce_to_end_mut<F>(self, reduction_function: F) -> Self
@@ -43,7 +43,7 @@ where
         Fut: Future<Output = Self> + Send;
 
     /// Reduces a phrase as much as humanly possible by mutating itself.
-    /// 
+    ///
     /// This can be more memory efficient than using [`AsyncReduceToEnd::reduce_to_end`]
     /// as it allows mutating its own contents directly
     async fn reduce_to_end_mut<F, Fut>(self, reduction_function: F) -> Self
@@ -89,10 +89,11 @@ where
         }
         self
     }
-    
+
     fn reduce_to_end<F>(mut self, mut reduction_function: F) -> Self
     where
-        F: FnMut(Self) -> Self {
+        F: FnMut(Self) -> Self,
+    {
         let mut last_size = usize::MAX;
         while last_size > self.len_sections() {
             last_size = self.len_sections();
@@ -134,7 +135,7 @@ where
     async fn reduce_to_end<F, Fut>(mut self, mut reduction_function: F) -> Self
     where
         F: FnMut(Self) -> Fut + Send + Sync,
-        Fut: Future<Output = Self> + Send
+        Fut: Future<Output = Self> + Send,
     {
         let mut last_size = usize::MAX;
         while last_size > self.len_sections() {

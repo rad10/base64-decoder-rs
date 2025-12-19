@@ -17,7 +17,7 @@ use crate::phrase::schema::{BorrowedSnippet, Permutation, Phrase, SnippetExt, Va
 /// a time
 pub trait ReduceReading<'s, B: SnippetExt<Item = Self::Item>>: SnippetExt + Sized {
     /// Reduces a phrases by validating a phrase from left to right.
-    /// 
+    ///
     /// This is slower than other methods but comes with the benefit of being
     /// more accurate
     fn reduce_reading<L, C>(&'s self, base_determination: L, confidence_interpreter: C) -> Self
@@ -109,7 +109,7 @@ pub mod r#async {
     {
         /// Reduces a phrases by validating a phrase from left to right. in an
         /// asynchronous stream
-        /// 
+        ///
         /// This is slower than other methods but comes with the benefit of being
         /// more accurate
         async fn reduce_reading<L, C, LFut, CFut>(

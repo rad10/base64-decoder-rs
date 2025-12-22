@@ -136,6 +136,39 @@ impl<V, U: Into<Variation<V>>> FromIterator<U> for Variation<V> {
     }
 }
 
+impl<T, const N: usize> From<Variation<[T; N]>> for Variation<Vec<T>>
+where
+    [T; N]: Clone,
+{
+    fn from(value: Variation<[T; N]>) -> Self {
+        Self {
+            links: value
+                .links
+                .into_iter()
+                .map(Arc::unwrap_or_clone)
+                .map(move |a| Arc::new(a.into_iter().collect::<Vec<T>>()))
+                .collect(),
+        }
+    }
+}
+
+impl<T, const N: usize> From<&Variation<[T; N]>> for Variation<Vec<T>>
+where
+    [T; N]: Clone,
+{
+    fn from(value: &Variation<[T; N]>) -> Self {
+        Self {
+            links: value
+                .links
+                .iter()
+                .cloned()
+                .map(Arc::unwrap_or_clone)
+                .map(move |a| Arc::new(a.into_iter().collect::<Vec<T>>()))
+                .collect(),
+        }
+    }
+}
+
 impl<T: Default + PartialEq, const N: usize> VariationLen for Variation<[T; N]> {
     fn len(&self) -> usize {
         N * self.links.len()
@@ -1021,15 +1054,40 @@ where
     }
 }
 
-impl<T, U> From<U> for Phrase<String>
+impl<T, const N: usize> From<Phrase<[T; N]>> for Phrase<Vec<T>>
 where
-    U: SnippetExt<Item = Vec<T>>,
-    Variation<Vec<T>>: Display,
+    T: Default + PartialEq,
+    [T; N]: Clone,
 {
-    fn from(value: U) -> Self {
+    fn from(value: Phrase<[T; N]>) -> Self {
         Self::from_iter(
             value
-                .borrow()
+                .sections
+                .into_iter()
+                .map(|section| section.into_iter().map(Variation::<Vec<T>>::from)),
+        )
+    }
+}
+
+impl<T, const N: usize> From<Phrase<[T; N]>> for Phrase<String>
+where
+    T: Default + PartialEq,
+    [T; N]: Clone,
+    Variation<Vec<T>>: Display,
+{
+    fn from(value: Phrase<[T; N]>) -> Self {
+        Self::from(Phrase::<Vec<T>>::from(value))
+    }
+}
+
+impl<T> From<Phrase<Vec<T>>> for Phrase<String>
+where
+    Variation<Vec<T>>: Display,
+{
+    fn from(value: Phrase<Vec<T>>) -> Self {
+        Self::from_iter(
+            value
+                .sections
                 .iter()
                 .map(move |s| s.iter().map(move |v| v.to_string())),
         )

@@ -231,6 +231,36 @@ impl Display for Variation<Vec<u32>> {
     }
 }
 
+impl VariationDebug for Variation<Vec<u32>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |s| {
+                s.iter()
+                    .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
+                    .collect::<Result<Vec<char>, std::fmt::Error>>()
+            })
+            .map(move |s| s.map(|i| String::from_iter(i)))
+            .try_for_each(move |t| t.and_then(|l| write!(f, "{l}|")))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |s| {
+                s.iter()
+                    .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
+                    .collect::<Result<Vec<char>, std::fmt::Error>>()
+            })
+            .map(move |s| s.map(|i| String::from_iter(i)))
+            .collect::<Result<Vec<String>, std::fmt::Error>>()?
+            .into_iter()
+            .join("|"))
+    }
+}
+
 impl Display for Variation<Vec<char>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links

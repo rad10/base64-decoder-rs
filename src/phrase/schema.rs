@@ -136,6 +136,17 @@ impl<V, U: Into<Variation<V>>> FromIterator<U> for Variation<V> {
     }
 }
 
+impl<T: Default + PartialEq, const N: usize> VariationLen for Variation<[T; N]> {
+    fn len(&self) -> usize {
+        N * self.links.len()
+            // Subtract any tail \0 in combination
+            - self
+                .links
+                .last()
+                .map_or(0, |v| v.iter().filter(|c| **c == T::default()).count())
+    }
+}
+
 impl<T> VariationLen for Variation<Vec<T>> {
     fn len(&self) -> usize {
         self.links.iter().map(|l| l.len()).sum()
@@ -165,12 +176,41 @@ impl VariationDebug for Variation<String> {
     }
 }
 
+impl<const N: usize> Display for Variation<[u8; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links
+            .iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .try_for_each(move |r| r.and_then(|l| write!(f, "{l}")))
+    }
+}
+
 impl Display for Variation<Vec<u8>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
             .iter()
             .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
             .try_for_each(move |r| r.and_then(|l| write!(f, "{l}")))
+    }
+}
+
+impl<const N: usize> VariationDebug for Variation<[u8; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .try_for_each(move |r| r.and_then(|l| write!(f, "{l}|")))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |to_str| str::from_utf8(to_str.as_slice()).map_err(move |_| std::fmt::Error))
+            .collect::<Result<Vec<&str>, std::fmt::Error>>()?
+            .into_iter()
+            .join("|"))
     }
 }
 
@@ -194,12 +234,39 @@ impl VariationDebug for Variation<Vec<u8>> {
     }
 }
 
+impl<const N: usize> Display for Variation<[u16; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links
+            .iter()
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
+            .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
 impl Display for Variation<Vec<u16>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
             .iter()
             .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
             .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
+impl<const N: usize> VariationDebug for Variation<[u16; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
+            .try_for_each(move |l| write!(f, "{l}|"))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |to_str| String::from_utf16_lossy(to_str.as_slice()))
+            .join("|"))
     }
 }
 
@@ -221,6 +288,16 @@ impl VariationDebug for Variation<Vec<u16>> {
     }
 }
 
+impl<const N: usize> Display for Variation<[u32; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links
+            .iter()
+            .flat_map(move |v| v.iter())
+            .map(move |u| char::from_u32(*u).ok_or(std::fmt::Error))
+            .try_for_each(move |c| c.and_then(|l| write!(f, "{l}")))
+    }
+}
+
 impl Display for Variation<Vec<u32>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
@@ -228,6 +305,36 @@ impl Display for Variation<Vec<u32>> {
             .flat_map(move |v| v.iter())
             .map(move |u| char::from_u32(*u).ok_or(std::fmt::Error))
             .try_for_each(move |c| c.and_then(|l| write!(f, "{l}")))
+    }
+}
+
+impl<const N: usize> VariationDebug for Variation<[u32; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |s| {
+                s.iter()
+                    .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
+                    .collect::<Result<Vec<char>, std::fmt::Error>>()
+            })
+            .map(move |s| s.map(|i| String::from_iter(i)))
+            .try_for_each(move |t| t.and_then(|l| write!(f, "{l}|")))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |s| {
+                s.iter()
+                    .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
+                    .collect::<Result<Vec<char>, std::fmt::Error>>()
+            })
+            .map(move |s| s.map(|i| String::from_iter(i)))
+            .collect::<Result<Vec<String>, std::fmt::Error>>()?
+            .into_iter()
+            .join("|"))
     }
 }
 
@@ -261,12 +368,39 @@ impl VariationDebug for Variation<Vec<u32>> {
     }
 }
 
+impl<const N: usize> Display for Variation<[char; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.links
+            .iter()
+            .flat_map(move |v| v.iter())
+            .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
 impl Display for Variation<Vec<char>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.links
             .iter()
             .flat_map(move |v| v.iter())
             .try_for_each(move |l| write!(f, "{l}"))
+    }
+}
+
+impl<const N: usize> VariationDebug for Variation<[char; N]> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "|")?;
+        self.links
+            .iter()
+            .map(move |v| String::from_iter(v.iter()))
+            .try_for_each(move |l| write!(f, "{l}|"))
+    }
+
+    fn debug_string(&self) -> Result<String, std::fmt::Error> {
+        Ok(self
+            .links
+            .iter()
+            .map(move |v| String::from_iter(v.iter()))
+            .join("|"))
     }
 }
 
@@ -303,6 +437,28 @@ impl VariationValue for Variation<String> {
 
     fn into_value(self) -> String {
         self.links.into_iter().join("")
+    }
+}
+
+impl<T, const N: usize> VariationValue for Variation<[T; N]>
+where
+    [T; N]: Clone,
+{
+    type Item = Vec<T>;
+
+    fn value(&self) -> Self::Item {
+        self.links
+            .iter()
+            .cloned()
+            .flat_map(Arc::unwrap_or_clone)
+            .collect()
+    }
+
+    fn into_value(self) -> Self::Item {
+        self.links
+            .into_iter()
+            .flat_map(Arc::unwrap_or_clone)
+            .collect()
     }
 }
 

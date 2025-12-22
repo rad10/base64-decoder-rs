@@ -318,7 +318,7 @@ impl<const N: usize> VariationDebug for Variation<[u32; N]> {
                     .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
                     .collect::<Result<Vec<char>, std::fmt::Error>>()
             })
-            .map(move |s| s.map(|i| String::from_iter(i)))
+            .map(move |s| s.map(String::from_iter))
             .try_for_each(move |t| t.and_then(|l| write!(f, "{l}|")))
     }
 
@@ -331,7 +331,7 @@ impl<const N: usize> VariationDebug for Variation<[u32; N]> {
                     .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
                     .collect::<Result<Vec<char>, std::fmt::Error>>()
             })
-            .map(move |s| s.map(|i| String::from_iter(i)))
+            .map(move |s| s.map(String::from_iter))
             .collect::<Result<Vec<String>, std::fmt::Error>>()?
             .into_iter()
             .join("|"))
@@ -348,7 +348,7 @@ impl VariationDebug for Variation<Vec<u32>> {
                     .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
                     .collect::<Result<Vec<char>, std::fmt::Error>>()
             })
-            .map(move |s| s.map(|i| String::from_iter(i)))
+            .map(move |s| s.map(String::from_iter))
             .try_for_each(move |t| t.and_then(|l| write!(f, "{l}|")))
     }
 
@@ -361,7 +361,7 @@ impl VariationDebug for Variation<Vec<u32>> {
                     .map(|c| char::from_u32(*c).ok_or(std::fmt::Error))
                     .collect::<Result<Vec<char>, std::fmt::Error>>()
             })
-            .map(move |s| s.map(|i| String::from_iter(i)))
+            .map(move |s| s.map(String::from_iter))
             .collect::<Result<Vec<String>, std::fmt::Error>>()?
             .into_iter()
             .join("|"))

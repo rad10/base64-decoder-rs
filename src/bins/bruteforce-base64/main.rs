@@ -39,11 +39,13 @@ async fn main() -> Result<(), String> {
         .init();
 
     // Attempt to read contents of file. Fail tool if it fails
-    let b64_string = if let Ok(input_content) = parser.input.async_read_to_string().await {
-        input_content
-    } else {
-        return Err("Failed to get file content. Failing early.".to_string());
-    };
+    let b64_string = parser
+        .input
+        .async_read_to_string()
+        .await
+        .map_err(move |_| "Failed to get file content. Failing early.".to_string())?
+        .trim()
+        .to_owned();
 
     // Determine if input is a schema that has already been processed in past
     // or is a base64 string

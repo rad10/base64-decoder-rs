@@ -63,7 +63,7 @@ pub trait FromBase64ToAscii {
                         })
                         .multi_cartesian_product()
                         .inspect(|option| log::debug!("Testing value: {}", option.escape_ascii()))
-                        // Filtering our all scrings that do not produce a value
+                        // Filtering our all strings that do not produce a value
                         .filter_map(move |combo| BASE64_STANDARD.decode(combo).ok())
                         // Converting bytes into type
                         .map(Self::convert_bytes_to_type)
@@ -232,7 +232,7 @@ pub mod rayon {
                             .inspect(|option| {
                                 log::debug!("Testing value: {}", option.escape_ascii())
                             })
-                            // Filtering our all scrings that do not produce a value
+                            // Filtering our all strings that do not produce a value
                             .filter_map(move |combo| BASE64_STANDARD.decode(combo).ok())
                             // Converting bytes into type
                             .map(Self::convert_bytes_to_type)
@@ -398,7 +398,7 @@ pub mod r#async {
                                 .inspect(|option| {
                                     log::debug!("Testing value: {}", option.escape_ascii())
                                 })
-                                // Filtering our all scrings that do not produce a value
+                                // Filtering our all strings that do not produce a value
                                 .filter_map(move |combo| BASE64_STANDARD.decode(combo).ok())
                                 // Converting bytes into type
                                 .map(Self::convert_bytes_to_type)

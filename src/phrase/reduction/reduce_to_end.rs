@@ -3,9 +3,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 #[cfg(feature = "async")]
+use crate::phrase::schema::snippet::ThreadedSnippetExt;
+use crate::phrase::schema::snippet::{ConvertString, Permutation, SnippetExt};
+#[cfg(feature = "async")]
 use async_trait::async_trait;
-
-use crate::phrase::schema::snippet::{ConvertString, Permutation, SnippetExt, ThreadedSnippetExt};
 
 /// Provides the ability for a phrase to continuously run a function until it
 /// can no longer make the phrase smaller

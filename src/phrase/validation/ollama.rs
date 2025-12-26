@@ -10,7 +10,10 @@ use ollama_rs::{Ollama, generation::completion::request::GenerationRequest};
 #[cfg(feature = "ollama")]
 use url::Url;
 
-use crate::phrase::schema::{ThreadedSnippetExt, Variation, VariationLen};
+use crate::phrase::schema::{
+    snippet::ThreadedSnippetExt,
+    variation::{Variation, VariationLen},
+};
 
 /// Contains all the data necessary for string validation with ollama
 pub struct OllamaHandler {

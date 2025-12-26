@@ -5,7 +5,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use byteorder::{ByteOrder, LittleEndian};
 use itertools::Itertools;
 
-use crate::phrase::schema::Phrase;
+use crate::phrase::schema::snippet::Phrase;
 
 /// Bruteforces all combinations of a lowercase base64 string and converts it
 /// into the given struct. Provides [`parse_base64`] to create a new version of
@@ -169,7 +169,7 @@ pub mod rayon {
         str::ParallelString,
     };
 
-    use crate::phrase::schema::Phrase;
+    use crate::phrase::schema::snippet::Phrase;
 
     /// Bruteforces all combinations of a lowercase base64 string and converts it
     /// into the given struct. Provides [`par_parse_base64`] to create a new version of
@@ -334,7 +334,7 @@ pub mod r#async {
     use futures::{Stream, StreamExt};
     use itertools::Itertools;
 
-    use crate::phrase::schema::Phrase;
+    use crate::phrase::schema::snippet::Phrase;
 
     /// Bruteforces all combinations of a lowercase base64 string and converts it
     /// into the given struct. Provides [`parse_base64_stream`] to create a new version of

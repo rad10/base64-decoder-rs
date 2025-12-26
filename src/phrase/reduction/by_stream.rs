@@ -11,7 +11,10 @@ use std::borrow::Borrow;
 
 use itertools::Itertools;
 
-use crate::phrase::schema::{BorrowedSnippet, Permutation, Phrase, SnippetExt, Variation};
+use crate::phrase::schema::{
+    snippet::{BorrowedSnippet, Permutation, Phrase, SnippetExt},
+    variation::Variation,
+};
 
 /// Provides an interface to reduce a snippet by reading in data one section at
 /// a time
@@ -97,7 +100,10 @@ pub mod r#async {
     use futures::StreamExt;
     use itertools::Itertools;
 
-    use crate::phrase::schema::{Permutation, Phrase, SnippetExt, ThreadedSnippetExt, Variation};
+    use crate::phrase::schema::{
+        snippet::{Permutation, Phrase, SnippetExt, ThreadedSnippetExt},
+        variation::Variation,
+    };
 
     #[async_trait]
     /// Provides an interface to reduce a snippet by reading in data one section at

@@ -3,10 +3,11 @@
 
 use std::fmt::Display;
 
+#[cfg(feature = "whatlang")]
+use crate::phrase::schema::variation::Variation;
+
 #[cfg(feature = "ollama")]
 pub mod ollama;
-
-use crate::phrase::schema::Variation;
 
 /// Provides a confidence on a given string using the whatlang library
 #[cfg(feature = "whatlang")]

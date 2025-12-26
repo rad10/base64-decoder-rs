@@ -1,4 +1,4 @@
-use base64_bruteforcer_rs::phrase::schema::Phrase;
+use base64_bruteforcer_rs::phrase::schema::snippet::Phrase;
 #[cfg(feature = "ollama")]
 use clap::Args;
 use clap::{Parser, Subcommand, ValueEnum};

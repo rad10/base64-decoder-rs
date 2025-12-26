@@ -33,9 +33,12 @@ use std::{borrow::Borrow, fmt::Debug};
 
 use itertools::Itertools;
 
-use crate::phrase::schema::{Permutation, Phrase, Section, Snippet, SnippetExt, Variation};
+use crate::phrase::schema::{
+    snippet::{Permutation, Phrase, Section, Snippet, SnippetExt},
+    variation::Variation,
+};
 
-/// Provides an interface to reduce an array like structure to through a
+// Provides an interface to reduce an array like structure to through a
 /// validator utilizing a recursive process
 pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>, B: SnippetExt<Item = Self::Item>>:
     SnippetExt
@@ -187,7 +190,8 @@ pub mod rayon {
     };
 
     use crate::phrase::schema::{
-        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+        snippet::{Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt},
+        variation::Variation,
     };
 
     /// Provides an interface to reduce an array like structure to through a
@@ -352,7 +356,8 @@ pub mod r#async {
     use itertools::Itertools;
 
     use crate::phrase::schema::{
-        Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt, Variation,
+        snippet::{Permutation, Phrase, Section, Snippet, SnippetExt, ThreadedSnippetExt},
+        variation::Variation,
     };
 
     /// Provides an interface to reduce an array like structure to through a

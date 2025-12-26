@@ -5,14 +5,16 @@ use std::io::{Error, ErrorKind};
 use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
 #[cfg(feature = "rayon")]
 use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64ToAscii;
-use base64_bruteforcer_rs::phrase::{
-    schema::{ConvertString, Permutation, Phrase, SnippetExt, VariationDebug},
-    validation::validate_with_whatlang,
-};
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::{
-    schema::{Snippet, Variation},
-    validation::ollama::OllamaHandler,
+    schema::variation::Variation, validation::ollama::OllamaHandler,
+};
+use base64_bruteforcer_rs::phrase::{
+    schema::{
+        snippet::{ConvertString, Permutation, Phrase, SnippetExt},
+        variation::VariationDebug,
+    },
+    validation::validate_with_whatlang,
 };
 use clap::Parser;
 use futures::StreamExt;
@@ -204,8 +206,11 @@ async fn main() -> Result<(), String> {
                     }
                     #[cfg(feature = "ollama")]
                     (ReductionMethod::Pairs, StringValidator::OllamaGroup(c)) => {
-                        use base64_bruteforcer_rs::phrase::reduction::by_pairs::r#async::AsyncReducePairsBulk;
                         use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
+                        use base64_bruteforcer_rs::phrase::{
+                            reduction::by_pairs::r#async::AsyncReducePairsBulk,
+                            schema::snippet::Snippet,
+                        };
                         use futures::stream::StreamExt;
 
                         let tmp_ollama_engine = ollama_engine

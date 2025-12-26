@@ -5,9 +5,7 @@ use std::sync::Arc;
 #[cfg(feature = "async")]
 use async_trait::async_trait;
 
-#[cfg(feature = "async")]
-use crate::phrase::schema::ThreadedSnippetExt;
-use crate::phrase::schema::{ConvertString, Permutation, SnippetExt};
+use crate::phrase::schema::snippet::{ConvertString, Permutation, SnippetExt, ThreadedSnippetExt};
 
 /// Provides the ability for a phrase to continuously run a function until it
 /// can no longer make the phrase smaller

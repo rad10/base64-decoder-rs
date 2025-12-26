@@ -50,3 +50,6 @@ rayon = ["dep:rayon"]
 whatlang = ["dep:whatlang"]
 async = ["dep:futures", "dep:async-trait"]
 ollama = ["ollama-rs/rustls", "async", "dep:url", "dep:serde_json"]
+
+[dev-dependencies]
+lazy_static = "1.5.0"

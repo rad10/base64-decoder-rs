@@ -10,39 +10,39 @@ use rayon::iter::{FromParallelIterator, IntoParallelIterator};
 use crate::phrase::schema::variation::{Variation, VariationLen, VariationValue};
 
 /// This represents the whole phrase including all of its variable sections.
-/// 
+///
 /// This is the primary item used to calculate a textual [`Phrase`] from Base64
 /// [`Variation`]s. This item will own the string in a [`Vec`] to allow reducing
 /// the number of [`Permutation`]s down using any of the [`reduction`] methods
 /// provided.
-/// 
+///
 /// ## Examples
-/// 
+///
 /// ```rust
 /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation, SnippetExt};
-/// 
+///
 /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
 ///     vec!["Hel".to_owned(), "HeR".to_owned()],
 ///     vec!["lo ".to_owned()],
 ///     vec!["Wor".to_owned(), "WoX".to_owned()],
 ///     vec!["ld!".to_owned()]
 /// ]);
-/// 
+///
 /// // Provides useful stats for debugging
 /// assert!(phrase_string.len_sections() == 4);
 /// assert!(phrase_string.len_phrase() == 12);
 /// assert!(phrase_string.num_of_references() == 6);
 /// assert!(phrase_string.permutations() == 4.0);
-/// 
+///
 /// // Provides an easy way to get all combinations of the variations
 /// let mut value_iterator = phrase_string.iter_val();
-/// 
+///
 /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
 /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
 /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
 /// assert!(value_iterator.next() == Some("HeRlo WoXld!".to_string()));
 /// assert!(value_iterator.next() == None);
-/// 
+///
 /// let mut string_iterator = phrase_string.iter_str();
 ///
 /// assert!(string_iterator.next() == Some("Hello World!".to_string()));
@@ -60,11 +60,11 @@ pub struct Phrase<T> {
 
 /// This represents part of a phrase by containing a section of a phrases memory
 /// within itself. This can function in most of the same ways a phrase can.
-/// 
+///
 /// [`Snippet`] comes with the benefit that it borrows its section from a
 /// properly owned type allowing it to analyze and interact with a section
 /// without needing to clone the sections to begin work.
-/// 
+///
 /// This provides an owned version of a borrow unlike [`BorrowedSnippet`] which
 /// can only be used by reference.
 ///
@@ -72,34 +72,34 @@ pub struct Phrase<T> {
 ///
 /// ```rust
 /// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase, Permutation, Snippet, SnippetExt};
-/// 
+///
 /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
 ///     vec!["Hel".to_owned(), "HeR".to_owned()],
 ///     vec!["lo ".to_owned()],
 ///     vec!["Wor".to_owned(), "WoX".to_owned()],
 ///     vec!["ld!".to_owned()]
 /// ]);
-/// 
+///
 /// let phrase_snippet = phrase_string.as_snippet();
-/// 
+///
 /// // Snippets of the whole phrase are equal to their phrase counterpart
 /// assert!(phrase_string == phrase_snippet);
-/// 
+///
 /// // Provides useful stats for debugging
 /// assert!(phrase_snippet.len_sections() == 4);
 /// assert!(phrase_snippet.len_phrase() == 12);
 /// assert!(phrase_snippet.num_of_references() == 6);
 /// assert!(phrase_snippet.permutations() == 4.0);
-/// 
+///
 /// // Provides an easy way to get all combinations of the variations
 /// let mut value_iterator = phrase_snippet.iter_val();
-/// 
+///
 /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
 /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
 /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
 /// assert!(value_iterator.next() == Some("HeRlo WoXld!".to_string()));
 /// assert!(value_iterator.next() == None);
-/// 
+///
 /// let mut string_iterator = phrase_snippet.iter_str();
 ///
 /// assert!(string_iterator.next() == Some("Hello World!".to_string()));
@@ -123,7 +123,7 @@ pub type BorrowedSnippet<T> = [Section<T>];
 
 /// Converts a schema of a non string type into a string schema. This is
 /// primarily used in debugging but can be used to pull a schema out beforehand.
-/// 
+///
 /// ```rust
 /// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase};
 /// let raw_schema = vec![
@@ -132,14 +132,14 @@ pub type BorrowedSnippet<T> = [Section<T>];
 ///     vec!["Wor".to_owned(), "WoX".to_owned()],
 ///     vec!["ld!".to_owned()]
 /// ];
-/// 
+///
 /// let phrase_string: Phrase<String> = Phrase::from_iter(raw_schema.clone());
-/// 
+///
 /// assert!(phrase_string.convert_to_string() == raw_schema);
 /// ```
 pub trait ConvertString {
     /// Produces a copy of the schema with variations converted to strings
-    /// 
+    ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase};
     /// let raw_schema = vec![
@@ -148,9 +148,9 @@ pub trait ConvertString {
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ];
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(raw_schema.clone());
-    /// 
+    ///
     /// assert!(phrase_string.convert_to_string() == raw_schema);
     /// ```
     fn convert_to_string(&self) -> Vec<Vec<String>>;
@@ -161,14 +161,14 @@ pub trait ConvertString {
 ///
 /// ```rust
 /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation};
-/// 
+///
 /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
 ///     vec!["Hel".to_owned(), "HeR".to_owned()],
 ///     vec!["lo ".to_owned()],
 ///     vec!["Wor".to_owned(), "WoX".to_owned()],
 ///     vec!["ld!".to_owned()]
 /// ]);
-/// 
+///
 /// assert!(phrase_string.permutations() == 4.0);
 /// ```
 pub trait Permutation {
@@ -176,7 +176,7 @@ pub trait Permutation {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
@@ -204,14 +204,14 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// assert!(phrase_string.len_sections() == 4);
     /// ```
     fn len_sections(&self) -> usize {
@@ -222,14 +222,14 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// assert!(phrase_string.len_phrase() == 12);
     /// ```
     fn len_phrase(&self) -> usize
@@ -248,14 +248,14 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// assert!(phrase_string.num_of_references() == 6);
     /// ```
     fn num_of_references(&self) -> usize {
@@ -282,17 +282,17 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
     ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.iter_var();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some(string_variation));
     /// ```
     fn iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>>
@@ -314,17 +314,17 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
     ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.into_iter_var();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some(string_variation));
     /// ```
     fn into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>>
@@ -336,17 +336,17 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.iter_val();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
     /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
     /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
@@ -365,17 +365,17 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.into_iter_val();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
     /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
     /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
@@ -395,7 +395,7 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
@@ -422,7 +422,7 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, SnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
@@ -471,17 +471,17 @@ where
     ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
     ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_iter_var();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some(string_variation));
     /// ```
     fn par_iter_var(&self) -> impl Iterator<Item = Variation<Self::Item>> + Send
@@ -506,17 +506,17 @@ where
     ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
     ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_into_iter_var();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some(string_variation));
     /// ```
     fn par_into_iter_var(self) -> impl Iterator<Item = Variation<Self::Item>> + Send
@@ -531,17 +531,17 @@ where
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_iter_val();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
     /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
     /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
@@ -563,17 +563,17 @@ where
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
     ///     vec!["ld!".to_owned()]
     /// ]);
-    /// 
+    ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_into_iter_val();
-    /// 
+    ///
     /// assert!(value_iterator.next() == Some("Hello World!".to_string()));
     /// assert!(value_iterator.next() == Some("Hello WoXld!".to_string()));
     /// assert!(value_iterator.next() == Some("HeRlo World!".to_string()));
@@ -596,7 +596,7 @@ where
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
@@ -626,7 +626,7 @@ where
     ///
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
-    /// 
+    ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
@@ -841,7 +841,7 @@ impl<T> Phrase<T> {
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::{snippet::{Phrase, SnippetExt}, variation::Variation};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let before_flatten: Phrase<String> = Phrase::from_iter([
     ///     vec![vec!["Hel"], vec!["HeR"]],
     ///     vec![vec!["lo "]],
@@ -855,7 +855,7 @@ impl<T> Phrase<T> {
     ///     vec![vec!["ing"], vec!["Mng"]],
     ///     vec![vec!["!"]],
     /// ].into_iter().map(|section| section.into_iter().map(|variation| variation.into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()).collect::<Vec<Variation<String>>>()));
-    /// 
+    ///
     /// let after_flatten: Phrase<String> = Phrase::from_iter([
     ///     vec![vec!["Hel"], vec!["HeR"]],
     ///     vec![vec!["lo "]],
@@ -867,7 +867,7 @@ impl<T> Phrase<T> {
     ///     vec![vec!["ing"], vec!["Mng"]],
     ///     vec![vec!["!"]],
     /// ].into_iter().map(|section| section.into_iter().map(|variation| variation.into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()).collect::<Vec<Variation<String>>>()));
-    /// 
+    ///
     /// assert!(before_flatten.flatten_sections() == after_flatten);
     /// ```
     pub fn flatten_sections(&self) -> Self
@@ -916,7 +916,7 @@ impl<T> Phrase<T> {
     /// ```rust
     /// use base64_bruteforcer_rs::phrase::schema::{snippet::{Phrase, SnippetExt}, variation::Variation};
     /// use std::sync::Arc;
-    /// 
+    ///
     /// let before_flatten: Phrase<String> = Phrase::from_iter([
     ///     vec![vec!["Hel"], vec!["HeR"]],
     ///     vec![vec!["lo "]],
@@ -930,7 +930,7 @@ impl<T> Phrase<T> {
     ///     vec![vec!["ing"], vec!["Mng"]],
     ///     vec![vec!["!"]],
     /// ].into_iter().map(|section| section.into_iter().map(|variation| variation.into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()).collect::<Vec<Variation<String>>>()));
-    /// 
+    ///
     /// let after_flatten: Phrase<String> = Phrase::from_iter([
     ///     vec![vec!["Hel"], vec!["HeR"]],
     ///     vec![vec!["lo "]],
@@ -942,7 +942,7 @@ impl<T> Phrase<T> {
     ///     vec![vec!["ing"], vec!["Mng"]],
     ///     vec![vec!["!"]],
     /// ].into_iter().map(|section| section.into_iter().map(|variation| variation.into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()).collect::<Vec<Variation<String>>>()));
-    /// 
+    ///
     /// assert!(before_flatten.into_flatten_sections() == after_flatten);
     /// ```
     pub fn into_flatten_sections(self) -> Self {
@@ -1180,7 +1180,10 @@ where
     }
 }
 
-impl<U: SnippetExt> PartialEq<U> for Phrase<U::Item> where U::Item: PartialEq {
+impl<U: SnippetExt> PartialEq<U> for Phrase<U::Item>
+where
+    U::Item: PartialEq,
+{
     fn eq(&self, other: &U) -> bool {
         Borrow::<BorrowedSnippet<U::Item>>::borrow(self) == other.borrow()
     }
@@ -1188,7 +1191,10 @@ impl<U: SnippetExt> PartialEq<U> for Phrase<U::Item> where U::Item: PartialEq {
 
 impl<T> Eq for Phrase<T> where Phrase<T>: PartialEq {}
 
-impl<U: SnippetExt> PartialEq<U> for Snippet<'_, U::Item> where U::Item: PartialEq {
+impl<U: SnippetExt> PartialEq<U> for Snippet<'_, U::Item>
+where
+    U::Item: PartialEq,
+{
     fn eq(&self, other: &U) -> bool {
         Borrow::<BorrowedSnippet<U::Item>>::borrow(self) == other.borrow()
     }

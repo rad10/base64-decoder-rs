@@ -70,7 +70,7 @@ where
                         self.convert_to_string(),
                         self.permutations()
                     );
-                }
+                },
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
@@ -79,7 +79,7 @@ where
                         self.num_of_references(),
                         self.permutations()
                     );
-                }
+                },
                 _ => (),
             };
 
@@ -103,7 +103,7 @@ where
                         self.convert_to_string(),
                         self.permutations()
                     );
-                }
+                },
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
@@ -112,7 +112,7 @@ where
                         self.num_of_references(),
                         self.permutations()
                     );
-                }
+                },
                 _ => (),
             };
 
@@ -146,7 +146,7 @@ where
                         self.convert_to_string(),
                         self.permutations()
                     );
-                }
+                },
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
@@ -155,7 +155,7 @@ where
                         self.num_of_references(),
                         self.permutations()
                     );
-                }
+                },
                 _ => (),
             };
 
@@ -180,7 +180,7 @@ where
                         self.convert_to_string(),
                         self.permutations()
                     );
-                }
+                },
                 x if x >= log::LevelFilter::Debug => {
                     log::debug!(
                         "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
@@ -189,7 +189,7 @@ where
                         self.num_of_references(),
                         self.permutations()
                     );
-                }
+                },
                 _ => (),
             };
 

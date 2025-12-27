@@ -75,7 +75,7 @@ async fn main() -> Result<(), String> {
                 })
                 .await
                 .into()
-            }
+            },
             UtfFormat::UTF16LE => {
                 #[cfg(not(feature = "rayon"))]
                 {
@@ -90,7 +90,7 @@ async fn main() -> Result<(), String> {
                 })
                 .await
                 .into()
-            }
+            },
             UtfFormat::UTF32LE => {
                 #[cfg(not(feature = "rayon"))]
                 {
@@ -105,7 +105,7 @@ async fn main() -> Result<(), String> {
                 })
                 .await
                 .into()
-            }
+            },
         }
     };
 
@@ -151,7 +151,7 @@ async fn main() -> Result<(), String> {
                             string_permutation.convert_to_string(),
                             string_permutation.permutations()
                         );
-                    }
+                    },
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
                             "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
@@ -160,7 +160,7 @@ async fn main() -> Result<(), String> {
                             string_permutation.num_of_references(),
                             string_permutation.permutations()
                         );
-                    }
+                    },
                     _ => (),
                 };
 
@@ -182,7 +182,7 @@ async fn main() -> Result<(), String> {
                             })
                             .await
                         }
-                    }
+                    },
                     (ReductionMethod::Halves, StringValidator::WhatLang) => {
                         #[cfg(not(feature = "rayon"))]
                         {
@@ -203,7 +203,7 @@ async fn main() -> Result<(), String> {
                             })
                             .await
                         }
-                    }
+                    },
                     (ReductionMethod::Stream, StringValidator::WhatLang) => {
                         use base64_bruteforcer_rs::phrase::reduction::by_stream::ReduceReading;
 
@@ -211,13 +211,12 @@ async fn main() -> Result<(), String> {
                             move |base| halves_size_check(base),
                             validate_with_whatlang,
                         )
-                    }
+                    },
                     #[cfg(feature = "ollama")]
                     (ReductionMethod::Pairs, StringValidator::OllamaGroup(c)) => {
-                        use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
                         use base64_bruteforcer_rs::phrase::{
                             reduction::by_pairs::r#async::AsyncReducePairsBulk,
-                            schema::snippet::Snippet,
+                            schema::snippet::Snippet, validation::ollama::AsyncOllama,
                         };
                         use futures::stream::StreamExt;
 
@@ -233,11 +232,13 @@ async fn main() -> Result<(), String> {
                                     .await
                             })
                             .await
-                    }
+                    },
                     #[cfg(feature = "ollama")]
                     (ReductionMethod::Halves, StringValidator::OllamaGroup(c)) => {
-                        use base64_bruteforcer_rs::phrase::reduction::by_halves::r#async::AsyncReduceHalvesBulk;
-                        use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
+                        use base64_bruteforcer_rs::phrase::{
+                            reduction::by_halves::r#async::AsyncReduceHalvesBulk,
+                            validation::ollama::AsyncOllama,
+                        };
                         use futures::stream::StreamExt;
 
                         let tmp_ollama_engine = ollama_engine
@@ -254,7 +255,7 @@ async fn main() -> Result<(), String> {
                                 },
                             )
                             .await
-                    }
+                    },
                     (ReductionMethod::Stream, StringValidator::OllamaGroup(c)) => {
                         use base64_bruteforcer_rs::phrase::{
                             reduction::by_stream::r#async::AsyncReduceReadings,
@@ -269,7 +270,7 @@ async fn main() -> Result<(), String> {
                                 async |phr| tmp_ollama_engine.validate_line(&phr).await,
                             )
                             .await
-                    }
+                    },
                 };
             }
             pair_size += 1;

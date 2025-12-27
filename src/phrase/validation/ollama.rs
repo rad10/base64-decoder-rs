@@ -157,14 +157,14 @@ impl AsyncOllama for OllamaHandler {
                         log::debug!("Received ollama error: {e}");
                         log::debug!("Received value from ollama: {}", response.response.as_str());
                         0_f64
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 log::error!("Failed to get a response from ollama. Dropping all values");
                 log::debug!("Received ollama error: {e}");
                 0_f64
-            }
+            },
         }
     }
     // /// This validator takes the strategy to provide ollama the structural

@@ -44,7 +44,7 @@ use itertools::Itertools;
 ///
 /// [`SnippetExt`]: crate::phrase::schema::snippet::SnippetExt
 /// [`FromBase64ToAscii`]: crate::base64_parser::FromBase64ToAscii
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Variation<T> {
     pub(crate) links: Vec<Arc<T>>,
 }

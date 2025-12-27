@@ -693,6 +693,22 @@ where
     }
 }
 
+impl<U: SnippetExt> PartialEq<U> for Phrase<U::Item> where U::Item: PartialEq {
+    fn eq(&self, other: &U) -> bool {
+        Borrow::<BorrowedSnippet<U::Item>>::borrow(self) == other.borrow()
+    }
+}
+
+impl<T> Eq for Phrase<T> where Phrase<T>: PartialEq {}
+
+impl<U: SnippetExt> PartialEq<U> for Snippet<'_, U::Item> where U::Item: PartialEq {
+    fn eq(&self, other: &U) -> bool {
+        Borrow::<BorrowedSnippet<U::Item>>::borrow(self) == other.borrow()
+    }
+}
+
+impl<'a, T> Eq for Snippet<'a, T> where Snippet<'a, T>: PartialEq {}
+
 impl<U: SnippetExt> ConvertString for U
 where
     Variation<U::Item>: Display,

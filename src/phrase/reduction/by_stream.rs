@@ -94,7 +94,7 @@ where
 /// Provides and implements the [`ReduceReading`] trait for use in futures
 #[cfg(feature = "async")]
 pub mod r#async {
-    use std::{borrow::Borrow, sync::Arc};
+    use std::sync::Arc;
 
     use async_trait::async_trait;
     use futures::StreamExt;
@@ -124,9 +124,9 @@ pub mod r#async {
             confidence_interpreter: C,
         ) -> Self
         where
-            L: Fn(&B) -> LFut + Send + Sync,
+            L: Fn(B) -> LFut + Send + Sync,
             LFut: Future<Output = bool> + Send,
-            C: Fn(&Variation<Self::Item>) -> CFut + Send + Sync,
+            C: Fn(Variation<Self::Item>) -> CFut + Send + Sync,
             CFut: Future<Output = f64> + Send;
     }
 
@@ -143,9 +143,9 @@ pub mod r#async {
             confidence_interpreter: C,
         ) -> Self
         where
-            L: Fn(&Phrase<T>) -> LFut + Send + Sync,
+            L: Fn(Phrase<T>) -> LFut + Send + Sync,
             LFut: Future<Output = bool> + Send,
-            C: Fn(&Variation<T>) -> CFut + Send + Sync,
+            C: Fn(Variation<T>) -> CFut + Send + Sync,
             CFut: Future<Output = f64> + Send,
         {
             let mut section_stream = futures::stream::iter(self.sections.iter());
@@ -153,7 +153,7 @@ pub mod r#async {
 
             // Start by collecting a reasonable base to build the rest of the
             // string on
-            while !base_determination(final_buffer.borrow()).await
+            while !base_determination(final_buffer.clone()).await
                 && let Some(section) = section_stream.next().await
             {
                 final_buffer.sections.push(section.to_vec());
@@ -164,7 +164,7 @@ pub mod r#async {
                 let max_initial_buffer = final_buffer.len_sections();
                 final_buffer.sections = vec![
                     futures::stream::iter(final_buffer.sections.into_iter_var())
-                        .then(async |v| (confidence_interpreter(&v).await, v))
+                        .then(async |v| (confidence_interpreter(v.clone()).await, v))
                         .collect::<Vec<_>>()
                         .await
                         .into_iter()
@@ -186,7 +186,7 @@ pub mod r#async {
                     let p_init_permutation = p_init.permutations() / 2_f64;
                     p_init.sections = vec![
                         futures::stream::iter(p_init.sections.into_iter_var())
-                            .then(async |v| (confidence_interpreter(&v).await, v))
+                            .then(async |v| (confidence_interpreter(v.clone()).await, v))
                             .collect::<Vec<_>>()
                             .await
                             .into_iter()

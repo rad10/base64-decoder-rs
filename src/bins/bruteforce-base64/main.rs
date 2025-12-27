@@ -204,6 +204,14 @@ async fn main() -> Result<(), String> {
                             .await
                         }
                     }
+                    (ReductionMethod::Stream, StringValidator::WhatLang) => {
+                        use base64_bruteforcer_rs::phrase::reduction::by_stream::ReduceReading;
+
+                        string_permutation.reduce_reading(
+                            move |base| halves_size_check(base),
+                            validate_with_whatlang,
+                        )
+                    }
                     #[cfg(feature = "ollama")]
                     (ReductionMethod::Pairs, StringValidator::OllamaGroup(c)) => {
                         use base64_bruteforcer_rs::phrase::validation::ollama::AsyncOllama;
@@ -244,6 +252,21 @@ async fn main() -> Result<(), String> {
                                         .collect::<Vec<(f64, Variation<String>)>>()
                                         .await
                                 },
+                            )
+                            .await
+                    }
+                    (ReductionMethod::Stream, StringValidator::OllamaGroup(c)) => {
+                        use base64_bruteforcer_rs::phrase::{
+                            reduction::by_stream::r#async::AsyncReduceReadings,
+                            validation::ollama::AsyncOllama,
+                        };
+
+                        let tmp_ollama_engine = ollama_engine
+                            .get_or_insert(OllamaHandler::new(c.address.clone(), c.model.clone()));
+                        string_permutation
+                            .reduce_reading(
+                                async move |snip| halves_size_check(snip),
+                                async |phr| tmp_ollama_engine.validate_line(&phr).await,
                             )
                             .await
                     }

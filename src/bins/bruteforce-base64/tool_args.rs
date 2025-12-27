@@ -53,6 +53,8 @@ pub(crate) enum ReductionMethod {
     Pairs,
     /// Uses reduction by halves
     Halves,
+    /// Reads in each section one by one. Is slower but more accurate
+    Stream,
 }
 
 /// Specifies the UTF format the given text is in

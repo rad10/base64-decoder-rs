@@ -256,6 +256,7 @@ async fn main() -> Result<(), String> {
                             )
                             .await
                     },
+                    #[cfg(feature = "ollama")]
                     (ReductionMethod::Stream, StringValidator::OllamaGroup(c)) => {
                         use base64_bruteforcer_rs::phrase::{
                             reduction::by_stream::r#async::AsyncReduceReadings,

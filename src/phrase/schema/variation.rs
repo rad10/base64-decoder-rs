@@ -180,7 +180,7 @@ impl<T> Variation<T> {
     ///
     /// assert!(string_variation.num_of_refs() == 4);
     /// ```
-    pub fn num_of_refs(&self) -> usize {
+    pub const fn num_of_refs(&self) -> usize {
         self.links.len()
     }
 

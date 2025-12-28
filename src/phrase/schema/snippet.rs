@@ -1154,7 +1154,7 @@ impl<'a, 'b, T> Snippet<'b, T>
 where
     'a: 'b,
 {
-    pub fn new(schema: &'a [Section<T>]) -> Self {
+    pub const fn new(schema: &'a [Section<T>]) -> Self {
         Self { sections: schema }
     }
 }

@@ -1,4 +1,3 @@
-binop_separator = "Back"
 blank_lines_lower_bound = 0
 brace_style = "SameLineWhere"
 combine_control_expr = true

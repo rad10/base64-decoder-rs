@@ -350,8 +350,8 @@ async fn main() -> Result<(), String> {
             pair_size += 1;
 
             // Leaving early if not pairs or pair is now bigger than size
-            if parser.reduction_method != ReductionMethod::Pairs ||
-                pair_size > string_permutation.len_sections()
+            if parser.reduction_method != ReductionMethod::Pairs
+                || pair_size > string_permutation.len_sections()
             {
                 break 'pair_loop;
             }

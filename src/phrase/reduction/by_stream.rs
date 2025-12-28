@@ -82,8 +82,8 @@ where
 
         // Start by collecting a reasonable base to build the rest of the
         // string on
-        while !base_determination(final_buffer.borrow()) &&
-            let Some(section) = section_stream.next()
+        while !base_determination(final_buffer.borrow())
+            && let Some(section) = section_stream.next()
         {
             final_buffer.sections.push(section.to_vec());
         }
@@ -192,8 +192,8 @@ pub mod r#async {
         ///             async |snip| snip.len_sections() == 3,
         ///             async |line| validate_with_whatlang(&line)
         ///         )
-        ///         .await ==
-        ///         reduced_phrase
+        ///         .await
+        ///         == reduced_phrase
         /// );
         /// # });
         /// ```
@@ -232,8 +232,8 @@ pub mod r#async {
 
             // Start by collecting a reasonable base to build the rest of the
             // string on
-            while !base_determination(final_buffer.clone()).await &&
-                let Some(section) = section_stream.next().await
+            while !base_determination(final_buffer.clone()).await
+                && let Some(section) = section_stream.next().await
             {
                 final_buffer.extend(vec![section.to_vec()]);
             }

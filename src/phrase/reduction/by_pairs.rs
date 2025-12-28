@@ -479,8 +479,8 @@ pub mod rayon {
 
                         // Go with originals if new choices aren't preferred
                         // aka if its empty or the permutations is the same as it originally was
-                        if !combined[0].is_empty() &&
-                            (combined[0].len() as f64) < pairs.permutations()
+                        if !combined[0].is_empty()
+                            && (combined[0].len() as f64) < pairs.permutations()
                         {
                             combined
                         } else {

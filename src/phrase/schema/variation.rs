@@ -11,12 +11,15 @@
 //!
 //! While these combinations are all wanted, its not reasonable to hold multiple
 //! copies in memory. Luckily any and all potential combinations are going to
-//! be one of the produced values from [`Base64Parser`], so we can maintain
+//! be one of the produced values from [`FromBase64ToAscii`], so we can maintain
 //! reasonable memory sizes by containing [`Arc`]s of each section instead.
 //!
 //! Because of this, the [`Variation`] is designed to act the same way that the
 //! raw copy would while internally only holding references to each section
 //! saving memory.
+//!
+//! [`SnippetExt`]: crate::phrase::schema::snippet::SnippetExt
+//! [`FromBase64ToAscii`]: crate::base64_parser::FromBase64ToAscii
 
 use std::{fmt::Display, sync::Arc};
 

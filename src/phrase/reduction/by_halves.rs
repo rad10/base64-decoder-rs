@@ -48,6 +48,60 @@ pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>, B: SnippetExt<Item 
     /// backwards and reduce using the largest valid permutation available.
     /// This largest available permutation will depend on `size_checker`
     /// to decide the size of the section.
+    ///
+    /// ```rust
+    /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::ReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+    /// use std::sync::Arc;
+    ///
+    /// let phrase_string: Phrase<String> = [
+    ///     vec![vec!["Hel"], vec!["HeR"]],
+    ///     vec![vec!["lo "]],
+    ///     vec![vec!["Wor"], vec!["WoX"]],
+    ///     vec![vec!["ld!"]],
+    ///     vec![vec!["Thi"], vec!["ThR"]],
+    ///     vec![vec!["is "]],
+    ///     vec![vec!["is "]],
+    ///     vec![vec!["my "]],
+    ///     vec![vec!["str"], vec!["stX"]],
+    ///     vec![vec!["ing"], vec!["Mng"]],
+    ///     vec![vec!["!"]],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| {
+    ///     section.into_iter().map(|variation| {
+    ///         variation
+    ///             .into_iter()
+    ///             .map(ToOwned::to_owned)
+    ///             .map(Arc::new)
+    ///             .collect::<Variation<String>>()
+    ///     })
+    /// })
+    /// .collect();
+    ///
+    /// let reduced_phrase: Phrase<String> = [
+    ///     vec![vec!["Hel", "lo "]],
+    ///     vec![vec!["WoX", "ld!"]],
+    ///     vec![vec!["Thi"], vec!["ThR"]],
+    ///     vec![vec!["is ", "is "]],
+    ///     vec![vec!["my ", "stX"]],
+    ///     vec![vec!["ing"], vec!["Mng"]],
+    ///     vec![vec!["!"]],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| {
+    ///     section.into_iter().map(|variation| {
+    ///         variation
+    ///             .into_iter()
+    ///             .map(ToOwned::to_owned)
+    ///             .map(Arc::new)
+    ///             .collect::<Variation<String>>()
+    ///     })
+    /// })
+    /// .collect();
+    ///
+    /// let reduced_result = phrase_string.reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
+    /// assert!(reduced_result == reduced_phrase);
+    /// ```
     fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
     where
         Variation<Self::Item>: Clone,
@@ -211,6 +265,60 @@ pub mod rayon {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
+        ///
+        /// ```rust
+        /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::rayon::ParReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+        /// use std::sync::Arc;
+        ///
+        /// let phrase_string: Phrase<String> = [
+        ///     vec![vec!["Hel"], vec!["HeR"]],
+        ///     vec![vec!["lo "]],
+        ///     vec![vec!["Wor"], vec!["WoX"]],
+        ///     vec![vec!["ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["my "]],
+        ///     vec![vec!["str"], vec!["stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_phrase: Phrase<String> = [
+        ///     vec![vec!["Hel", "lo "]],
+        ///     vec![vec!["WoX", "ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is ", "is "]],
+        ///     vec![vec!["my ", "stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_result = phrase_string.reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
+        /// assert!(reduced_result == reduced_phrase);
+        /// ```
         fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
         where
             L: Fn(&B) -> bool + Send + Sync,
@@ -374,6 +482,63 @@ pub mod r#async {
         /// backwards and reduce using the largest valid permutation available.
         /// This largest available permutation will depend on `size_checker`
         /// to decide the size of the section.
+        ///
+        /// ```rust
+        /// # futures::executor::block_on(async {
+        /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::r#async::AsyncReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+        /// use std::sync::Arc;
+        ///
+        /// let phrase_string: Phrase<String> = [
+        ///     vec![vec!["Hel"], vec!["HeR"]],
+        ///     vec![vec!["lo "]],
+        ///     vec![vec!["Wor"], vec!["WoX"]],
+        ///     vec![vec!["ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["my "]],
+        ///     vec![vec!["str"], vec!["stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_phrase: Phrase<String> = [
+        ///     vec![vec!["Hel", "lo "]],
+        ///     vec![vec!["WoX", "ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is ", "is "]],
+        ///     vec![vec!["my ", "stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_result = phrase_string.reduce_halves(async |base| base.len_sections() <= 3, async move |line| validate_with_whatlang(&line)).await;
+        /// assert!(reduced_result == reduced_phrase,
+        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// # });
+        /// ```
         async fn reduce_halves<'b, L, C, FutBool, Fut>(
             &'s self,
             size_checker: L,
@@ -382,7 +547,7 @@ pub mod r#async {
         where
             L: Fn(Snippet<'b, Self::Item>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
-            C: Fn(&Variation<Self::Item>) -> Fut + Send + Sync,
+            C: Fn(Variation<Self::Item>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
             's: 'b;
     }
@@ -405,8 +570,8 @@ pub mod r#async {
         /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
         /// ownership of the phrases data instead of borrowing it.
         ///
-        /// [`Phrase`]: crate::phrase::schema::Phrase
-        /// [`Snippet`]: crate::phrase::schema::Snippet
+        /// [`Phrase`]: crate::phrase::schema::snippet::Phrase
+        /// [`Snippet`]: crate::phrase::schema::snippet::Snippet
         async fn bulk_reduce_halves<'b, L, C, FutBool, Fut>(
             &'s self,
             size_checker: L,
@@ -431,8 +596,8 @@ pub mod r#async {
         /// This uses [`Phrase`] instead of [`Snippet`] due to stream taking
         /// ownership of the phrases data instead of borrowing it.
         ///
-        /// [`Phrase`]: crate::phrase::schema::Phrase
-        /// [`Snippet`]: crate::phrase::schema::Snippet
+        /// [`Phrase`]: crate::phrase::schema::snippet::Phrase
+        /// [`Snippet`]: crate::phrase::schema::snippet::Snippet
         async fn bulk_reduce_schema_binary<'b, L, C, FutBool, Fut>(
             size_checker: &L,
             phrase_snippet: Snippet<'s, Self::Item>,
@@ -464,14 +629,14 @@ pub mod r#async {
         where
             L: Fn(Snippet<'b, T>) -> FutBool + Send + Sync,
             FutBool: Future<Output = bool> + Send + 'b,
-            C: Fn(&Variation<T>) -> Fut + Send + Sync,
+            C: Fn(Variation<T>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
             's: 'b,
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_halves(size_checker, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.iter_var())
-                    .then(async move |line| (conf_link(&line).await, line))
+                    .then(async move |line| (conf_link(line.clone()).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
             })

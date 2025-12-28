@@ -48,6 +48,60 @@ pub trait ReducePairs<S: SnippetExt<Item = Self::Item>>: SnippetExt {
     /// closer to your objective than another.
     ///
     /// Default is 2
+    ///
+    /// ```rust
+    /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::ReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+    /// use std::sync::Arc;
+    ///
+    /// let phrase_string: Phrase<String> = [
+    ///     vec![vec!["Hel"], vec!["HeR"]],
+    ///     vec![vec!["lo "]],
+    ///     vec![vec!["Wor"], vec!["WoX"]],
+    ///     vec![vec!["ld!"]],
+    ///     vec![vec!["Thi"], vec!["ThR"]],
+    ///     vec![vec!["is "]],
+    ///     vec![vec!["is "]],
+    ///     vec![vec!["my "]],
+    ///     vec![vec!["str"], vec!["stX"]],
+    ///     vec![vec!["ing"], vec!["Mng"]],
+    ///     vec![vec!["!"]],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| {
+    ///     section.into_iter().map(|variation| {
+    ///         variation
+    ///             .into_iter()
+    ///             .map(ToOwned::to_owned)
+    ///             .map(Arc::new)
+    ///             .collect::<Variation<String>>()
+    ///     })
+    /// })
+    /// .collect();
+    ///
+    /// let reduced_phrase: Phrase<String> = [
+    ///     vec![vec!["Hel", "lo "]],
+    ///     vec![vec!["WoX", "ld!"]],
+    ///     vec![vec!["Thi", "is "]],
+    ///     vec![vec!["is ", "my "]],
+    ///     vec![vec!["str", "ing"], vec!["stX", "Mng"]],
+    ///     vec![vec!["!"]],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| {
+    ///     section.into_iter().map(|variation| {
+    ///         variation
+    ///             .into_iter()
+    ///             .map(ToOwned::to_owned)
+    ///             .map(Arc::new)
+    ///             .collect::<Variation<String>>()
+    ///     })
+    /// })
+    /// .collect();
+    ///
+    /// let reduced_result = phrase_string.reduce_pairs(2, validate_with_whatlang);
+    /// assert!(reduced_result == reduced_phrase,
+    /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+    /// ```
     fn reduce_pairs<C>(
         &self,
         number_of_pairs: impl Into<Option<usize>>,
@@ -212,6 +266,60 @@ pub mod rayon {
         /// closer to your objective than another.
         ///
         /// Default is 2
+        ///
+        /// ```rust
+        /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::rayon::ParReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+        /// use std::sync::Arc;
+        ///
+        /// let phrase_string: Phrase<String> = [
+        ///     vec![vec!["Hel"], vec!["HeR"]],
+        ///     vec![vec!["lo "]],
+        ///     vec![vec!["Wor"], vec!["WoX"]],
+        ///     vec![vec!["ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["my "]],
+        ///     vec![vec!["str"], vec!["stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_phrase: Phrase<String> = [
+        ///     vec![vec!["Hel", "lo "]],
+        ///     vec![vec!["WoX", "ld!"]],
+        ///     vec![vec!["Thi", "is "]],
+        ///     vec![vec!["is ", "my "]],
+        ///     vec![vec!["str", "ing"], vec!["stX", "Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_result = phrase_string.reduce_pairs(2, validate_with_whatlang);
+        /// assert!(reduced_result == reduced_phrase,
+        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// ```
         fn reduce_pairs<C>(
             &self,
             number_of_pairs: impl Into<Option<usize>>,
@@ -398,13 +506,69 @@ pub mod r#async {
         /// is closer to your objective than another.
         ///
         /// Default is 2
+        ///
+        /// ```rust
+        /// # futures::executor::block_on(async {
+        /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::r#async::AsyncReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
+        /// use std::sync::Arc;
+        ///
+        /// let phrase_string: Phrase<String> = [
+        ///     vec![vec!["Hel"], vec!["HeR"]],
+        ///     vec![vec!["lo "]],
+        ///     vec![vec!["Wor"], vec!["WoX"]],
+        ///     vec![vec!["ld!"]],
+        ///     vec![vec!["Thi"], vec!["ThR"]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["is "]],
+        ///     vec![vec!["my "]],
+        ///     vec![vec!["str"], vec!["stX"]],
+        ///     vec![vec!["ing"], vec!["Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_phrase: Phrase<String> = [
+        ///     vec![vec!["Hel", "lo "]],
+        ///     vec![vec!["WoX", "ld!"]],
+        ///     vec![vec!["Thi", "is "]],
+        ///     vec![vec!["is ", "my "]],
+        ///     vec![vec!["str", "ing"], vec!["stX", "Mng"]],
+        ///     vec![vec!["!"]],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| {
+        ///     section.into_iter().map(|variation| {
+        ///         variation
+        ///             .into_iter()
+        ///             .map(ToOwned::to_owned)
+        ///             .map(Arc::new)
+        ///             .collect::<Variation<String>>()
+        ///     })
+        /// })
+        /// .collect();
+        ///
+        /// let reduced_result = phrase_string.reduce_pairs(2, async move |line| validate_with_whatlang(&line)).await;
+        /// assert!(reduced_result == reduced_phrase,
+        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// # });
+        /// ```
         async fn reduce_pairs<C, Fut>(
             &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
             confidence_interpreter: C,
         ) -> Self
         where
-            C: for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
+            C: Fn(Variation<Self::Item>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send;
     }
 
@@ -433,8 +597,8 @@ pub mod r#async {
         ///
         /// Default is 2
         ///
-        /// [`Phrase`]: crate::phrase::schema::Phrase
-        /// [`Snippet`]: crate::phrase::schema::Snippet
+        /// [`Phrase`]: crate::phrase::schema::snippet::Phrase
+        /// [`Snippet`]: crate::phrase::schema::snippet::Snippet
         async fn bulk_reduce_pairs<C, Fut>(
             &'s self,
             number_of_pairs: impl Into<Option<usize>> + Send,
@@ -458,13 +622,13 @@ pub mod r#async {
             confidence_interpreter: C,
         ) -> Self
         where
-            C: for<'a> Fn(&'a Variation<Self::Item>) -> Fut + Send + Sync,
+            C: Fn(Variation<Self::Item>) -> Fut + Send + Sync,
             Fut: Future<Output = f64> + Send,
         {
             let conf_link = &confidence_interpreter;
             self.bulk_reduce_pairs(number_of_pairs, async |snip: Snippet<'_, T>| {
                 stream::iter(snip.par_iter_var())
-                    .then(async move |line| (conf_link(&line).await, line))
+                    .then(async move |line| (conf_link(line.clone()).await, line))
                     .collect::<Vec<(f64, Variation<T>)>>()
                     .await
             })

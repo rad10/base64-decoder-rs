@@ -3,10 +3,11 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 #[cfg(feature = "async")]
+use async_trait::async_trait;
+
+#[cfg(feature = "async")]
 use crate::phrase::schema::snippet::ThreadedSnippetExt;
 use crate::phrase::schema::snippet::{ConvertString, Permutation, SnippetExt};
-#[cfg(feature = "async")]
-use async_trait::async_trait;
 
 /// Provides the ability for a phrase to continuously run a function until it
 /// can no longer make the phrase smaller
@@ -15,8 +16,16 @@ pub trait ReduceToEnd: SnippetExt + Sized {
     /// it possibly can
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::{reduction::{by_pairs::ReducePairs, reduce_to_end::ReduceToEnd}, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::{
+    ///     reduction::{by_pairs::ReducePairs, reduce_to_end::ReduceToEnd},
+    ///     schema::{
+    ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+    ///         variation::Variation,
+    ///     },
+    ///     validation::validate_with_whatlang,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -43,9 +52,10 @@ pub trait ReduceToEnd: SnippetExt + Sized {
     /// })
     /// .collect();
     ///
-    /// let reduced_phrase: Phrase<String> = [
-    ///     vec![vec!["Hel", "lo ", "WoX", "ld!", "Thi", "is ", "is ", "my ", "str", "ing", "!"]],
-    /// ]
+    /// let reduced_phrase: Phrase<String> = [vec![vec![
+    ///     "Hel", "lo ", "WoX", "ld!", "Thi", "is ", "is ", "my ", "str", "ing",
+    ///     "!",
+    /// ]]]
     /// .into_iter()
     /// .map(|section| {
     ///     section.into_iter().map(|variation| {
@@ -58,9 +68,10 @@ pub trait ReduceToEnd: SnippetExt + Sized {
     /// })
     /// .collect();
     ///
-    /// let reduced_result = phrase_string.reduce_to_end(move |base| base.reduce_pairs(2, validate_with_whatlang));
-    /// assert!(reduced_result == reduced_phrase,
-    /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+    /// let reduced_result = phrase_string.reduce_to_end(move |base| {
+    ///     base.reduce_pairs(2, validate_with_whatlang)
+    /// });
+    /// assert!(reduced_result == reduced_phrase);
     /// ```
     fn reduce_to_end<F>(self, reduction_function: F) -> Self
     where
@@ -68,8 +79,9 @@ pub trait ReduceToEnd: SnippetExt + Sized {
 
     /// Reduces a phrase as much as humanly possible by mutating itself.
     ///
-    /// This can be more memory efficient than using [`ReduceToEnd::reduce_to_end`]
-    /// as it allows mutating its own contents directly
+    /// This can be more memory efficient than using
+    /// [`ReduceToEnd::reduce_to_end`] as it allows mutating its own
+    /// contents directly
     fn reduce_to_end_mut<F>(self, reduction_function: F) -> Self
     where
         F: FnMut(&mut Self);
@@ -88,8 +100,19 @@ where
     ///
     /// ```rust
     /// # futures::executor::block_on(async {
-    /// use base64_bruteforcer_rs::phrase::{reduction::{by_pairs::r#async::AsyncReducePairs, reduce_to_end::AsyncReduceToEnd}, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::{
+    ///     reduction::{
+    ///         by_pairs::r#async::AsyncReducePairs,
+    ///         reduce_to_end::AsyncReduceToEnd,
+    ///     },
+    ///     schema::{
+    ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+    ///         variation::Variation,
+    ///     },
+    ///     validation::validate_with_whatlang,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -116,9 +139,10 @@ where
     /// })
     /// .collect();
     ///
-    /// let reduced_phrase: Phrase<String> = [
-    ///     vec![vec!["Hel", "lo ", "WoX", "ld!", "Thi", "is ", "is ", "my ", "str", "ing", "!"]],
-    /// ]
+    /// let reduced_phrase: Phrase<String> = [vec![vec![
+    ///     "Hel", "lo ", "WoX", "ld!", "Thi", "is ", "is ", "my ", "str", "ing",
+    ///     "!",
+    /// ]]]
     /// .into_iter()
     /// .map(|section| {
     ///     section.into_iter().map(|variation| {
@@ -131,9 +155,15 @@ where
     /// })
     /// .collect();
     ///
-    /// let reduced_result = phrase_string.reduce_to_end(async move |base| base.reduce_pairs(2, async move |line| validate_with_whatlang(&line)).await).await;
-    /// assert!(reduced_result == reduced_phrase,
-    /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+    /// let reduced_result = phrase_string
+    ///     .reduce_to_end(async move |base| {
+    ///         base.reduce_pairs(2, async move |line| {
+    ///             validate_with_whatlang(&line)
+    ///         })
+    ///         .await
+    ///     })
+    ///     .await;
+    /// assert!(reduced_result == reduced_phrase);
     /// # });
     /// ```
     async fn reduce_to_end<F, Fut>(self, reduction_function: F) -> Self
@@ -143,8 +173,9 @@ where
 
     /// Reduces a phrase as much as humanly possible by mutating itself.
     ///
-    /// This can be more memory efficient than using [`AsyncReduceToEnd::reduce_to_end`]
-    /// as it allows mutating its own contents directly
+    /// This can be more memory efficient than using
+    /// [`AsyncReduceToEnd::reduce_to_end`] as it allows mutating its own
+    /// contents directly
     async fn reduce_to_end_mut<F, Fut>(self, reduction_function: F) -> Self
     where
         F: FnMut(&mut Self) -> Fut + Send + Sync,

@@ -19,14 +19,19 @@ use crate::phrase::schema::variation::{Variation, VariationLen, VariationValue};
 /// ## Examples
 ///
 /// ```rust
-/// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation, SnippetExt};
+/// use base64_bruteforcer_rs::phrase::schema::snippet::{
+///     Permutation, Phrase, SnippetExt,
+/// };
 ///
 /// let phrase_string: Phrase<String> = [
 ///     vec!["Hel", "HeR"],
 ///     vec!["lo "],
 ///     vec!["Wor", "WoX"],
-///     vec!["ld!"]
-/// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+///     vec!["ld!"],
+/// ]
+/// .into_iter()
+/// .map(|section| section.into_iter().map(String::from))
+/// .collect();
 ///
 /// // Provides useful stats for debugging
 /// assert!(phrase_string.len_sections() == 4);
@@ -71,14 +76,19 @@ pub struct Phrase<T> {
 /// ## Examples
 ///
 /// ```rust
-/// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase, Permutation, Snippet, SnippetExt};
+/// use base64_bruteforcer_rs::phrase::schema::snippet::{
+///     ConvertString, Permutation, Phrase, Snippet, SnippetExt,
+/// };
 ///
 /// let phrase_string: Phrase<String> = [
 ///     vec!["Hel", "HeR"],
 ///     vec!["lo "],
 ///     vec!["Wor", "WoX"],
-///     vec!["ld!"]
-/// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+///     vec!["ld!"],
+/// ]
+/// .into_iter()
+/// .map(|section| section.into_iter().map(String::from))
+/// .collect();
 ///
 /// let phrase_snippet = phrase_string.as_snippet();
 ///
@@ -125,12 +135,14 @@ pub type BorrowedSnippet<T> = [Section<T>];
 /// primarily used in debugging but can be used to pull a schema out beforehand.
 ///
 /// ```rust
-/// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase};
+/// use base64_bruteforcer_rs::phrase::schema::snippet::{
+///     ConvertString, Phrase,
+/// };
 /// let raw_schema = vec![
 ///     vec!["Hel".to_owned(), "HeR".to_owned()],
 ///     vec!["lo ".to_owned()],
 ///     vec!["Wor".to_owned(), "WoX".to_owned()],
-///     vec!["ld!".to_owned()]
+///     vec!["ld!".to_owned()],
 /// ];
 ///
 /// let phrase_string: Phrase<String> = Phrase::from_iter(raw_schema.clone());
@@ -141,12 +153,14 @@ pub trait ConvertString {
     /// Produces a copy of the schema with variations converted to strings
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{ConvertString, Phrase};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{
+    ///     ConvertString, Phrase,
+    /// };
     /// let raw_schema = vec![
     ///     vec!["Hel".to_owned(), "HeR".to_owned()],
     ///     vec!["lo ".to_owned()],
     ///     vec!["Wor".to_owned(), "WoX".to_owned()],
-    ///     vec!["ld!".to_owned()]
+    ///     vec!["ld!".to_owned()],
     /// ];
     ///
     /// let phrase_string: Phrase<String> = Phrase::from_iter(raw_schema.clone());
@@ -160,14 +174,17 @@ pub trait ConvertString {
 /// schema can produce
 ///
 /// ```rust
-/// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation};
+/// use base64_bruteforcer_rs::phrase::schema::snippet::{Permutation, Phrase};
 ///
 /// let phrase_string: Phrase<String> = [
 ///     vec!["Hel", "HeR"],
 ///     vec!["lo "],
 ///     vec!["Wor", "WoX"],
-///     vec!["ld!"]
-/// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+///     vec!["ld!"],
+/// ]
+/// .into_iter()
+/// .map(|section| section.into_iter().map(String::from))
+/// .collect();
 ///
 /// assert!(phrase_string.permutations() == 4.0);
 /// ```
@@ -175,14 +192,17 @@ pub trait Permutation {
     /// Produces the number of combinations this schema can produce
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, Permutation};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Permutation, Phrase};
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// assert!(phrase_string.permutations() == 4.0);
     /// ```
@@ -209,8 +229,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// assert!(phrase_string.len_sections() == 4);
     /// ```
@@ -227,8 +250,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// assert!(phrase_string.len_phrase() == 12);
     /// ```
@@ -253,8 +279,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// assert!(phrase_string.num_of_references() == 6);
     /// ```
@@ -277,18 +306,28 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     /// efficient variation structure
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{variation::Variation, snippet::{Phrase, SnippetExt}};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, SnippetExt},
+    ///     variation::Variation,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.iter_var();
@@ -309,18 +348,28 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     /// efficient variation structure
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{variation::Variation, snippet::{Phrase, SnippetExt}};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, SnippetExt},
+    ///     variation::Variation,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.into_iter_var();
@@ -341,8 +390,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.iter_val();
@@ -370,8 +422,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.into_iter_val();
@@ -400,8 +455,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// let mut string_iterator = phrase_string.iter_str();
     ///
@@ -427,8 +485,11 @@ pub trait SnippetExt: Borrow<BorrowedSnippet<Self::Item>> {
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// let mut string_iterator = phrase_string.into_iter_str();
     ///
@@ -466,19 +527,28 @@ where
     /// that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{variation::Variation, snippet::{Phrase, ThreadedSnippetExt}};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, ThreadedSnippetExt},
+    ///     variation::Variation,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
-    ///
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_iter_var();
@@ -498,22 +568,32 @@ where
     /// Creates an iterator of all possible combinations based on the memory
     /// efficient variation structure
     ///
-    /// This provides the same object as [`SnippetExt::into_iter_var`] but in a form
-    /// that is thread safe
+    /// This provides the same object as [`SnippetExt::into_iter_var`] but in a
+    /// form that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{variation::Variation, snippet::{Phrase, ThreadedSnippetExt}};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, ThreadedSnippetExt},
+    ///     variation::Variation,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_into_iter_var();
@@ -531,14 +611,19 @@ where
     /// that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{
+    ///     Phrase, ThreadedSnippetExt,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_iter_val();
@@ -559,18 +644,23 @@ where
 
     /// Permutate through all [`Variation`]s that the phrase can take
     ///
-    /// This provides the same object as [`SnippetExt::into_iter_val`] but in a form
-    /// that is thread safe
+    /// This provides the same object as [`SnippetExt::into_iter_val`] but in a
+    /// form that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{
+    ///     Phrase, ThreadedSnippetExt,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// // Provides an easy way to get all combinations of the variations
     /// let mut value_iterator = phrase_string.par_into_iter_val();
@@ -596,14 +686,19 @@ where
     /// that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{
+    ///     Phrase, ThreadedSnippetExt,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// let mut string_iterator = phrase_string.par_iter_str();
     ///
@@ -626,14 +721,19 @@ where
     /// that is thread safe
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::snippet::{Phrase, ThreadedSnippetExt};
+    /// use base64_bruteforcer_rs::phrase::schema::snippet::{
+    ///     Phrase, ThreadedSnippetExt,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
     /// let mut string_iterator = phrase_string.par_into_iter_str();
     ///
@@ -840,8 +940,12 @@ impl<T> Phrase<T> {
     /// number of sections to begin with.
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{snippet::{Phrase, SnippetExt}, variation::Variation};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, SnippetExt},
+    ///     variation::Variation,
+    /// };
     ///
     /// let before_flatten: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -937,8 +1041,12 @@ impl<T> Phrase<T> {
     /// number of sections to begin with.
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::{snippet::{Phrase, SnippetExt}, variation::Variation};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::schema::{
+    ///     snippet::{Phrase, SnippetExt},
+    ///     variation::Variation,
+    /// };
     ///
     /// let before_flatten: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],

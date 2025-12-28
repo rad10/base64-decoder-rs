@@ -2,17 +2,18 @@
 use std::io::{Error, ErrorKind};
 
 #[cfg(not(feature = "rayon"))]
-use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
+use base64_bruteforcer_rs::base64_parser::BruteforceBase64;
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::base64_parser::rayon::ParallelBruteforceBase64;
+use base64_bruteforcer_rs::phrase::schema::{
+    snippet::{ConvertString, Permutation, Phrase, SnippetExt},
+    variation::VariationDebug,
+};
+#[cfg(feature = "whatlang")]
+use base64_bruteforcer_rs::phrase::validation::validate_with_whatlang;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::{
     schema::variation::Variation, validation::ollama::OllamaHandler,
-};
-use base64_bruteforcer_rs::phrase::{
-    schema::{
-        snippet::{ConvertString, Permutation, Phrase, SnippetExt},
-        variation::VariationDebug,
-    },
-    validation::validate_with_whatlang,
 };
 use clap::Parser;
 use futures::StreamExt;
@@ -21,10 +22,6 @@ use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     str::ParallelString,
 };
-
-#[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::base64_parser::rayon::ParallelBruteforceBase64;
-
 use tokio::io::{AsyncWriteExt, Stdout};
 use tool_args::ToolArgs;
 
@@ -61,7 +58,9 @@ async fn main() -> Result<(), String> {
             string_schema
         } else {
             return Err(
-                "Input does not match expected outputs. Please reobtain bruteforce progress in correct format.".to_string()
+                "Input does not match expected outputs. Please reobtain bruteforce progress in \
+                 correct format."
+                    .to_string(),
             );
         }
     } else {
@@ -222,7 +221,8 @@ async fn main() -> Result<(), String> {
                     },
                     x if x >= log::LevelFilter::Debug => {
                         log::debug!(
-                            "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: {:e}",
+                            "Schema: {:?}\n# of sections: {}\n# of refs: {}\n# of permutations: \
+                             {:e}",
                             string_permutation.convert_to_string(),
                             string_permutation.len_sections(),
                             string_permutation.num_of_references(),
@@ -235,6 +235,7 @@ async fn main() -> Result<(), String> {
                 // Update permutation depending on which loop
                 string_permutation = match (parser.reduction_method, &parser.validation_method) {
                     (_, StringValidator::None) => unreachable!(),
+                    #[cfg(feature = "whatlang")]
                     (ReductionMethod::Pairs, StringValidator::WhatLang) => {
                         #[cfg(not(feature = "rayon"))]
                         {
@@ -251,13 +252,16 @@ async fn main() -> Result<(), String> {
                             .await
                         }
                     },
+                    #[cfg(feature = "whatlang")]
                     (ReductionMethod::Halves, StringValidator::WhatLang) => {
                         #[cfg(not(feature = "rayon"))]
                         {
                             use base64_bruteforcer_rs::phrase::reduction::by_halves::ReduceHalves;
 
-                            string_permutation
-                                .reduce_halves(halves_size_check, validate_with_whatlang)
+                            string_permutation.reduce_halves(
+                                |snip| halves_size_check(snip),
+                                validate_with_whatlang,
+                            )
                         }
                         #[cfg(feature = "rayon")]
                         {
@@ -272,6 +276,7 @@ async fn main() -> Result<(), String> {
                             .await
                         }
                     },
+                    #[cfg(feature = "whatlang")]
                     (ReductionMethod::Stream, StringValidator::WhatLang) => {
                         use base64_bruteforcer_rs::phrase::reduction::by_stream::ReduceReading;
 
@@ -345,8 +350,8 @@ async fn main() -> Result<(), String> {
             pair_size += 1;
 
             // Leaving early if not pairs or pair is now bigger than size
-            if parser.reduction_method != ReductionMethod::Pairs
-                || pair_size > string_permutation.len_sections()
+            if parser.reduction_method != ReductionMethod::Pairs ||
+                pair_size > string_permutation.len_sections()
             {
                 break 'pair_loop;
             }

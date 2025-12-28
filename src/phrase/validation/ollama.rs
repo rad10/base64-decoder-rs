@@ -4,7 +4,6 @@ use async_trait::async_trait;
 #[cfg(feature = "async")]
 use futures::{Stream, StreamExt};
 use itertools::Itertools;
-
 #[cfg(feature = "ollama")]
 use ollama_rs::{Ollama, generation::completion::request::GenerationRequest};
 #[cfg(feature = "ollama")]
@@ -46,7 +45,8 @@ You will need to give a response in the form
 
 #[async_trait]
 pub trait AsyncOllama {
-    /// Takes a phrase and returns the confidence for each line provided by ollama
+    /// Takes a phrase and returns the confidence for each line provided by
+    /// ollama
     async fn validate_group<T, U>(&self, snippet: U) -> impl Stream<Item = (f64, Variation<T>)>
     where
         Arc<T>: Sync,
@@ -72,7 +72,8 @@ impl OllamaHandler {
 
 #[async_trait]
 impl AsyncOllama for OllamaHandler {
-    /// Takes a phrase and returns the confidence for each line provided by ollama
+    /// Takes a phrase and returns the confidence for each line provided by
+    /// ollama
     async fn validate_group<T, U>(&self, snippet: U) -> impl Stream<Item = (f64, Variation<T>)>
     where
         Arc<T>: Sync,
@@ -173,12 +174,14 @@ impl AsyncOllama for OllamaHandler {
     // /// requiring ollama to apply a confidence on each variation within each
     // /// section. This will then be used to calculate the confidence of each
     // /// permutation
-    // pub async fn validate_by_variant_confidences<T>(&self, snippet: &Snippet<'_, Vec<T>>) -> impl Stream<Item = (f64, Variation<Vec<T>>)> {
+    // pub async fn validate_by_variant_confidences<T>(&self, snippet: &Snippet<'_,
+    // Vec<T>>) -> impl Stream<Item = (f64, Variation<Vec<T>>)> {
 
     // }
 
     // /// This validation function simply gives ollama the snippets structure
     // /// and asks ollama to create a single variation from this that represents
     // /// ollama's best guess as to what the correct pattern is.
-    // pub async fn get_ollama_best_answer<T>(&self, snippet: &Snippet<'_, Vec<T>>) -> impl Stream<Item = (f64, Variation<Vec<T>>);
+    // pub async fn get_ollama_best_answer<T>(&self, snippet: &Snippet<'_, Vec<T>>)
+    // -> impl Stream<Item = (f64, Variation<Vec<T>>);
 }

@@ -19,15 +19,63 @@ pub trait BruteforceBase64: IntoIterator<Item = u8> {
     /// let example_base64 = b"sgvsbg8gd29ybgqh";
     ///
     /// let expected: Vec<Vec<[u8; 3]>> = vec![
-    ///     vec![[178, 11, 236], [178, 11, 210], [178, 5, 108], [178, 5, 82], [176, 107, 236], [176, 107, 210], [176, 101, 108], [176, 101, 82], [74, 11, 236], [74, 11, 210], [74, 5, 108], [74, 5, 82], [72, 107, 236], [72, 107, 210], [72, 101, 108], [72, 101, 82]],
-    ///     vec![[110, 15, 32], [110, 15, 6], [108, 111, 32], [108, 111, 6], [6, 15, 32], [6, 15, 6], [4, 111, 32], [4, 111, 6]],
-    ///     vec![[119, 111, 114], [119, 111, 88], [15, 111, 114], [15, 111, 88]],
-    ///     vec![[110, 10, 161], [110, 10, 135], [110, 4, 33], [110, 4, 7], [108, 106, 161], [108, 106, 135], [108, 100, 33], [108, 100, 7], [6, 10, 161], [6, 10, 135], [6, 4, 33], [6, 4, 7], [4, 106, 161], [4, 106, 135], [4, 100, 33], [4, 100, 7]]
+    ///     vec![
+    ///         [178, 11, 236],
+    ///         [178, 11, 210],
+    ///         [178, 5, 108],
+    ///         [178, 5, 82],
+    ///         [176, 107, 236],
+    ///         [176, 107, 210],
+    ///         [176, 101, 108],
+    ///         [176, 101, 82],
+    ///         [74, 11, 236],
+    ///         [74, 11, 210],
+    ///         [74, 5, 108],
+    ///         [74, 5, 82],
+    ///         [72, 107, 236],
+    ///         [72, 107, 210],
+    ///         [72, 101, 108],
+    ///         [72, 101, 82],
+    ///     ],
+    ///     vec![
+    ///         [110, 15, 32],
+    ///         [110, 15, 6],
+    ///         [108, 111, 32],
+    ///         [108, 111, 6],
+    ///         [6, 15, 32],
+    ///         [6, 15, 6],
+    ///         [4, 111, 32],
+    ///         [4, 111, 6],
+    ///     ],
+    ///     vec![
+    ///         [119, 111, 114],
+    ///         [119, 111, 88],
+    ///         [15, 111, 114],
+    ///         [15, 111, 88],
+    ///     ],
+    ///     vec![
+    ///         [110, 10, 161],
+    ///         [110, 10, 135],
+    ///         [110, 4, 33],
+    ///         [110, 4, 7],
+    ///         [108, 106, 161],
+    ///         [108, 106, 135],
+    ///         [108, 100, 33],
+    ///         [108, 100, 7],
+    ///         [6, 10, 161],
+    ///         [6, 10, 135],
+    ///         [6, 4, 33],
+    ///         [6, 4, 7],
+    ///         [4, 106, 161],
+    ///         [4, 106, 135],
+    ///         [4, 100, 33],
+    ///         [4, 100, 7],
+    ///     ],
     /// ];
     ///
     /// let result: Vec<Vec<[u8; 3]>> = example_base64.parse_base64().collect();
     ///
-    /// assert!(result == expected, "Expected result {:?} did not match with {:?}", expected, result);
+    /// assert!(result == expected);
     /// ```
     fn parse_base64(self) -> Base64Parser<Self::IntoIter>;
 }
@@ -307,7 +355,8 @@ impl<I: DoubleEndedIterator<Item = Vec<[u8; 3]>> + ExactSizeIterator<Item = Vec<
             return None;
         }
 
-        // Iterator should always be divisible by its size, so anything not cleanly divisible is the first item
+        // Iterator should always be divisible by its size, so anything not cleanly
+        // divisible is the first item
         let mut chunk = if self.iterator.len().is_multiple_of(size_of::<u16>()) {
             [(); size_of::<u16>()].map(|_| self.iterator.next().unwrap())
         } else {
@@ -391,7 +440,8 @@ impl<I: DoubleEndedIterator<Item = Vec<[u8; 3]>> + ExactSizeIterator<Item = Vec<
             return None;
         }
 
-        // Iterator should always be divisible by its size, so anything not cleanly divisible is the first item
+        // Iterator should always be divisible by its size, so anything not cleanly
+        // divisible is the first item
         let mut chunk = if self.iterator.len().is_multiple_of(size_of::<u32>()) {
             [(); size_of::<u32>()].map(|_| self.iterator.next().unwrap())
         } else {
@@ -475,7 +525,8 @@ impl<I: DoubleEndedIterator<Item = Vec<[u8; 3]>> + ExactSizeIterator<Item = Vec<
             return None;
         }
 
-        // Iterator should always be divisible by its size, so anything not cleanly divisible is the first item
+        // Iterator should always be divisible by its size, so anything not cleanly
+        // divisible is the first item
         let mut chunk = if self.iterator.len().is_multiple_of(size_of::<u64>()) {
             [(); size_of::<u64>()].map(|_| self.iterator.next().unwrap())
         } else {
@@ -559,7 +610,8 @@ impl<I: DoubleEndedIterator<Item = Vec<[u8; 3]>> + ExactSizeIterator<Item = Vec<
             return None;
         }
 
-        // Iterator should always be divisible by its size, so anything not cleanly divisible is the first item
+        // Iterator should always be divisible by its size, so anything not cleanly
+        // divisible is the first item
         let mut chunk = if self.iterator.len().is_multiple_of(size_of::<u128>()) {
             [(); size_of::<u128>()].map(|_| self.iterator.next().unwrap())
         } else {
@@ -599,7 +651,8 @@ impl<I: DoubleEndedIterator<Item = Vec<[u8; 3]>> + ExactSizeIterator<Item = Vec<
     }
 }
 
-/// Provides and implements the base64 ingestion using the rayon library to speed up processes
+/// Provides and implements the base64 ingestion using the rayon library to
+/// speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
     use std::marker::PhantomData;
@@ -614,8 +667,8 @@ pub mod rayon {
     /// Provides the traits to convert streams of lowercased base64 bytes into
     /// valid combinations of base64
     pub trait ParallelBruteforceBase64: IntoParallelIterator<Item = u8> {
-        /// This will ingest the base64 string and produce all possible combinations
-        /// in an iterative feed.
+        /// This will ingest the base64 string and produce all possible
+        /// combinations in an iterative feed.
         ///
         /// ```rust
         /// use base64_bruteforcer_rs::base64_parser::rayon::ParallelBruteforceBase64;
@@ -624,15 +677,63 @@ pub mod rayon {
         /// let example_base64 = b"sgvsbg8gd29ybgqh";
         ///
         /// let expected: Vec<Vec<[u8; 3]>> = vec![
-        ///     vec![[178, 11, 236], [178, 11, 210], [178, 5, 108], [178, 5, 82], [176, 107, 236], [176, 107, 210], [176, 101, 108], [176, 101, 82], [74, 11, 236], [74, 11, 210], [74, 5, 108], [74, 5, 82], [72, 107, 236], [72, 107, 210], [72, 101, 108], [72, 101, 82]],
-        ///     vec![[110, 15, 32], [110, 15, 6], [108, 111, 32], [108, 111, 6], [6, 15, 32], [6, 15, 6], [4, 111, 32], [4, 111, 6]],
-        ///     vec![[119, 111, 114], [119, 111, 88], [15, 111, 114], [15, 111, 88]],
-        ///     vec![[110, 10, 161], [110, 10, 135], [110, 4, 33], [110, 4, 7], [108, 106, 161], [108, 106, 135], [108, 100, 33], [108, 100, 7], [6, 10, 161], [6, 10, 135], [6, 4, 33], [6, 4, 7], [4, 106, 161], [4, 106, 135], [4, 100, 33], [4, 100, 7]]
+        ///     vec![
+        ///         [178, 11, 236],
+        ///         [178, 11, 210],
+        ///         [178, 5, 108],
+        ///         [178, 5, 82],
+        ///         [176, 107, 236],
+        ///         [176, 107, 210],
+        ///         [176, 101, 108],
+        ///         [176, 101, 82],
+        ///         [74, 11, 236],
+        ///         [74, 11, 210],
+        ///         [74, 5, 108],
+        ///         [74, 5, 82],
+        ///         [72, 107, 236],
+        ///         [72, 107, 210],
+        ///         [72, 101, 108],
+        ///         [72, 101, 82],
+        ///     ],
+        ///     vec![
+        ///         [110, 15, 32],
+        ///         [110, 15, 6],
+        ///         [108, 111, 32],
+        ///         [108, 111, 6],
+        ///         [6, 15, 32],
+        ///         [6, 15, 6],
+        ///         [4, 111, 32],
+        ///         [4, 111, 6],
+        ///     ],
+        ///     vec![
+        ///         [119, 111, 114],
+        ///         [119, 111, 88],
+        ///         [15, 111, 114],
+        ///         [15, 111, 88],
+        ///     ],
+        ///     vec![
+        ///         [110, 10, 161],
+        ///         [110, 10, 135],
+        ///         [110, 4, 33],
+        ///         [110, 4, 7],
+        ///         [108, 106, 161],
+        ///         [108, 106, 135],
+        ///         [108, 100, 33],
+        ///         [108, 100, 7],
+        ///         [6, 10, 161],
+        ///         [6, 10, 135],
+        ///         [6, 4, 33],
+        ///         [6, 4, 7],
+        ///         [4, 106, 161],
+        ///         [4, 106, 135],
+        ///         [4, 100, 33],
+        ///         [4, 100, 7],
+        ///     ],
         /// ];
         ///
         /// let result: Vec<Vec<[u8; 3]>> = example_base64.par_parse_base64().collect();
         ///
-        /// assert!(result == expected, "Expected result {:?} did not match with {:?}", expected, result);
+        /// assert!(result == expected);
         /// ```
         fn par_parse_base64(self) -> ParBase64Parser<Self::Iter>;
     }
@@ -685,7 +786,8 @@ pub mod rayon {
 
         /// Filters out permutations based on a predicate
         ///
-        /// Allows providing a default value if all permutations are filtered out
+        /// Allows providing a default value if all permutations are filtered
+        /// out
         pub fn filter_or<P>(
             self,
             other: [u8; 3],
@@ -768,9 +870,8 @@ pub mod rayon {
     }
 
     impl<P: Producer<Item = u8>> Producer for Base64Producer<P> {
-        type Item = Vec<[u8; 3]>;
-
         type IntoIter = Base64Parser<P::IntoIter>;
+        type Item = Vec<[u8; 3]>;
 
         fn into_iter(self) -> Self::IntoIter {
             Base64Parser {
@@ -808,7 +909,8 @@ pub mod rayon {
     {
         /// Filters out permutations based on a predicate
         ///
-        /// Allows providing a default value if all permutations are filtered out
+        /// Allows providing a default value if all permutations are filtered
+        /// out
         pub fn filter_or<P>(
             self,
             other: [T; 3],
@@ -1025,9 +1127,8 @@ pub mod rayon {
     where
         TypeIter<P::IntoIter, T>: DoubleEndedIterator<Item = Vec<[T; 3]>>,
     {
-        type Item = Vec<[T; 3]>;
-
         type IntoIter = TypeIter<P::IntoIter, T>;
+        type Item = Vec<[T; 3]>;
 
         fn into_iter(self) -> Self::IntoIter {
             TypeIter {
@@ -1063,7 +1164,8 @@ pub mod rayon {
     }
 }
 
-/// Provides and implements base64 ingestion using the [`futures`] library to stream data in
+/// Provides and implements base64 ingestion using the [`futures`] library to
+/// stream data in
 #[cfg(feature = "async")]
 pub mod r#async {
     use std::{
@@ -1083,26 +1185,75 @@ pub mod r#async {
     /// Provides the traits to convert streams of lowercased base64 bytes into
     /// valid combinations of base64
     pub trait StreamBruteforceBase64: Stream<Item = u8> + Sized {
-        /// This will ingest the base64 string and produce all possible combinations
-        /// in an iterative feed.
+        /// This will ingest the base64 string and produce all possible
+        /// combinations in an iterative feed.
         ///
         /// ```rust
         /// # futures::executor::block_on(async {
         /// use base64_bruteforcer_rs::base64_parser::r#async::StreamBruteforceBase64;
-        /// use futures::stream::{iter, StreamExt};
+        /// use futures::stream::{StreamExt, iter};
         ///
         /// let example_base64 = iter(b"sgvsbg8gd29ybgqh".to_owned());
         ///
         /// let expected: Vec<Vec<[u8; 3]>> = vec![
-        ///     vec![[178, 11, 236], [178, 11, 210], [178, 5, 108], [178, 5, 82], [176, 107, 236], [176, 107, 210], [176, 101, 108], [176, 101, 82], [74, 11, 236], [74, 11, 210], [74, 5, 108], [74, 5, 82], [72, 107, 236], [72, 107, 210], [72, 101, 108], [72, 101, 82]],
-        ///     vec![[110, 15, 32], [110, 15, 6], [108, 111, 32], [108, 111, 6], [6, 15, 32], [6, 15, 6], [4, 111, 32], [4, 111, 6]],
-        ///     vec![[119, 111, 114], [119, 111, 88], [15, 111, 114], [15, 111, 88]],
-        ///     vec![[110, 10, 161], [110, 10, 135], [110, 4, 33], [110, 4, 7], [108, 106, 161], [108, 106, 135], [108, 100, 33], [108, 100, 7], [6, 10, 161], [6, 10, 135], [6, 4, 33], [6, 4, 7], [4, 106, 161], [4, 106, 135], [4, 100, 33], [4, 100, 7]]
+        ///     vec![
+        ///         [178, 11, 236],
+        ///         [178, 11, 210],
+        ///         [178, 5, 108],
+        ///         [178, 5, 82],
+        ///         [176, 107, 236],
+        ///         [176, 107, 210],
+        ///         [176, 101, 108],
+        ///         [176, 101, 82],
+        ///         [74, 11, 236],
+        ///         [74, 11, 210],
+        ///         [74, 5, 108],
+        ///         [74, 5, 82],
+        ///         [72, 107, 236],
+        ///         [72, 107, 210],
+        ///         [72, 101, 108],
+        ///         [72, 101, 82],
+        ///     ],
+        ///     vec![
+        ///         [110, 15, 32],
+        ///         [110, 15, 6],
+        ///         [108, 111, 32],
+        ///         [108, 111, 6],
+        ///         [6, 15, 32],
+        ///         [6, 15, 6],
+        ///         [4, 111, 32],
+        ///         [4, 111, 6],
+        ///     ],
+        ///     vec![
+        ///         [119, 111, 114],
+        ///         [119, 111, 88],
+        ///         [15, 111, 114],
+        ///         [15, 111, 88],
+        ///     ],
+        ///     vec![
+        ///         [110, 10, 161],
+        ///         [110, 10, 135],
+        ///         [110, 4, 33],
+        ///         [110, 4, 7],
+        ///         [108, 106, 161],
+        ///         [108, 106, 135],
+        ///         [108, 100, 33],
+        ///         [108, 100, 7],
+        ///         [6, 10, 161],
+        ///         [6, 10, 135],
+        ///         [6, 4, 33],
+        ///         [6, 4, 7],
+        ///         [4, 106, 161],
+        ///         [4, 106, 135],
+        ///         [4, 100, 33],
+        ///         [4, 100, 7],
+        ///     ],
         /// ];
         ///
-        /// let result: Vec<Vec<[u8; 3]>> = example_base64.parse_base64_stream().collect().await;
+        /// let result: Vec<Vec<[u8; 3]>> =
+        ///     example_base64.parse_base64_stream().collect().await;
         ///
-        /// assert!(result == expected, "Expected result {:?} did not match with {:?}", expected, result);
+        /// assert!(result == expected);
         /// # });
         /// ```
         fn parse_base64_stream(self) -> Base64ParsingStream<Self>;
@@ -1158,7 +1309,8 @@ pub mod r#async {
 
         /// Filters out permutations based on a predicate
         ///
-        /// Allows providing a default value if all permutations are filtered out
+        /// Allows providing a default value if all permutations are filtered
+        /// out
         pub fn filter_or<P>(
             self,
             other: [u8; 3],
@@ -1258,7 +1410,8 @@ pub mod r#async {
     {
         /// Filters out permutations based on a predicate
         ///
-        /// Allows providing a default value if all permutations are filtered out
+        /// Allows providing a default value if all permutations are filtered
+        /// out
         pub fn filter_or<P>(
             self,
             other: [T; 3],

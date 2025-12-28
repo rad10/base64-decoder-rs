@@ -99,11 +99,17 @@ pub trait VariationLen {
 /// primarily in printing strings
 ///
 /// ```rust
-/// use base64_bruteforcer_rs::phrase::schema::variation::{Variation, VariationDebug};
 /// use std::sync::Arc;
 ///
+/// use base64_bruteforcer_rs::phrase::schema::variation::{
+///     Variation, VariationDebug,
+/// };
+///
 /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+///     .into_iter()
+///     .map(ToOwned::to_owned)
+///     .map(Arc::new)
+///     .collect();
 ///
 /// // Collecting debugging string
 /// let debugging_string = string_variation.debug_string().unwrap();
@@ -112,18 +118,24 @@ pub trait VariationLen {
 /// ```
 pub trait VariationDebug: Display {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error>;
-    /// Provides a better debugging string for [`Variation`]s that helps in keeping
-    /// track of each of the base64 pieces being interpreted.
+    /// Provides a better debugging string for [`Variation`]s that helps in
+    /// keeping track of each of the base64 pieces being interpreted.
     ///
     /// This is done by placing '|' characters between each chunk which is used
     /// primarily in printing strings
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::variation::{Variation, VariationDebug};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::variation::{
+    ///     Variation, VariationDebug,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// // Collecting debugging string
     /// let debugging_string = string_variation.debug_string().unwrap();
@@ -154,11 +166,17 @@ impl<T> Variation<T> {
     /// enough variation starts to impact memory
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::schema::variation::{Variation, VariationDebug};
     /// use std::sync::Arc;
     ///
+    /// use base64_bruteforcer_rs::phrase::schema::variation::{
+    ///     Variation, VariationDebug,
+    /// };
+    ///
     /// let string_variation: Variation<String> = ["Hel", "lo ", "Wor", "ld!"]
-    ///     .into_iter().map(ToOwned::to_owned).map(Arc::new).collect();
+    ///     .into_iter()
+    ///     .map(ToOwned::to_owned)
+    ///     .map(Arc::new)
+    ///     .collect();
     ///
     /// assert!(string_variation.num_of_refs() == 4);
     /// ```
@@ -647,7 +665,8 @@ mod tests {
         }
 
         #[test]
-        /// Tests that [`Variation<Vec<u8>>`] produces a correct [`VariationValue`]
+        /// Tests that [`Variation<Vec<u8>>`] produces a correct
+        /// [`VariationValue`]
         fn test_vec_u8_value() {
             assert!(
                 VARIATION_VEC_U8.value() == b"Hello World!".to_vec(),
@@ -656,7 +675,8 @@ mod tests {
         }
 
         #[test]
-        /// Tests that [`Variation<[u8; 3]>`] will provide a correct [`VariationValue`]
+        /// Tests that [`Variation<[u8; 3]>`] will provide a correct
+        /// [`VariationValue`]
         fn test_arr_u8_value() {
             assert!(VARIATION_ARR_U8.value() == b"Hello World!".to_vec())
         }
@@ -714,7 +734,8 @@ mod tests {
         fn test_arr_u8_short_as_string() {
             assert!(
                 VARIATION_ARR_U8_SHORT.to_string() == "Hello World! This is my string!",
-                "The created string [{}] does not match the given string [Hello World! This is my string!]",
+                "The created string [{}] does not match the given string [Hello World! This is my \
+                 string!]",
                 VARIATION_ARR_U8_SHORT.to_string().escape_debug()
             );
         }

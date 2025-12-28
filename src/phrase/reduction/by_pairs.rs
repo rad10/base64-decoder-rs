@@ -1,6 +1,6 @@
-//! This module implements the reduce by pairs algorithm. This is meant to reduce
-//! permutations by checking snippets by pairs rather than checking the entire
-//! phrase at once.
+//! This module implements the reduce by pairs algorithm. This is meant to
+//! reduce permutations by checking snippets by pairs rather than checking the
+//! entire phrase at once.
 //!
 //! The math behind this:
 //!
@@ -17,7 +17,8 @@
 //! F\left(n\right)=\frac{n}{2}
 //! ```
 //!
-//! The function [`reduce_pairs`] can be represented with `f` and a resulting permutations `P`
+//! The function [`reduce_pairs`] can be represented with `f` and a resulting
+//! permutations `P`
 //!
 //! ```math
 //! f(n_b,m)=\prod_{i=1}^{\sfrac{n}{m}}{F\left(C\left(\left[n_{\left(i-1\right)m}\cdotsn_{im}\right]\right)\right)}
@@ -50,8 +51,16 @@ pub trait ReducePairs<S: SnippetExt<Item = Self::Item>>: SnippetExt {
     /// Default is 2
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::ReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::{
+    ///     reduction::by_pairs::ReducePairs,
+    ///     schema::{
+    ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+    ///         variation::Variation,
+    ///     },
+    ///     validation::validate_with_whatlang,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -99,8 +108,7 @@ pub trait ReducePairs<S: SnippetExt<Item = Self::Item>>: SnippetExt {
     /// .collect();
     ///
     /// let reduced_result = phrase_string.reduce_pairs(2, validate_with_whatlang);
-    /// assert!(reduced_result == reduced_phrase,
-    /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+    /// assert!(reduced_result == reduced_phrase);
     /// ```
     fn reduce_pairs<C>(
         &self,
@@ -114,8 +122,8 @@ pub trait ReducePairs<S: SnippetExt<Item = Self::Item>>: SnippetExt {
 /// Provides an interface to reduce an array like structure to through a
 /// validator utilizing pairs
 ///
-/// While this is similar in function to [`ReducePairs`], the reduction functions
-/// take a validator that takes values in bulk
+/// While this is similar in function to [`ReducePairs`], the reduction
+/// functions take a validator that takes values in bulk
 pub trait ReducePairsBulk<'s, S: SnippetExt<Item = Self::Item>, I: ?Sized>: SnippetExt {
     /// Takes a given schema and attempts to reduce valid choices by
     /// matching pairs. Select how many pairs will be compared at once.
@@ -176,10 +184,12 @@ where
             Some(0..2) | None => 2, // Overwrite any stupid options with the
             // default
             Some(n) if n < self.len_sections() => n,
-            Some(_) => self.len_sections(), // If the number is bigger than the
-                                            // source itself, just use the length of the source. Its not
-                                            // recommended to ever do this since its no different than checking
-                                            // line by line.
+            Some(_) => self.len_sections(), /* If the number is bigger than the
+                                             * source itself, just use the length of the source.
+                                             * Its not
+                                             * recommended to ever do this since its no different
+                                             * than checking
+                                             * line by line. */
         };
 
         // Take and operate on each pair in the schema. Will either combine a
@@ -233,7 +243,8 @@ where
     }
 }
 
-/// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
+/// Provides and implements the reduction trait using the [`rayon`] library to
+/// speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
     use std::{fmt::Debug, sync::Arc};
@@ -262,14 +273,22 @@ pub mod rayon {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
-        /// `confidence_interpreter` is used to determine if a combined string is
-        /// closer to your objective than another.
+        /// `confidence_interpreter` is used to determine if a combined string
+        /// is closer to your objective than another.
         ///
         /// Default is 2
         ///
         /// ```rust
-        /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::rayon::ParReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
         /// use std::sync::Arc;
+        ///
+        /// use base64_bruteforcer_rs::phrase::{
+        ///     reduction::by_pairs::rayon::ParReducePairs,
+        ///     schema::{
+        ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+        ///         variation::Variation,
+        ///     },
+        ///     validation::validate_with_whatlang,
+        /// };
         ///
         /// let phrase_string: Phrase<String> = [
         ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -317,8 +336,7 @@ pub mod rayon {
         /// .collect();
         ///
         /// let reduced_result = phrase_string.reduce_pairs(2, validate_with_whatlang);
-        /// assert!(reduced_result == reduced_phrase,
-        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// assert!(reduced_result == reduced_phrase);
         /// ```
         fn reduce_pairs<C>(
             &self,
@@ -333,8 +351,8 @@ pub mod rayon {
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
-    /// While this is similar in function to [`ReducePairs`], the reduction functions
-    /// take a validator that takes values in bulk
+    /// While this is similar in function to [`ReducePairs`], the reduction
+    /// functions take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
     pub trait ParReducePairsBulk<'s, S: ThreadedSnippetExt<Item = Self::Item>, I: ?Sized>:
@@ -345,9 +363,9 @@ pub mod rayon {
         /// Takes a given schema and attempts to reduce valid choices by
         /// matching pairs. Select how many pairs will be compared at once.
         ///
-        /// `confidence_interpreter` Takes an iterator of all possible permutations
-        /// and produces an iterator of equal size with the confidence values of
-        /// each string
+        /// `confidence_interpreter` Takes an iterator of all possible
+        /// permutations and produces an iterator of equal size with the
+        /// confidence values of each string
         ///
         /// Default is 2
         fn bulk_reduce_pairs<C>(
@@ -412,10 +430,12 @@ pub mod rayon {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
                 Some(n) if n < self.len_sections() => n,
-                Some(_) => self.len_sections(), // If the number is bigger than the
-                                                // source itself, just use the length of the source. Its not
-                                                // recommended to ever do this since its no different than checking
-                                                // line by line.
+                Some(_) => self.len_sections(), /* If the number is bigger than the
+                                                 * source itself, just use the length of the
+                                                 * source. Its not
+                                                 * recommended to ever do this since its no
+                                                 * different than checking
+                                                 * line by line. */
             };
 
             // Take and operate on each pair in the schema. Will either combine a
@@ -459,8 +479,8 @@ pub mod rayon {
 
                         // Go with originals if new choices aren't preferred
                         // aka if its empty or the permutations is the same as it originally was
-                        if !combined[0].is_empty()
-                            && (combined[0].len() as f64) < pairs.permutations()
+                        if !combined[0].is_empty() &&
+                            (combined[0].len() as f64) < pairs.permutations()
                         {
                             combined
                         } else {
@@ -473,7 +493,8 @@ pub mod rayon {
     }
 }
 
-/// Provides and implements the reduction trait using the [`futures`] library to speed up processes
+/// Provides and implements the reduction trait using the [`futures`] library to
+/// speed up processes
 #[cfg(feature = "async")]
 pub mod r#async {
     use std::{fmt::Debug, sync::Arc};
@@ -509,8 +530,16 @@ pub mod r#async {
         ///
         /// ```rust
         /// # futures::executor::block_on(async {
-        /// use base64_bruteforcer_rs::phrase::{reduction::by_pairs::r#async::AsyncReducePairs, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
         /// use std::sync::Arc;
+        ///
+        /// use base64_bruteforcer_rs::phrase::{
+        ///     reduction::by_pairs::r#async::AsyncReducePairs,
+        ///     schema::{
+        ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+        ///         variation::Variation,
+        ///     },
+        ///     validation::validate_with_whatlang,
+        /// };
         ///
         /// let phrase_string: Phrase<String> = [
         ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -557,9 +586,10 @@ pub mod r#async {
         /// })
         /// .collect();
         ///
-        /// let reduced_result = phrase_string.reduce_pairs(2, async move |line| validate_with_whatlang(&line)).await;
-        /// assert!(reduced_result == reduced_phrase,
-        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// let reduced_result = phrase_string
+        ///     .reduce_pairs(2, async move |line| validate_with_whatlang(&line))
+        ///     .await;
+        /// assert!(reduced_result == reduced_phrase);
         /// # });
         /// ```
         async fn reduce_pairs<C, Fut>(
@@ -575,8 +605,8 @@ pub mod r#async {
     /// Provides an interface to reduce an array like structure to through a
     /// validator utilizing pairs
     ///
-    /// While this is similar in function to [`ReducePairs`], the reduction functions
-    /// take a validator that takes values in bulk
+    /// While this is similar in function to [`ReducePairs`], the reduction
+    /// functions take a validator that takes values in bulk
     ///
     /// [`ReducePairs`]: super::ReducePairs
     #[async_trait]
@@ -660,10 +690,12 @@ pub mod r#async {
                 Some(0..2) | None => 2, // Overwrite any stupid options with the
                 // default
                 Some(n) if n < self.len_sections() => n,
-                Some(_) => self.len_sections(), // If the number is bigger than the
-                                                // source itself, just use the length of the source. Its not
-                                                // recommended to ever do this since its no different than checking
-                                                // line by line.
+                Some(_) => self.len_sections(), /* If the number is bigger than the
+                                                 * source itself, just use the length of the
+                                                 * source. Its not
+                                                 * recommended to ever do this since its no
+                                                 * different than checking
+                                                 * line by line. */
             };
 
             let conf_link = &confidence_interpreter;

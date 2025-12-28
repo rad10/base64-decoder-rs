@@ -1,6 +1,7 @@
 //! This module handles all functions used to analyze data and determine
 //! validity and accuracy in terms of what the user desires
 
+#[cfg(feature = "whatlang")]
 use std::fmt::Display;
 
 #[cfg(feature = "whatlang")]

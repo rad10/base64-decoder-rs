@@ -25,21 +25,40 @@ pub trait ReduceReading<'s, B: SnippetExt<Item = Self::Item>>: SnippetExt + Size
     /// more accurate
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::{reduction::by_stream::ReduceReading, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::{
+    ///     reduction::by_stream::ReduceReading,
+    ///     schema::{
+    ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+    ///         variation::Variation,
+    ///     },
+    ///     validation::validate_with_whatlang,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec!["Hel", "HeR"],
     ///     vec!["lo "],
     ///     vec!["Wor", "WoX"],
-    ///     vec!["ld!"]
-    /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+    ///     vec!["ld!"],
+    /// ]
+    /// .into_iter()
+    /// .map(|section| section.into_iter().map(String::from))
+    /// .collect();
     ///
-    /// let reduced_phrase: Phrase<String> = Phrase::from_iter([
-    ///     [["Hel", "lo ", "WoX", "ld!"].into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()]
-    /// ]);
+    /// let reduced_phrase: Phrase<String> =
+    ///     Phrase::from_iter([[["Hel", "lo ", "WoX", "ld!"]
+    ///         .into_iter()
+    ///         .map(ToOwned::to_owned)
+    ///         .map(Arc::new)
+    ///         .collect::<Variation<String>>()]]);
     ///
-    /// assert!(phrase_string.reduce_reading(|snip| snip.len_sections() == 3, validate_with_whatlang) == reduced_phrase);
+    /// assert!(
+    ///     phrase_string.reduce_reading(
+    ///         |snip| snip.len_sections() == 3,
+    ///         validate_with_whatlang
+    ///     ) == reduced_phrase
+    /// );
     /// ```
     fn reduce_reading<L, C>(&'s self, base_determination: L, confidence_interpreter: C) -> Self
     where
@@ -63,8 +82,8 @@ where
 
         // Start by collecting a reasonable base to build the rest of the
         // string on
-        while !base_determination(final_buffer.borrow())
-            && let Some(section) = section_stream.next()
+        while !base_determination(final_buffer.borrow()) &&
+            let Some(section) = section_stream.next()
         {
             final_buffer.sections.push(section.to_vec());
         }
@@ -124,8 +143,8 @@ pub mod r#async {
     };
 
     #[async_trait]
-    /// Provides an interface to reduce a snippet by reading in data one section at
-    /// a time in a streaming format
+    /// Provides an interface to reduce a snippet by reading in data one section
+    /// at a time in a streaming format
     pub trait AsyncReduceReadings<'s, B: ThreadedSnippetExt<Item = Self::Item>>:
         ThreadedSnippetExt + Sized
     where
@@ -134,26 +153,48 @@ pub mod r#async {
         /// Reduces a phrases by validating a phrase from left to right. in an
         /// asynchronous stream
         ///
-        /// This is slower than other methods but comes with the benefit of being
-        /// more accurate
+        /// This is slower than other methods but comes with the benefit of
+        /// being more accurate
         ///
         /// ```rust
         /// # futures::executor::block_on(async {
-        /// use base64_bruteforcer_rs::phrase::{reduction::by_stream::r#async::AsyncReduceReadings, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
         /// use std::sync::Arc;
+        ///
+        /// use base64_bruteforcer_rs::phrase::{
+        ///     reduction::by_stream::r#async::AsyncReduceReadings,
+        ///     schema::{
+        ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+        ///         variation::Variation,
+        ///     },
+        ///     validation::validate_with_whatlang,
+        /// };
         ///
         /// let phrase_string: Phrase<String> = [
         ///     vec!["Hel", "HeR"],
         ///     vec!["lo "],
         ///     vec!["Wor", "WoX"],
-        ///     vec!["ld!"]
-        /// ].into_iter().map(|section| section.into_iter().map(String::from)).collect();
+        ///     vec!["ld!"],
+        /// ]
+        /// .into_iter()
+        /// .map(|section| section.into_iter().map(String::from))
+        /// .collect();
         ///
-        /// let reduced_phrase: Phrase<String> = Phrase::from_iter([
-        ///     [["Hel", "lo ", "WoX", "ld!"].into_iter().map(ToOwned::to_owned).map(Arc::new).collect::<Variation<String>>()]
-        /// ]);
+        /// let reduced_phrase: Phrase<String> =
+        ///     Phrase::from_iter([[["Hel", "lo ", "WoX", "ld!"]
+        ///         .into_iter()
+        ///         .map(ToOwned::to_owned)
+        ///         .map(Arc::new)
+        ///         .collect::<Variation<String>>()]]);
         ///
-        /// assert!(phrase_string.reduce_reading(async |snip| snip.len_sections() == 3, async |line| validate_with_whatlang(&line)).await == reduced_phrase);
+        /// assert!(
+        ///     phrase_string
+        ///         .reduce_reading(
+        ///             async |snip| snip.len_sections() == 3,
+        ///             async |line| validate_with_whatlang(&line)
+        ///         )
+        ///         .await ==
+        ///         reduced_phrase
+        /// );
         /// # });
         /// ```
         async fn reduce_reading<L, C, LFut, CFut>(
@@ -191,8 +232,8 @@ pub mod r#async {
 
             // Start by collecting a reasonable base to build the rest of the
             // string on
-            while !base_determination(final_buffer.clone()).await
-                && let Some(section) = section_stream.next().await
+            while !base_determination(final_buffer.clone()).await &&
+                let Some(section) = section_stream.next().await
             {
                 final_buffer.extend(vec![section.to_vec()]);
             }

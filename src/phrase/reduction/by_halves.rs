@@ -15,7 +15,8 @@
 //! F\left(n\right)=\sqrt{n}
 //! ```
 //!
-//! The function [`reduce_halves`] can be represented with `f` and a resulting permutations `P`
+//! The function [`reduce_halves`] can be represented with `f` and a resulting
+//! permutations `P`
 //!
 //! ```math
 //! f\left(S,P\right)=\left\{\begin{matrix}C\left(S\right)\leP=F\left(C\left(S\right)\right)\\C\left(S\right)>P=f\left(S\left[0\cdots\frac{S}{2}\right],P\right)\timesf\left(S\left[\frac{S}{2}\cdotsS\right],P\right)\\\end{matrix}\right.
@@ -50,8 +51,16 @@ pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>, B: SnippetExt<Item 
     /// to decide the size of the section.
     ///
     /// ```rust
-    /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::ReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
     /// use std::sync::Arc;
+    ///
+    /// use base64_bruteforcer_rs::phrase::{
+    ///     reduction::by_halves::ReduceHalves,
+    ///     schema::{
+    ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+    ///         variation::Variation,
+    ///     },
+    ///     validation::validate_with_whatlang,
+    /// };
     ///
     /// let phrase_string: Phrase<String> = [
     ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -99,7 +108,8 @@ pub trait ReduceHalves<'s, S: SnippetExt<Item = Self::Item>, B: SnippetExt<Item 
     /// })
     /// .collect();
     ///
-    /// let reduced_result = phrase_string.reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
+    /// let reduced_result = phrase_string
+    ///     .reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
     /// assert!(reduced_result == reduced_phrase);
     /// ```
     fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
@@ -197,7 +207,8 @@ where
         if phrase_snippet.len_sections() < 2 {
             phrase_snippet.sections.to_vec()
         }
-        // If the permutations within the sections is less than limit, then start crunching through them
+        // If the permutations within the sections is less than limit, then start crunching through
+        // them
         else if size_checker(&phrase_snippet) {
             let snippet_permutation = phrase_snippet.permutations();
             vec![
@@ -232,7 +243,8 @@ where
     }
 }
 
-/// Provides and implements the reduction trait using the [`rayon`] library to speed up processes
+/// Provides and implements the reduction trait using the [`rayon`] library to
+/// speed up processes
 #[cfg(feature = "rayon")]
 pub mod rayon {
     use std::{borrow::Borrow, fmt::Debug, sync::Arc};
@@ -267,8 +279,16 @@ pub mod rayon {
         /// to decide the size of the section.
         ///
         /// ```rust
-        /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::rayon::ParReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
         /// use std::sync::Arc;
+        ///
+        /// use base64_bruteforcer_rs::phrase::{
+        ///     reduction::by_halves::rayon::ParReduceHalves,
+        ///     schema::{
+        ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+        ///         variation::Variation,
+        ///     },
+        ///     validation::validate_with_whatlang,
+        /// };
         ///
         /// let phrase_string: Phrase<String> = [
         ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -316,7 +336,8 @@ pub mod rayon {
         /// })
         /// .collect();
         ///
-        /// let reduced_result = phrase_string.reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
+        /// let reduced_result = phrase_string
+        ///     .reduce_halves(|base| base.len_sections() <= 3, validate_with_whatlang);
         /// assert!(reduced_result == reduced_phrase);
         /// ```
         fn reduce_halves<L, C>(&'s self, size_checker: L, confidence_interpreter: C) -> Self
@@ -416,7 +437,8 @@ pub mod rayon {
             if phrase_snippet.len_sections() < 2 {
                 phrase_snippet.sections.to_vec()
             }
-            // If the permutations within the sections is less than limit, then start crunching through them
+            // If the permutations within the sections is less than limit, then start crunching
+            // through them
             else if size_checker(&phrase_snippet) {
                 let snippet_permutation = phrase_snippet.permutations();
                 vec![
@@ -454,7 +476,8 @@ pub mod rayon {
     }
 }
 
-/// Provides and implements the reduction trait using the asynchronous calls for smoother processing
+/// Provides and implements the reduction trait using the asynchronous calls for
+/// smoother processing
 #[cfg(feature = "async")]
 pub mod r#async {
     use std::{fmt::Debug, sync::Arc};
@@ -485,8 +508,16 @@ pub mod r#async {
         ///
         /// ```rust
         /// # futures::executor::block_on(async {
-        /// use base64_bruteforcer_rs::phrase::{reduction::by_halves::r#async::AsyncReduceHalves, schema::{snippet::{BorrowedSnippet, Phrase, SnippetExt}, variation::Variation}, validation::validate_with_whatlang};
         /// use std::sync::Arc;
+        ///
+        /// use base64_bruteforcer_rs::phrase::{
+        ///     reduction::by_halves::r#async::AsyncReduceHalves,
+        ///     schema::{
+        ///         snippet::{BorrowedSnippet, Phrase, SnippetExt},
+        ///         variation::Variation,
+        ///     },
+        ///     validation::validate_with_whatlang,
+        /// };
         ///
         /// let phrase_string: Phrase<String> = [
         ///     vec![vec!["Hel"], vec!["HeR"]],
@@ -534,9 +565,13 @@ pub mod r#async {
         /// })
         /// .collect();
         ///
-        /// let reduced_result = phrase_string.reduce_halves(async |base| base.len_sections() <= 3, async move |line| validate_with_whatlang(&line)).await;
-        /// assert!(reduced_result == reduced_phrase,
-        /// "Reduced function {:?} did not match reduced result {:?}", reduced_result, reduced_phrase);
+        /// let reduced_result = phrase_string
+        ///     .reduce_halves(
+        ///         async |base| base.len_sections() <= 3,
+        ///         async move |line| validate_with_whatlang(&line),
+        ///     )
+        ///     .await;
+        /// assert!(reduced_result == reduced_phrase);
         /// # });
         /// ```
         async fn reduce_halves<'b, L, C, FutBool, Fut>(
@@ -693,7 +728,8 @@ pub mod r#async {
             if phrase_snippet.len_sections() < 2 {
                 phrase_snippet.sections.to_vec()
             }
-            // If the permutations within the sections is less than limit, then start crunching through them
+            // If the permutations within the sections is less than limit, then start crunching
+            // through them
             else if size_checker(phrase_snippet.clone()).await {
                 let snippet_permutation = phrase_snippet.permutations();
                 vec![

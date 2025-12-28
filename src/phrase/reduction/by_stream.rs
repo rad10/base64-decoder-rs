@@ -194,7 +194,7 @@ pub mod r#async {
             while !base_determination(final_buffer.clone()).await
                 && let Some(section) = section_stream.next().await
             {
-                final_buffer.sections.push(section.to_vec());
+                final_buffer.extend(vec![section.to_vec()]);
             }
 
             // Reducing base to its reasonable values

@@ -1199,12 +1199,15 @@ impl TryFrom<Phrase<Vec<u32>>> for Phrase<Vec<char>> {
     }
 }
 
-impl<'a, 'b, T> From<&'a BorrowedSnippet<T>> for Snippet<'b, T>
-where
-    'a: 'b,
-{
+impl<'a: 'b, 'b, T> From<&'a BorrowedSnippet<T>> for Snippet<'b, T> {
     fn from(value: &'a BorrowedSnippet<T>) -> Self {
         Self { sections: value }
+    }
+}
+
+impl<'a: 'b, 'b, T> From<Snippet<'a, T>> for &'b BorrowedSnippet<T> {
+    fn from(value: Snippet<'a, T>) -> Self {
+        value.sections
     }
 }
 
@@ -1225,12 +1228,36 @@ where
     }
 }
 
+impl<T> From<Phrase<T>> for Vec<Section<T>> {
+    fn from(value: Phrase<T>) -> Self {
+        value.sections
+    }
+}
+
+impl<T> From<Snippet<'_, T>> for Vec<Section<T>>
+where
+    Section<T>: Clone,
+{
+    fn from(value: Snippet<'_, T>) -> Self {
+        value.sections.to_vec()
+    }
+}
+
 impl<U: SnippetExt> PartialEq<U> for Phrase<U::Item>
 where
     U::Item: PartialEq,
 {
     fn eq(&self, other: &U) -> bool {
         Borrow::<BorrowedSnippet<U::Item>>::borrow(self) == other.borrow()
+    }
+}
+
+impl<A: IntoIterator<Item = Variation<T>>, T> Extend<A> for Phrase<T> {
+    fn extend<U: IntoIterator<Item = A>>(&mut self, iter: U) {
+        self.sections.extend(
+            iter.into_iter()
+                .map(move |section| section.into_iter().collect::<Section<T>>()),
+        );
     }
 }
 

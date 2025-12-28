@@ -3,8 +3,6 @@ use std::io::{Error, ErrorKind};
 
 #[cfg(not(feature = "rayon"))]
 use base64_bruteforcer_rs::base64_parser::FromBase64ToAscii;
-#[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::base64_parser::rayon::FromParBase64ToAscii;
 #[cfg(feature = "ollama")]
 use base64_bruteforcer_rs::phrase::{
     schema::variation::Variation, validation::ollama::OllamaHandler,
@@ -19,7 +17,14 @@ use base64_bruteforcer_rs::phrase::{
 use clap::Parser;
 use futures::StreamExt;
 #[cfg(feature = "rayon")]
-use rayon::iter::IntoParallelIterator;
+use rayon::{
+    iter::{IntoParallelRefIterator, ParallelIterator},
+    str::ParallelString,
+};
+
+#[cfg(feature = "rayon")]
+use base64_bruteforcer_rs::base64_parser::rayon::ParallelBruteforceBase64;
+
 use tokio::io::{AsyncWriteExt, Stdout};
 use tool_args::ToolArgs;
 
@@ -60,18 +65,39 @@ async fn main() -> Result<(), String> {
             );
         }
     } else {
+        #[cfg(not(feature = "rayon"))]
+        let b64_phrase = b64_string.into_bytes().parse_base64();
+        #[cfg(feature = "rayon")]
+        let b64_phrase = b64_string.into_bytes().par_parse_base64();
+
         match parser.format {
             UtfFormat::UTF8 => {
                 #[cfg(not(feature = "rayon"))]
                 {
-                    Phrase::<Vec<u8>>::parse_base64(b64_string.into_bytes(), None).into()
+                    b64_phrase
+                        .filter_or([b'?'; 3], |piece| {
+                            piece
+                                .iter()
+                                // Checking each character to ensure they're readable characters
+                                .all(|c| {
+                                    c.is_ascii_graphic() || c.is_ascii_whitespace() || *c == b'\0'
+                                })
+                        })
+                        .collect::<Phrase<[u8; 3]>>()
+                        .into()
                 }
                 #[cfg(feature = "rayon")]
                 tokio_rayon::spawn(move || {
-                    Phrase::<Vec<u8>>::par_parse_base64(
-                        b64_string.into_bytes().into_par_iter(),
-                        None,
-                    )
+                    b64_phrase
+                        .filter_or([b'?'; 3], |piece| {
+                            piece
+                                .par_iter()
+                                // Checking each character to ensure they're readable characters
+                                .all(|c| {
+                                    c.is_ascii_graphic() || c.is_ascii_whitespace() || *c == b'\0'
+                                })
+                        })
+                        .collect::<Phrase<[u8; 3]>>()
                 })
                 .await
                 .into()
@@ -79,14 +105,36 @@ async fn main() -> Result<(), String> {
             UtfFormat::UTF16LE => {
                 #[cfg(not(feature = "rayon"))]
                 {
-                    Phrase::<Vec<u16>>::parse_base64(b64_string.into_bytes(), None).into()
+                    b64_phrase
+                        .convert_to_type::<u16>()
+                        .filter_or([b'?'.into(); 3], |piece| {
+                            // Need to check if it can convert into a string
+                            String::from_utf16(piece).is_ok_and(move |s| {
+                                s.chars()
+                                    // Checking each character to ensure they're readable characters
+                                    .all(move |c| {
+                                        c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                                    })
+                            })
+                        })
+                        .collect::<Phrase<[u16; 3]>>()
+                        .into()
                 }
                 #[cfg(feature = "rayon")]
                 tokio_rayon::spawn(move || {
-                    Phrase::<Vec<u16>>::par_parse_base64(
-                        b64_string.into_bytes().into_par_iter(),
-                        None,
-                    )
+                    b64_phrase
+                        .convert_to_type::<u16>()
+                        .filter_or([b'?'.into(); 3], |piece| {
+                            // Need to check if it can convert into a string
+                            String::from_utf16(piece).is_ok_and(move |s| {
+                                s.par_chars()
+                                    // Checking each character to ensure they're readable characters
+                                    .all(move |c| {
+                                        c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                                    })
+                            })
+                        })
+                        .collect::<Phrase<[u16; 3]>>()
                 })
                 .await
                 .into()
@@ -94,14 +142,34 @@ async fn main() -> Result<(), String> {
             UtfFormat::UTF32LE => {
                 #[cfg(not(feature = "rayon"))]
                 {
-                    Phrase::<Vec<u32>>::parse_base64(b64_string.into_bytes(), None).into()
+                    b64_phrase
+                        .convert_to_type::<u32>()
+                        .filter_or([b'?'.into(); 3], |piece| {
+                            // Check to see if this can be converted into a string
+                            piece.iter().all(|u| {
+                                // Fail if any of the u32 are invalid unicode
+                                char::from_u32(*u).is_some_and(move |c| {
+                                    c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                                })
+                            })
+                        })
+                        .collect::<Phrase<[u32; 3]>>()
+                        .into()
                 }
                 #[cfg(feature = "rayon")]
                 tokio_rayon::spawn(move || {
-                    Phrase::<Vec<u32>>::par_parse_base64(
-                        b64_string.into_bytes().into_par_iter(),
-                        None,
-                    )
+                    b64_phrase
+                        .convert_to_type::<u32>()
+                        .filter_or([b'?'.into(); 3], |piece| {
+                            // Check to see if this can be converted into a string
+                            piece.par_iter().all(|u| {
+                                // Fail if any of the u32 are invalid unicode
+                                char::from_u32(*u).is_some_and(move |c| {
+                                    c.is_ascii_graphic() || c.is_ascii_whitespace() || c == '\0'
+                                })
+                            })
+                        })
+                        .collect::<Phrase<[u32; 3]>>()
                 })
                 .await
                 .into()

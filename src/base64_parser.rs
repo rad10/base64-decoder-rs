@@ -80,6 +80,42 @@ pub trait BruteforceBase64: IntoIterator<Item = u8> {
     fn parse_base64(self) -> Base64Parser<Self::IntoIter>;
 }
 
+/// Provides filtering options for base64 permutations
+pub trait PermutationFilter<T>: Iterator<Item = Vec<[T; 3]>> {
+    /// Filters out permutations based on a predicate
+    ///
+    /// Allows providing a default value if all permutations are filtered out
+    fn filter_or<P>(
+        self,
+        other: [T; 3],
+        predicate: P,
+    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
+    where
+        Self: Sized,
+        [T; 3]: Clone,
+        P: FnMut(&[T; 3]) -> bool + Clone,
+    {
+        self.map(move |variants| filter_variants(variants, other.clone(), predicate.clone()))
+    }
+
+    /// Filters out permutations based on a predicate
+    ///
+    /// Uses default value if all permutations are filtered out
+    fn filter_or_default<P>(
+        self,
+        predicate: P,
+    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
+    where
+        Self: Sized,
+        T: Copy + Default,
+        P: FnMut(&[T; 3]) -> bool + Clone,
+    {
+        self.map(move |variants| filter_variants(variants, [T::default(); 3], predicate.clone()))
+    }
+}
+
+impl<U, T> PermutationFilter<T> for U where U: Iterator<Item = Vec<[T; 3]>> {}
+
 impl<U: IntoIterator<Item = u8>> BruteforceBase64 for U {
     fn parse_base64(self) -> Base64Parser<Self::IntoIter> {
         Base64Parser {
@@ -134,33 +170,6 @@ impl<I: Iterator<Item = u8>> Base64Parser<I> {
             _phantom: PhantomData,
             iterator: self,
         }
-    }
-
-    /// Filters out permutations based on a predicate
-    ///
-    /// Allows providing a default value if all permutations are filtered out
-    pub fn filter_or<P>(
-        self,
-        other: [u8; 3],
-        predicate: P,
-    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
-    where
-        P: FnMut(&[u8; 3]) -> bool + Clone,
-    {
-        self.map(move |variants| filter_variants(variants, other, predicate.clone()))
-    }
-
-    /// Filters out permutations based on a predicate
-    ///
-    /// Uses default value if all permutations are filtered out
-    pub fn filter_or_default<P>(
-        self,
-        predicate: P,
-    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
-    where
-        P: FnMut(&[u8; 3]) -> bool + Clone,
-    {
-        self.map(move |variants| filter_variants(variants, [u8::default(); 3], predicate.clone()))
     }
 }
 
@@ -263,42 +272,6 @@ impl<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator<Item = u8>> DoubleEnd
                 })
                 .collect(),
         )
-    }
-}
-
-impl<I: Iterator<Item = Vec<[u8; 3]>>, T> TypeIter<I, T>
-where
-    TypeIter<I, T>: Iterator<Item = Vec<[T; 3]>>,
-{
-    /// Filters out permutations based on a predicate
-    ///
-    /// Allows providing a default value if all permutations are filtered out
-    pub fn filter_or<P>(
-        self,
-        other: [T; 3],
-        predicate: P,
-    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
-    where
-        Self: Sized,
-        [T; 3]: Clone,
-        P: FnMut(&[T; 3]) -> bool + Clone,
-    {
-        self.map(move |variants| filter_variants(variants, other.clone(), predicate.clone()))
-    }
-
-    /// Filters out permutations based on a predicate
-    ///
-    /// Uses default value if all permutations are filtered out
-    pub fn filter_or_default<P>(
-        self,
-        predicate: P,
-    ) -> std::iter::Map<Self, impl FnMut(<Self as Iterator>::Item) -> <Self as Iterator>::Item>
-    where
-        Self: Sized,
-        T: Copy + Default,
-        P: FnMut(&[T; 3]) -> bool + Clone,
-    {
-        self.map(move |variants| filter_variants(variants, [T::default(); 3], predicate.clone()))
     }
 }
 
@@ -738,6 +711,49 @@ pub mod rayon {
         fn par_parse_base64(self) -> ParBase64Parser<Self::Iter>;
     }
 
+    /// Provides filtering options for the Base64 Permutation iterators
+    pub trait ParPermutationFilter<T>: ParallelIterator<Item = Vec<[T; 3]>> {
+        /// Filters out permutations based on a predicate
+        ///
+        /// Allows providing a default value if all permutations are filtered
+        /// out
+        fn filter_or<P>(
+            self,
+            other: [T; 3],
+            predicate: P,
+        ) -> rayon::iter::Map<
+            Self,
+            impl Fn(<Self as ParallelIterator>::Item) -> <Self as ParallelIterator>::Item,
+        >
+        where
+            Self: Sized + Send,
+            T: Send + Sync,
+            [T; 3]: Clone,
+            P: Fn(&[T; 3]) -> bool + Clone + Send + Sync,
+        {
+            self.map(move |variants| filter_variants(variants, other.clone(), predicate.clone()))
+        }
+
+        /// Filters out permutations based on a predicate
+        ///
+        /// Uses default value if all permutations are filtered out
+        fn filter_or_default<P>(
+            self,
+            predicate: P,
+        ) -> rayon::iter::Map<
+            Self,
+            impl Fn(<Self as ParallelIterator>::Item) -> <Self as ParallelIterator>::Item,
+        >
+        where
+            T: Copy + Default + Send,
+            P: Fn(&[T; 3]) -> bool + Clone + Send + Sync,
+        {
+            self.map(move |variants| {
+                filter_variants(variants, [T::default(); 3], predicate.clone())
+            })
+        }
+    }
+
     impl<U: IntoParallelIterator<Item = u8>> ParallelBruteforceBase64 for U {
         fn par_parse_base64(self) -> ParBase64Parser<Self::Iter> {
             ParBase64Parser {
@@ -745,6 +761,8 @@ pub mod rayon {
             }
         }
     }
+
+    impl<U, T> ParPermutationFilter<T> for U where U: ParallelIterator<Item = Vec<[T; 3]>> {}
 
     /// Iterative Parser for combined lowercased base64
     #[derive(Clone, Debug)]
@@ -782,38 +800,6 @@ pub mod rayon {
                 _phantom: PhantomData,
                 iterator: self,
             }
-        }
-
-        /// Filters out permutations based on a predicate
-        ///
-        /// Allows providing a default value if all permutations are filtered
-        /// out
-        pub fn filter_or<P>(
-            self,
-            other: [u8; 3],
-            predicate: P,
-        ) -> rayon::iter::Map<Self, impl Fn(Vec<[u8; 3]>) -> Vec<[u8; 3]> + Send + Sync>
-        where
-            P: Fn(&[u8; 3]) -> bool + Clone + Send + Sync,
-            Vec<[u8; 3]>: Send,
-            Self: Sized + Send,
-        {
-            self.map(move |variants| filter_variants(variants, other, predicate.clone()))
-        }
-
-        /// Filters out permutations based on a predicate
-        ///
-        /// Uses default value if all permutations are filtered out
-        pub fn filter_or_default<P>(
-            self,
-            predicate: P,
-        ) -> rayon::iter::Map<Self, impl Fn(Vec<[u8; 3]>) -> Vec<[u8; 3]>>
-        where
-            P: Fn(&[u8; 3]) -> bool + Clone + Send + Sync,
-        {
-            self.map(move |variants| {
-                filter_variants(variants, [u8::default(); 3], predicate.clone())
-            })
         }
     }
 
@@ -900,51 +886,6 @@ pub mod rayon {
 
         fn max_len(&self) -> usize {
             self.base.max_len() / 4
-        }
-    }
-
-    impl<I: ParallelIterator<Item = Vec<[u8; 3]>>, T> ParTypeIter<I, T>
-    where
-        ParTypeIter<I, T>: ParallelIterator<Item = Vec<[T; 3]>>,
-    {
-        /// Filters out permutations based on a predicate
-        ///
-        /// Allows providing a default value if all permutations are filtered
-        /// out
-        pub fn filter_or<P>(
-            self,
-            other: [T; 3],
-            predicate: P,
-        ) -> rayon::iter::Map<
-            Self,
-            impl Fn(<Self as ParallelIterator>::Item) -> <Self as ParallelIterator>::Item,
-        >
-        where
-            Self: Sized + Send,
-            T: Send + Sync,
-            [T; 3]: Clone,
-            P: Fn(&[T; 3]) -> bool + Clone + Send + Sync,
-        {
-            self.map(move |variants| filter_variants(variants, other.clone(), predicate.clone()))
-        }
-
-        /// Filters out permutations based on a predicate
-        ///
-        /// Uses default value if all permutations are filtered out
-        pub fn filter_or_default<P>(
-            self,
-            predicate: P,
-        ) -> rayon::iter::Map<
-            Self,
-            impl Fn(<Self as ParallelIterator>::Item) -> <Self as ParallelIterator>::Item,
-        >
-        where
-            T: Copy + Default + Send,
-            P: Fn(&[T; 3]) -> bool + Clone + Send + Sync,
-        {
-            self.map(move |variants| {
-                filter_variants(variants, [T::default(); 3], predicate.clone())
-            })
         }
     }
 
@@ -1306,38 +1247,6 @@ pub mod r#async {
                 inner_collection: Vec::with_capacity(size_of::<T>()),
             }
         }
-
-        /// Filters out permutations based on a predicate
-        ///
-        /// Allows providing a default value if all permutations are filtered
-        /// out
-        pub fn filter_or<P>(
-            self,
-            other: [u8; 3],
-            predicate: P,
-        ) -> futures::stream::Map<Self, impl FnMut(<Self as Stream>::Item) -> <Self as Stream>::Item>
-        where
-            Self: Sized,
-            P: FnMut(&[u8; 3]) -> bool + Clone,
-        {
-            self.map(move |variants| filter_variants(variants, other, predicate.clone()))
-        }
-
-        /// Filters out permutations based on a predicate
-        ///
-        /// Uses default value if all permutations are filtered out
-        pub fn filter_or_default<P>(
-            self,
-            predicate: P,
-        ) -> futures::stream::Map<Self, impl FnMut(<Self as Stream>::Item) -> <Self as Stream>::Item>
-        where
-            Self: Sized,
-            P: FnMut(&[u8; 3]) -> bool + Clone,
-        {
-            self.map(move |variants| {
-                filter_variants(variants, [u8::default(); 3], predicate.clone())
-            })
-        }
     }
 
     impl<S: Stream<Item = u8>> Stream for Base64ParsingStream<S> {
@@ -1404,15 +1313,13 @@ pub mod r#async {
         }
     }
 
-    impl<S: Stream<Item = Vec<[u8; 3]>>, T> TypeStream<S, T>
-    where
-        TypeStream<S, T>: Stream<Item = Vec<[T; 3]>>,
-    {
+    /// Provides filtering for permutation streams
+    pub trait PermutationFilterStream<T>: Stream<Item = Vec<[T; 3]>> {
         /// Filters out permutations based on a predicate
         ///
         /// Allows providing a default value if all permutations are filtered
         /// out
-        pub fn filter_or<P>(
+        fn filter_or<P>(
             self,
             other: [T; 3],
             predicate: P,
@@ -1428,7 +1335,7 @@ pub mod r#async {
         /// Filters out permutations based on a predicate
         ///
         /// Uses default value if all permutations are filtered out
-        pub fn filter_or_default<P>(
+        fn filter_or_default<P>(
             self,
             predicate: P,
         ) -> futures::stream::Map<Self, impl FnMut(<Self as Stream>::Item) -> <Self as Stream>::Item>
@@ -1442,6 +1349,8 @@ pub mod r#async {
             })
         }
     }
+
+    impl<T, U> PermutationFilterStream<T> for U where U: Stream<Item = Vec<[T; 3]>> {}
 
     impl<S: Stream<Item = Vec<[u8; 3]>>> Stream for TypeStream<S, u16> {
         type Item = Vec<[u16; 3]>;

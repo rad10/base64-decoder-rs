@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 use std::io::{Error, ErrorKind};
 
-#[cfg(not(feature = "rayon"))]
-use base64_bruteforcer_rs::base64_parser::BruteforceBase64;
 #[cfg(feature = "rayon")]
-use base64_bruteforcer_rs::base64_parser::rayon::ParallelBruteforceBase64;
+use base64_bruteforcer_rs::base64_parser::rayon::{ParPermutationFilter, ParallelBruteforceBase64};
+#[cfg(not(feature = "rayon"))]
+use base64_bruteforcer_rs::base64_parser::{BruteforceBase64, PermutationFilter};
 use base64_bruteforcer_rs::phrase::schema::{
     snippet::{ConvertString, Permutation, Phrase, SnippetExt},
     variation::VariationDebug,

@@ -1,3 +1,6 @@
+![minimum rustc 1.88](https://img.shields.io/badge/rustc-1.88+-red.svg)
+[![build status](https://github.com/rad10/base64-decoder-rs/workflows/master/badge.svg)](https://github.com/rad10/base64-decoder-rs/actions)
+
 # Base64 Decoder
 
 This small project is designed to brute-force a base64 string that has been
